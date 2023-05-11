@@ -66,10 +66,7 @@ FSM_Event parser_run(VT_Parser *vtp)
     for (Parser *p = &vtp->inner; p_peek(p);) {
         uchar input = p_next(p);
         switch (vtp->fsm.state) {
-        case STATE_DISPATCH: {
-            p_rollback(p);
-            goto DISPATCH;
-        }
+        case STATE_DISPATCH: { p_rollback(p); } goto DISPATCH;
         case STATE_GROUND: {
             switch (input) {
             case 0x1b: transition(vtp, STATE_ESC);          break;
@@ -78,9 +75,19 @@ FSM_Event parser_run(VT_Parser *vtp)
             default: {
                 if (IS_CTRL(input))
                     dispatch(vtp, EVENT_CTRL);
-                else dispatch(vtp, EVENT_PRINT);
+                else if (utf8decoder_check(&vtp->utf8_decoder, input))
+                    vtp->utf8_decoder.need_input
+                        ? transition(vtp, STATE_UTF8_DECODE)
+                        : dispatch(vtp, EVENT_PRINT);
             } break;
             }
+        } break;
+        case STATE_UTF8_DECODE: {
+            if (vtp->utf8_decoder.need_input)
+                utf8decoder_feed(&vtp->utf8_decoder, input);
+            // 'need_input' gets updated in the function call above.
+            if (!vtp->utf8_decoder.need_input)
+                dispatch(vtp, EVENT_PRINT);
         } break;
         case STATE_ESC: {
             switch (input) {
@@ -249,15 +256,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
     switch (vtp->fsm.event = event) {
     case EVENT_NOOP: break;
     case EVENT_PRINT: {
-        p_rollback(&vtp->inner);
-        uint32_t len = utf8_decode(p_buffer(&vtp->inner), p_buflen(&vtp->inner),
-                                   &vtp->payload.value);
-        if (!len) {                                    // invalid or incomplete.
-            if (p_buflen(&vtp->inner) >= UTF8_MAX_LEN) // invalid.
-                len++;
-            vtp->fsm.event = EVENT_NOOP;
-        }
-        p_advance_by(&vtp->inner, len);
+        vtp->payload.value = vtp->utf8_decoder.rune;
     } break;
     case EVENT_CTRL: prepare_ctrl(vtp, &vtp->payload.ctrl); break;
     case EVENT_ESC:  prepare_esc(vtp, &vtp->payload.esc);   break;

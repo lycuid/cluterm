@@ -114,13 +114,15 @@ EXPORT void action_csi(Terminal *term, CSI_Payload *csi)
             } break;
 #define GetColor(e, color)                                                     \
     {                                                                          \
-        __typeof__(*(e)->param) *param = (e)->param;                           \
-        __typeof__((e)->nparam) nparam = (e)->nparam;                          \
-        if (i + 1 < nparam) {                                                  \
-            if (i + 1 < nparam && param[i + 1] == 5 && i + 2 < nparam)         \
-                color = color256(param[i + 2]), i += 2;                        \
-            else if (i + 1 < nparam && param[i + 1] == 2 && i + 4 < nparam)    \
-                color = RGB(param[i + 2], param[i + 3], param[i + 4]), i += 4; \
+        if (i + 1 < (e)->nparam) {                                             \
+            if ((e)->param[i + 1] == 5 && i + 2 < (e)->nparam) {               \
+                color = color256((e)->param[i + 2]);                           \
+                i += 2;                                                        \
+            } else if ((e)->param[i + 1] == 2 && i + 4 < (e)->nparam) {        \
+                color = RGB((e)->param[i + 2], (e)->param[i + 3],              \
+                        (e)->param[i + 4]);                                    \
+                i += 4;                                                        \
+            }                                                                  \
         }                                                                      \
     }
             case 38: { GetColor(csi, attrs->fg); } break;

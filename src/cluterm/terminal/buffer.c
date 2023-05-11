@@ -42,9 +42,9 @@ void buffer_init(TerminalBuffer *b, int rows, int cols, int history)
     /* Cursor. */ {
         b->cursor.y = b->cursor.x = b->cursor.state = 0;
         b->cursor.cell.attrs = (CellAttributes)DEFAULT_CELL_ATTRS;
-        /* utf8_decode("▇", UTF8_MAX_LEN, &b->cursor.cell.value); */
-        /* utf8_decode("_", UTF8_MAX_LEN, &b->cursor.cell.value); */
-        utf8_decode("|", UTF8_MAX_LEN, &b->cursor.cell.value);
+        /* b->cursor.cell.value = utf8_decode("▇"); */
+        /* b->cursor.cell.value = utf8_decode("_"); */
+        b->cursor.cell.value = utf8_decode("|");
     }
     /* Charset */ {
         memset(b->charset, CS_USASCII, sizeof(b->charset));

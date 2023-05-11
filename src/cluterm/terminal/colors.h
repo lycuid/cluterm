@@ -82,7 +82,7 @@ __attribute__((unused)) static inline Rgb color256(uint8_t n)
         for (int i = 0, m = n - 16; m; m /= 6)
             color |= color256_mask[m % 6] << (8 * i++);
     else if (n >= 232)
-        n = 8 + (n - 232) * 10, color = (n << 16) | (n << 8) | n;
+        n = (n - 232) * 10 + 8, color = (n << 16) | (n << 8) | n;
     return color;
 }
 

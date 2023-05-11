@@ -62,15 +62,14 @@ static inline void term_create_page(Terminal *term)
 }
 
 // clang-format off
-static inline uint32_t term_write(Terminal *term, char *stream, uint32_t slen)
+static inline void term_write(Terminal *term, char *stream, uint32_t slen)
 {
     VT_Parser *vt_parser = &term->vt_parser;
     TerminalBuffer *b    = ACTIVE_BUFFER(term);
     parser_feed(vt_parser, stream, slen);
     for (FSM_Event fsm_event;;) {
         switch (fsm_event = parser_run(vt_parser)) {
-        case EVENT_NOOP:
-            goto DONE;
+        case EVENT_NOOP: goto DONE;
         case EVENT_PRINT: {
             term_putc(term, (Cell)CELL(vt_parser->payload.value, b->cell_attrs));
         } break;
@@ -81,23 +80,19 @@ static inline uint32_t term_write(Terminal *term, char *stream, uint32_t slen)
         }
     }
 DONE:
-    return parser_consumed(vt_parser);
+    return;
 } // clang-format on
 
 #define STREAM_SIZE 4096
 void term_start(Terminal *term)
 {
     SDL_Event e;
-    ssize_t n       = 0;
-    uint32_t offset = 0;
+    ssize_t n    = 0;
     char repr[2] = {0, 0}, stream[STREAM_SIZE] = {0};
 
-    gfx->clear(), gfx->display();
-    while (running) {
-        if ((n = tty_read(&term->tty, stream + offset, STREAM_SIZE - offset)) >
-            0) {
-            if ((offset = n - term_write(term, stream, n)) > 0)
-                memmove(stream, stream + n - offset, offset);
+    for (gfx->clear(), gfx->display(); running;) {
+        if ((n = tty_read(&term->tty, stream, STREAM_SIZE)) > 0) {
+            term_write(term, stream, n);
             gfx->clear(), term_create_page(term), gfx->display();
         }
         while (SDL_PollEvent(&e)) {

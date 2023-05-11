@@ -1,6 +1,6 @@
 bugs:
 -----
-  [ ] braille doesn't render, (even though it is present in the font).
+  [ ] braille doesn't render, (even though it is found in the font).
 
 todo:
 -----
@@ -13,4 +13,4 @@ todo:
 less important todos:
 ---------------------
   [ ] improve the extremely slow and naive rendering.
-  [ ] smooth tile rendering.
+  [ ] smooth/sharp tile rendering.

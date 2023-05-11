@@ -20,6 +20,7 @@ typedef struct Parser {
 typedef enum FSM_State {
     STATE_DISPATCH = 0,
     STATE_GROUND,
+    STATE_UTF8_DECODE,
     STATE_ESC,
 
     STATE_ESC_INTERM,
@@ -68,6 +69,7 @@ typedef union VT_Payload {
 
 typedef struct VT_Parser {
     Parser inner;
+    UTF8_Decoder utf8_decoder;
     char seq[1 << 6];
     int nseq;
     VT_Payload payload;
@@ -80,7 +82,6 @@ typedef struct VT_Parser {
 void parser_init(VT_Parser *);
 void parser_feed(VT_Parser *, const char *, uint32_t);
 FSM_Event parser_run(VT_Parser *);
-#define parser_consumed(vtp) ((vtp)->inner.cursor)
 
 #endif
 // vim:fdm=marker

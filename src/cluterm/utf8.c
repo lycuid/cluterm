@@ -1,5 +1,6 @@
 #include "utf8.h"
 #include <cluterm/utils.h>
+#include <stdbool.h>
 #include <string.h>
 
 #define MASK(ch, m)        (((uint8_t)(ch)) & ~utf8_mask[m])
@@ -17,21 +18,35 @@ static const uint8_t
 
 static const uint32_t utf8_max[] = {0, 0x7f, 0x7ff, 0xffff, 0x10ffff};
 
-static inline uint32_t utf8_len(char ch)
+static inline uint32_t utf8_len(char byte)
 {
     for (uint32_t i = 1; i <= UTF8_MAX_LEN; ++i)
-        if ((ch & utf8_mask[i]) == utf8_byte[i])
+        if ((byte & utf8_mask[i]) == utf8_byte[i])
             return i;
     return 0;
 }
 
-uint32_t utf8_decode(const char *s, uint32_t slen, Rune *rune)
+bool utf8decoder_check(UTF8_Decoder *decoder, char byte)
 {
-    uint32_t len = s ? utf8_len(*s) : 0, i = 1;
-    if (len *= BETWEEN(len, 1, slen))
-        for (*rune = MASK(s[0], len); i < len; i++)
-            *rune = (*rune << 6) | MASK(s[i], 0);
-    return len;
+    decoder->rune = byte;
+    if ((decoder->need_input = utf8_len(byte)))
+        decoder->rune = MASK(byte, decoder->need_input);
+    return --decoder->need_input >= 0;
+}
+
+void utf8decoder_feed(UTF8_Decoder *decoder, char byte)
+{
+    --decoder->need_input;
+    decoder->rune = (decoder->rune << 6) | MASK(byte, 0);
+}
+
+Rune utf8_decode(const char *str)
+{
+    UTF8_Decoder decoder;
+    if (utf8decoder_check(&decoder, *str++))
+        while (decoder.need_input)
+            utf8decoder_feed(&decoder, *str++);
+    return decoder.rune;
 }
 
 void utf8_encode(Rune rune, UTF8_String str)

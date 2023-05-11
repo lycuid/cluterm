@@ -54,7 +54,7 @@ static inline Cell translate(Cell cell, Charset charset)
             "│", "≤", "≥", "π", "≠", "£", "·",      // x - ~
         };
         if (BETWEEN(cell.value, 0x41, 0x7e) && vt100_0[cell.value - 0x41])
-            utf8_decode(vt100_0[cell.value - 0x41], UTF8_MAX_LEN, &cell.value);
+            cell.value = utf8_decode(vt100_0[cell.value - 0x41]);
     } break;
     }
     return cell;
