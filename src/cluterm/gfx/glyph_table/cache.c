@@ -91,16 +91,16 @@ Value *gcache_get(GlyphCache *gcache, Key key)
 
 void gcache_put(GlyphCache *gcache, Key key, Value *value)
 {
-    Node *node = ht_get(gcache, key);
+    Node *node = node_detach(gcache, ht_get(gcache, key));
     if (!node) {
         if (!gcache->capacity)
             node_free(gcache, gcache->stale);
         node      = malloc(sizeof(Node));
         node->key = key, node->next = node->prev = NULL;
         ht_set(gcache, key, node);
-        node_attach(gcache, node);
     }
     node->value = value;
+    node_attach(gcache, node);
 }
 
 void gcache_clear(GlyphCache *gcache)
