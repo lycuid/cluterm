@@ -18,10 +18,10 @@ static const Rgb DefaultFG = 0xefefef;
 static const Rgb DefaultBG = 0x090909;
 
 __attribute__((unused)) static const char *Fonts[4] = {
-    [FontRegular]    = "Terminess Nerd Font-13",
-    [FontBold]       = "Terminess Nerd Font-13:bold",
-    [FontItalic]     = "Terminess Nerd Font-13:italic",
-    [FontBoldItalic] = "Terminess Nerd Font-13:bold:italic",
+    [FontRegular]    = "FiraCode Nerd Font-12",
+    [FontBold]       = "FiraCode Nerd Font-12:bold",
+    [FontItalic]     = "FiraCode Nerd Font-12:italic",
+    [FontBoldItalic] = "FiraCode Nerd Font-12:bold:italic",
 };
 
 #endif

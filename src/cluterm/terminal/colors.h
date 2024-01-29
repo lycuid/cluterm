@@ -8,7 +8,7 @@
 
 static const int color256_mask[] = {0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff};
 static const Rgb color16[]       = {
-#if defined(COLORS_VGA)
+#if defined(_COLORS__VGA)
     [0] = RGB(0, 0, 0),
     [1] = RGB(170, 0, 0),
     [2] = RGB(0, 170, 0),
@@ -26,7 +26,7 @@ static const Rgb color16[]       = {
     [13] = RGB(255, 85, 255),
     [14] = RGB(85, 255, 255),
     [15] = RGB(255, 255, 255)
-#elif defined(COLORS_TERMINAL_APP)
+#elif defined(_COLORS__TERMINAL_APP)
     [0] = RGB(0, 0, 0),
     [1] = RGB(194, 54, 33),
     [2] = RGB(37, 188, 36),
@@ -44,7 +44,7 @@ static const Rgb color16[]       = {
     [13] = RGB(249, 53, 248),
     [14] = RGB(20, 240, 240),
     [15] = RGB(235, 235, 235)
-#elif defined(COLORS_VSCODE)
+#elif defined(_COLORS__VSCODE)
     [0] = RGB(0, 0, 0),
     [1] = RGB(205, 49, 49),
     [2] = RGB(13, 188, 121),

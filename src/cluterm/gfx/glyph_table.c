@@ -63,7 +63,7 @@ static inline void glyph_create(Glyph *glyph, Cell cell)
 void glyph_table_init(void)
 {
     for (int i = PRINTABLE_ASCII_START; i <= PRINTABLE_ASCII_END; ++i)
-        glyph_create(&printable_ascii_glyph[i], (Cell)DEFAULT_CELL(i));
+        glyph_create(&printable_ascii_glyph[i], DEFAULT_CELL(i));
     glyph_cache = (GlyphCache){.capacity      = (30 * 104) + (1 << 5),
                                .key_eq        = cell_eq,
                                .value_dealloc = glyph_dealloc};
@@ -75,11 +75,13 @@ const Glyph *glyph_table_request(Cell cell)
     CacheHit++;
     if (IS_DEFAULT_CELL(&cell) && IS_PRINTABLE_ASCII(cell.value))
         return &printable_ascii_glyph[cell.value];
+
     Glyph *glyph = gcache_get(&glyph_cache, cell);
     if (!glyph) {
         glyph_create((glyph = calloc(1, sizeof(Glyph))), cell);
         gcache_put(&glyph_cache, cell, glyph);
     }
+
     return glyph;
 }
 

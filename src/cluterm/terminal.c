@@ -61,7 +61,6 @@ static inline void term_create_page(Terminal *term)
     }
 }
 
-// clang-format off
 static inline void term_write(Terminal *term, char *stream, uint32_t slen)
 {
     VT_Parser *vt_parser = &term->vt_parser;
@@ -71,24 +70,114 @@ static inline void term_write(Terminal *term, char *stream, uint32_t slen)
         switch (fsm_event = parser_run(vt_parser)) {
         case EVENT_NOOP: goto DONE;
         case EVENT_PRINT: {
-            term_putc(term, (Cell)CELL(vt_parser->payload.value, b->cell_attrs));
+            term_putc(term, CELL(vt_parser->payload.value, b->cell_attrs));
         } break;
-        case EVENT_CTRL: action_ctrl(term, &vt_parser->payload.ctrl);   break;
-        case EVENT_ESC:  action_esc(term, &vt_parser->payload.esc);     break;
-        case EVENT_CSI:  action_csi(term, &vt_parser->payload.csi);     break;
-        case EVENT_OSC:  action_osc(term, &vt_parser->payload.osc);     break;
+        case EVENT_CTRL: action_ctrl(term, &vt_parser->payload.ctrl); break;
+        case EVENT_ESC: action_esc(term, &vt_parser->payload.esc); break;
+        case EVENT_CSI: action_csi(term, &vt_parser->payload.csi); break;
+        case EVENT_OSC: action_osc(term, &vt_parser->payload.osc); break;
         }
     }
 DONE:
     return;
-} // clang-format on
+}
+
+static inline void handle_keydown(Terminal *term, SDL_Event *e)
+{
+    SDL_KeyboardEvent *key = &e->key;
+
+    char repr[2] = {key->keysym.sym, 0};
+    ssize_t n    = 1;
+
+    switch (key->keysym.sym) {
+#define SHIFT(key) ((key)->keysym.mod & KMOD_SHIFT)
+#define CTRL(key)  ((key)->keysym.mod & KMOD_CTRL)
+
+    case SDLK_a: // fallthrough
+    case SDLK_b: // fallthrough
+    case SDLK_c: // fallthrough
+    case SDLK_d: // fallthrough
+    case SDLK_e: // fallthrough
+    case SDLK_f: // fallthrough
+    case SDLK_g: // fallthrough
+    case SDLK_h: // fallthrough
+    case SDLK_i: // fallthrough
+    case SDLK_j: // fallthrough
+    case SDLK_k: // fallthrough
+    case SDLK_l: // fallthrough
+    case SDLK_m: // fallthrough
+    case SDLK_n: // fallthrough
+    case SDLK_o: // fallthrough
+    case SDLK_p: // fallthrough
+    case SDLK_q: // fallthrough
+    case SDLK_r: // fallthrough
+    case SDLK_s: // fallthrough
+    case SDLK_t: // fallthrough
+    case SDLK_u: // fallthrough
+    case SDLK_v: // fallthrough
+    case SDLK_w: // fallthrough
+    case SDLK_x: // fallthrough
+    case SDLK_y: // fallthrough
+    case SDLK_z: repr[0] -= CTRL(key) ? 96 : SHIFT(key) ? 32 : 0; break;
+
+    case SDLK_0: repr[0] = SHIFT(key) ? ')' : repr[0]; break;
+    case SDLK_1: repr[0] = SHIFT(key) ? '!' : repr[0]; break;
+    case SDLK_2: repr[0] = SHIFT(key) ? '@' : repr[0]; break;
+    case SDLK_3: repr[0] = SHIFT(key) ? '#' : repr[0]; break;
+    case SDLK_4: repr[0] = SHIFT(key) ? '$' : repr[0]; break;
+    case SDLK_5: repr[0] = SHIFT(key) ? '%' : repr[0]; break;
+    case SDLK_6: repr[0] = SHIFT(key) ? '^' : repr[0]; break;
+    case SDLK_7: repr[0] = SHIFT(key) ? '&' : repr[0]; break;
+    case SDLK_8: repr[0] = SHIFT(key) ? '*' : repr[0]; break;
+    case SDLK_9: repr[0] = SHIFT(key) ? '(' : repr[0]; break;
+
+    case SDLK_MINUS: repr[0] = SHIFT(key) ? '_' : repr[0]; break;
+    case SDLK_EQUALS: repr[0] = SHIFT(key) ? '+' : repr[0]; break;
+    case SDLK_SEMICOLON: {
+        repr[0] = SHIFT(key) ? ':' : repr[0];
+    } break;
+    case SDLK_QUOTE: repr[0] = SHIFT(key) ? '"' : repr[0]; break;
+    case SDLK_COMMA: repr[0] = SHIFT(key) ? '<' : repr[0]; break;
+    case SDLK_PERIOD: repr[0] = SHIFT(key) ? '>' : repr[0]; break;
+    case SDLK_BACKSLASH: repr[0] = SHIFT(key) ? '|' : repr[0]; break;
+    case SDLK_BACKQUOTE: repr[0] = SHIFT(key) ? '~' : repr[0]; break;
+
+    case SDLK_LEFTBRACKET: /* fallthrough. */
+    case SDLK_RIGHTBRACKET: repr[0] += SHIFT(key) ? 32 : 0; break;
+#undef CTRL
+#undef SHIFT
+
+    case SDLK_UP: tty_write(&term->tty, "\x1b[A", 3); goto DONE;
+    case SDLK_DOWN: tty_write(&term->tty, "\x1b[B", 3); goto DONE;
+    case SDLK_RIGHT: tty_write(&term->tty, "\x1b[C", 3); goto DONE;
+    case SDLK_LEFT: tty_write(&term->tty, "\x1b[D", 3); goto DONE;
+    default: break;
+    }
+    if (BETWEEN(repr[0], 1, 127))
+        tty_write(&term->tty, repr, n);
+DONE:
+    return;
+}
+
+static inline void resize_terminal_window(Terminal *term, int width, int height)
+{
+    int cols = width / gfx->f_width, rows = height / gfx->f_height;
+    TerminalBuffer *b = ACTIVE_BUFFER(term);
+    if (b->rows != rows || b->cols != cols) {
+        buffer_resize(&term->buffer[0], rows, cols);
+        buffer_resize(&term->buffer[1], rows, cols);
+        tty_resize(&term->tty, rows, cols);
+        gfx->clear(), term_create_page(term), gfx->display();
+    }
+}
 
 #define STREAM_SIZE 4096
 void term_start(Terminal *term)
 {
     SDL_Event e;
-    ssize_t n    = 0;
-    char repr[2] = {0, 0}, stream[STREAM_SIZE] = {0};
+    ssize_t n = 0;
+
+    char stream[STREAM_SIZE] = {0};
 
     for (gfx->clear(), gfx->display(); running;) {
         if ((n = tty_read(&term->tty, stream, STREAM_SIZE)) > 0) {
@@ -96,96 +185,26 @@ void term_start(Terminal *term)
             gfx->clear(), term_create_page(term), gfx->display();
         }
         while (SDL_PollEvent(&e)) {
-            switch (e.type) { // clang-format off
-            case SDL_QUIT: { running = 0; } break;
+            switch (e.type) {
+            case SDL_QUIT: running = 0; break;
             case SDL_WINDOWEVENT: {
                 SDL_WindowEvent *win = &e.window;
                 switch (win->event) {
                 case SDL_WINDOWEVENT_EXPOSED: {
-                    gfx->clear(), term_create_page(term), gfx->display();
+                    gfx->clear();
+                    term_create_page(term);
+                    gfx->display();
                 } break;
-                case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    int cols          = win->data1 / gfx->f_width,
-                        rows          = win->data2 / gfx->f_height;
-                    TerminalBuffer *b = ACTIVE_BUFFER(term);
-                    if (b->rows != rows || b->cols != cols) {
-                        buffer_resize(&term->buffer[0], rows, cols);
-                        buffer_resize(&term->buffer[1], rows, cols);
-                        tty_resize(&term->tty, rows, cols);
-                        gfx->clear(), term_create_page(term), gfx->display();
-                    }
-                } break;
+
+                case SDL_WINDOWEVENT_SIZE_CHANGED:
+                    resize_terminal_window(term, win->data1, win->data2);
+                    break;
                 }
             } break;
-            case SDL_KEYDOWN: {
-                SDL_KeyboardEvent *key = &e.key;
-                repr[0] = key->keysym.sym, repr[1] = 0, n = 1;
-                switch (key->keysym.sym) {
-                case SDLK_a: // fallthrough
-                case SDLK_b: // fallthrough
-                case SDLK_c: // fallthrough
-                case SDLK_d: // fallthrough
-                case SDLK_e: // fallthrough
-                case SDLK_f: // fallthrough
-                case SDLK_g: // fallthrough
-                case SDLK_h: // fallthrough
-                case SDLK_i: // fallthrough
-                case SDLK_j: // fallthrough
-                case SDLK_k: // fallthrough
-                case SDLK_l: // fallthrough
-                case SDLK_m: // fallthrough
-                case SDLK_n: // fallthrough
-                case SDLK_o: // fallthrough
-                case SDLK_p: // fallthrough
-                case SDLK_q: // fallthrough
-                case SDLK_r: // fallthrough
-                case SDLK_s: // fallthrough
-                case SDLK_t: // fallthrough
-                case SDLK_u: // fallthrough
-                case SDLK_v: // fallthrough
-                case SDLK_w: // fallthrough
-                case SDLK_x: // fallthrough
-                case SDLK_y: // fallthrough
-                case SDLK_z: {
-                    if (key->keysym.mod & KMOD_CTRL)
-                        repr[0] -= 96;
-                    else if (key->keysym.mod & KMOD_SHIFT)
-                        repr[0] -= 32;
-                } break;
-                case SDLK_0: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = ')'; } break;
-                case SDLK_1: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '!'; } break;
-                case SDLK_2: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '@'; } break;
-                case SDLK_3: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '#'; } break;
-                case SDLK_4: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '$'; } break;
-                case SDLK_5: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '%'; } break;
-                case SDLK_6: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '^'; } break;
-                case SDLK_7: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '&'; } break;
-                case SDLK_8: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '*'; } break;
-                case SDLK_9: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '('; } break;
-                case SDLK_MINUS:     { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '_'; } break;
-                case SDLK_EQUALS:    { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '+'; } break;
-                case SDLK_SEMICOLON: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = ':'; } break;
-                case SDLK_QUOTE:     { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '"'; } break;
-                case SDLK_COMMA:     { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '<'; } break;
-                case SDLK_PERIOD:    { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '>'; } break;
-                case SDLK_BACKSLASH: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '|'; } break;
-                case SDLK_BACKQUOTE: { if (key->keysym.mod & KMOD_SHIFT) repr[0] = '~'; } break;
-                case SDLK_LEFTBRACKET: /* fallthrough. */
-                case SDLK_RIGHTBRACKET: {
-                    if (key->keysym.mod & KMOD_SHIFT)
-                        repr[0] += 32;
-                } break;
-                case SDLK_UP:    { tty_write(&term->tty, "\x1b[A", 3); } continue;
-                case SDLK_DOWN:  { tty_write(&term->tty, "\x1b[B", 3); } continue;
-                case SDLK_RIGHT: { tty_write(&term->tty, "\x1b[C", 3); } continue;
-                case SDLK_LEFT:  { tty_write(&term->tty, "\x1b[D", 3); } continue;
-                default: break;
-                }
-                if (BETWEEN(repr[0], 1, 127))
-                    tty_write(&term->tty, repr, n);
-            }
+
+            case SDL_KEYDOWN: handle_keydown(term, &e); break;
             default: break;
-            } // clang-format on
+            }
         }
         SDL_Delay(1);
     }

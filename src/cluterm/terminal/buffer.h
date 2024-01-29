@@ -24,16 +24,17 @@ typedef struct Cell {
     CellAttributes attrs;
 } Cell;
 
-// clang-format off
-#define DEFAULT_CELL_ATTRS  {.fg = DefaultFG, .bg = DefaultBG, .state = 0x0}
-#define DEFAULT_CELL(val)   CELL(val, DEFAULT_CELL_ATTRS)
-#define CELL(val, _attrs)   {.value = val, .attrs = _attrs}
-#define Color(rgb) (SDL_Color){                                                \
-  .r = ((rgb) >> (8 * 2)) & 0xff,                                              \
-  .g = ((rgb) >> (8 * 1)) & 0xff,                                              \
-  .b = ((rgb) >> (8 * 0)) & 0xff,                                              \
-  .a = 0x0}
-// clang-format on
+#define DEFAULT_CELL_ATTRS                                                     \
+    (CellAttributes) { .fg = DefaultFG, .bg = DefaultBG, .state = 0x0 }
+#define DEFAULT_CELL(val) CELL(val, DEFAULT_CELL_ATTRS)
+#define CELL(val, _attrs)                                                      \
+    (Cell) { .value = val, .attrs = _attrs }
+#define Color(rgb)                                                             \
+    (SDL_Color)                                                                \
+    {                                                                          \
+        .r = ((rgb) >> (8 * 2)) & 0xff, .g = ((rgb) >> (8 * 1)) & 0xff,        \
+        .b = ((rgb) >> (8 * 0)) & 0xff, .a = 0x0,                              \
+    }
 
 typedef Cell *Line;
 

@@ -65,4 +65,5 @@ void tty_destroy(TTY *tty)
 {
     close(tty->ptmx);
     kill(tty->shell, SIGHUP);
+    wait(NULL);
 }

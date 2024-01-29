@@ -13,13 +13,11 @@ typedef struct Parser {
     uint32_t cursor, size;
 } Parser;
 
-// clang-format off
-#define PARSER(str, len) (Parser){.buffer = str, .cursor = 0, .size = len}
-// clang-format on
+#define PARSER(str, len)                                                       \
+    (Parser) { .buffer = str, .cursor = 0, .size = len }
 
 typedef enum FSM_State {
-    STATE_DISPATCH = 0,
-    STATE_GROUND,
+    STATE_GROUND = 0,
     STATE_UTF8_DECODE,
     STATE_ESC,
 
@@ -76,6 +74,7 @@ typedef struct VT_Parser {
     struct {
         FSM_State state;
         FSM_Event event;
+        bool dispatching : 1;
     } fsm;
 } VT_Parser;
 

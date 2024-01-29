@@ -1,6 +1,5 @@
 #include <cluterm/terminal.h>
 #include <cluterm/terminal/actions.h>
-// clang-format off
 
 EXPORT void action_ctrl(Terminal *term, CTRL_Payload *ctrl)
 {
@@ -12,8 +11,8 @@ EXPORT void action_ctrl(Terminal *term, CTRL_Payload *ctrl)
     case C0_HT: term_puttab(term, 1, 1); break;
     case C0_LF: // fallthrough.
     case C0_VT: // fallthrough.
-    case C0_FF: term_linefeed(term);                break;
-    case C0_CR: term_cmoveto(term, cursor->y, 0);   break;
+    case C0_FF: term_linefeed(term); break;
+    case C0_CR: term_cmoveto(term, cursor->y, 0); break;
     case C0_SO: // fallthrough.
     case C0_SI: b->active_charset = 1 - (ctrl->action - C0_SO); break;
     }

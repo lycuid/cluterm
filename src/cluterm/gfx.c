@@ -1,7 +1,7 @@
 #include "gfx.h"
+#include <cluterm/utils.h>
 #include <config.h>
 #include <fontconfig/fontconfig.h>
-#include <utils.h>
 
 void gfx_init(void);
 void gfx_clear(void);
@@ -53,6 +53,29 @@ static inline void load_font(const char *pattern, TTF_Font **font)
     FcPatternDestroy(font_pat);
 }
 
+#define UNPACK(c)                                                              \
+    ((c) >> (8 * 2)) & 0xff, ((c) >> (8 * 1)) & 0xff, ((c) >> (8 * 0)) & 0xff
+
+__attribute__((unused)) static inline void bounding_box(SDL_Rect *box)
+{
+    SDL_SetRenderDrawColor(local.renderer, UNPACK(0x303030), 0);
+    SDL_RenderDrawLines(
+        local.renderer,
+        (SDL_Point[]){{.x = box->x, .y = box->y},
+                      {.x = box->x + box->w, .y = box->y},
+                      {.x = box->x + box->w, .y = box->y + box->h},
+                      {.x = box->x, .y = box->y + box->h},
+                      {.x = box->x, .y = box->y}},
+        5);
+}
+
+static inline void underline(SDL_Rect *rect, Rgb color)
+{
+    SDL_SetRenderDrawColor(local.renderer, UNPACK(color), 0);
+    SDL_RenderDrawLine(local.renderer, rect->x, rect->y + rect->h - 2,
+                       rect->x + rect->w, rect->y + rect->h - 2);
+}
+
 void gfx_init(void)
 {
     tryn(SDL_Init(SDL_INIT_VIDEO));
@@ -85,33 +108,10 @@ void gfx_init(void)
     glyph_table_init(); // glyph table requires fonts to be ready to use.
 }
 
-#define UNPACK(c)                                                              \
-    ((c) >> (8 * 2)) & 0xff, ((c) >> (8 * 1)) & 0xff, ((c) >> (8 * 0)) & 0xff
-
 void gfx_clear(void)
 {
     SDL_SetRenderDrawColor(local.renderer, UNPACK(DefaultBG), 0);
     SDL_RenderClear(local.renderer);
-}
-
-__attribute__((unused)) static inline void bounding_box(SDL_Rect *box)
-{
-    SDL_SetRenderDrawColor(local.renderer, UNPACK(0x303030), 0);
-    SDL_RenderDrawLines(
-        local.renderer,
-        (SDL_Point[]){{.x = box->x, .y = box->y},
-                      {.x = box->x + box->w, .y = box->y},
-                      {.x = box->x + box->w, .y = box->y + box->h},
-                      {.x = box->x, .y = box->y + box->h},
-                      {.x = box->x, .y = box->y}},
-        5);
-}
-
-static inline void underline(SDL_Rect *rect, Rgb color)
-{
-    SDL_SetRenderDrawColor(local.renderer, UNPACK(color), 0);
-    SDL_RenderDrawLine(local.renderer, rect->x, rect->y + rect->h - 2,
-                       rect->x + rect->w, rect->y + rect->h - 2);
 }
 
 void gfx_draw_cell(Cell cell, int y, int x)

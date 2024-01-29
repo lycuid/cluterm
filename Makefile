@@ -1,8 +1,9 @@
 NAME:=cluterm
 VERSION:=0.1.0
 IDIR:=src
-ODIR:=.build
-BIN:=$(ODIR)/bin/$(NAME)
+BUILD:=.build
+ODIR:=$(BUILD)/cache
+BIN:=$(BUILD)/bin/$(NAME)
 SRCS:=$(IDIR)/$(NAME).c                             \
       $(IDIR)/$(NAME)/gfx.c                         \
       $(IDIR)/$(NAME)/gfx/glyph_table.c             \
@@ -44,8 +45,8 @@ $(ODIR)/%.o: $(IDIR)/%.c ;             $(COMPILE)
 
 .PHONY: run debug clean compile_flags fmt
 # run: $(BIN) ; lldb -o run ./$(BIN) 2>.build/cluterm-err.txt
-run: $(BIN) ; ./$(BIN) 2>.build/cluterm-err.txt | tee .build/cluterm-out.txt
+run: $(BIN) ; ./$(BIN) 2>$(BUILD)/cluterm-err.txt | tee $(BUILD)/cluterm-out.txt
 debug: $(BIN) ; lldb $(BIN)
-clean: ; rm -rf $(ODIR)
+clean: ; rm -rf $(BUILD)
 compile_flags: ; @echo $(CFLAGS) | xargs -n1 > compile_flags.txt
 fmt: ; git ls-files | grep -E '\.[ch]$$' | xargs -i clang-format -i {}

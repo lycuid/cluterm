@@ -35,11 +35,10 @@ EXPORT void term_puttab(Terminal *term, int count, int inc)
     b->cursor.x = CLAMP(b->cursor.x, 0, b->cols);
 }
 
-static inline Cell translate(Cell cell, Charset charset)
+EXPORT Cell translate(Cell cell, Charset charset)
 {
     switch (charset) {
-    case CS_USASCII:
-        break;
+    case CS_USASCII: break;
     case CS_LINEGFX: {
         // This table is proudly stolen from st, which was proudly stolen from
         // rxvt.

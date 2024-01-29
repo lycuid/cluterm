@@ -1,7 +1,6 @@
 #include <cluterm/terminal.h>
 #include <cluterm/terminal/actions.h>
 #include <stdbool.h>
-// clang-format off
 
 EXPORT void action_esc(Terminal *term, ESC_Payload *esc)
 {
@@ -20,8 +19,8 @@ EXPORT void action_esc(Terminal *term, ESC_Payload *esc)
     case ESC_CS_USASCII: {
         b->charset[esc->interm[0] - '('] = CS_USASCII;
     } break;
-    case ESC_DECSC: term_cursor_save(term);     break;
-    case ESC_DECRC: term_cursor_restore(term);  break;
+    case ESC_DECSC: term_cursor_save(term); break;
+    case ESC_DECRC: term_cursor_restore(term); break;
     case ESC_UNKNOWN: break;
     }
 }

@@ -39,23 +39,28 @@ void buffer_init(TerminalBuffer *b, int rows, int cols, int history)
 {
     b->rows = rows, b->cols = cols, b->history = history, b->last_row = 0;
     b->scroll_region.start = 0, b->scroll_region.end = b->rows - 1;
+
     /* Cursor. */ {
         b->cursor.y = b->cursor.x = b->cursor.state = 0;
-        b->cursor.cell.attrs = (CellAttributes)DEFAULT_CELL_ATTRS;
+
+        b->cursor.cell.attrs = DEFAULT_CELL_ATTRS;
+
         /* b->cursor.cell.value = utf8_decode("▇"); */
         /* b->cursor.cell.value = utf8_decode("_"); */
         b->cursor.cell.value = utf8_decode("|");
     }
+
     /* Charset */ {
         memset(b->charset, CS_USASCII, sizeof(b->charset));
         b->active_charset = 0;
     }
-    b->cell_attrs = (CellAttributes)DEFAULT_CELL_ATTRS;
+
+    b->cell_attrs = DEFAULT_CELL_ATTRS;
     b->lines      = (Line *)malloc(buffer_lines(b) * sizeof(Line));
     for (int y = 0; y < buffer_lines(b); ++y) {
         b->lines[y] = (Cell *)malloc(b->cols * sizeof(Cell));
         for (int x = 0; x < b->cols; ++x)
-            b->lines[y][x] = (Cell)DEFAULT_CELL(' ');
+            b->lines[y][x] = DEFAULT_CELL(' ');
     }
     buffer_clear(b);
 }
@@ -73,7 +78,7 @@ void buffer_destroy(TerminalBuffer *b)
 void buffer_clearline(TerminalBuffer *b, int y, int x0, int x1)
 {
     for (; x0 <= x1; ++x0)
-        buffer_addcell(b, y, x0, (Cell)CELL(' ', b->cell_attrs));
+        buffer_addcell(b, y, x0, CELL(' ', b->cell_attrs));
 }
 
 void buffer_clearbox(TerminalBuffer *b, int y0, int x0, int y1, int x1)
@@ -115,14 +120,16 @@ void buffer_scrolldown_relative(TerminalBuffer *b, int origin, int lines)
 static inline void buffer_insert_delete_chars(TerminalBuffer *b, int count,
                                               bool insert)
 {
-    Cell *x   = b->lines[tline(b, b->cursor.y)] + b->cursor.x;
-    int dx    = MIN(b->cols - 1 - b->cursor.x, count),
-        shift = b->cols - 1 - b->cursor.x - dx;
-    insert ? memmove(x + dx, x, shift * sizeof(Cell))
-           : memmove(x, x + dx, shift * sizeof(Cell));
-    x += !insert * shift;
+    Cell *xptr = b->lines[tline(b, b->cursor.y)] + b->cursor.x;
+    int dx     = MIN(b->cols - 1 - b->cursor.x, count),
+        shift  = b->cols - 1 - b->cursor.x - dx;
+
+    insert ? memmove(xptr + dx, xptr, shift * sizeof(Cell))
+           : memmove(xptr, xptr + dx, shift * sizeof(Cell));
+
+    xptr += shift * !insert;
     for (int i = 0; i < dx; ++i)
-        *(x + i) = (Cell)CELL(' ', b->cell_attrs); // DebugCell;
+        *(xptr + i) = CELL(' ', b->cell_attrs); // DebugCell;
 }
 
 void buffer_insert_chars(TerminalBuffer *b, int count)
@@ -142,7 +149,7 @@ void buffer_resize(TerminalBuffer *b, int rows, int cols)
     for (int y = 0; y < rows; ++y) {
         lines[y] = malloc(cols * sizeof(Cell));
         for (int x = 0; x < cols; ++x)
-            lines[y][x] = (Cell)DEFAULT_CELL(' ');
+            lines[y][x] = DEFAULT_CELL(' ');
     }
     for (int y = 0; y < MIN(rows, b->rows); ++y) {
         memmove(lines[y], b->lines[tline(b, y)],
