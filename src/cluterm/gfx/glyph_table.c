@@ -7,7 +7,6 @@
 #include <cluterm/utf8.h>
 #include <config.h>
 #include <stdbool.h>
-#include <stdint.h>
 
 #define PRINTABLE_ASCII_START 32
 #define PRINTABLE_ASCII_END   127
@@ -64,7 +63,7 @@ void glyph_table_init(void)
 {
     for (int i = PRINTABLE_ASCII_START; i <= PRINTABLE_ASCII_END; ++i)
         glyph_create(&printable_ascii_glyph[i], DEFAULT_CELL(i));
-    glyph_cache = (GlyphCache){.capacity      = (30 * 104) + (1 << 5),
+    glyph_cache = (GlyphCache){.capacity      = (1 << 8),
                                .key_eq        = cell_eq,
                                .value_dealloc = glyph_dealloc};
     CacheHit = CacheMiss = 0;

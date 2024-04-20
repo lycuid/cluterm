@@ -122,11 +122,19 @@ void gfx_draw_cell(Cell cell, int y, int x)
                           .y = Margin[Top] + local.f_height * y,
                           .w = glyph->w,
                           .h = glyph->h};
+
+    if (cell.attrs.bg != DefaultBG) {
+        SDL_Rect background = {
+            .x = dst.x, .y = dst.y, .w = local.f_width, .h = dst.h};
+        SDL_SetRenderDrawColor(local.renderer, UNPACK(cell.attrs.bg), 0);
+        SDL_RenderFillRect(local.renderer, &background);
+    }
+
     if (glyph->texture)
         SDL_RenderCopy(local.renderer, glyph->texture, &src, &dst);
     if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
         underline(&dst, cell.attrs.fg);
-#if 0
+#if 1
   if (cell.value != ' ')
     bounding_box(&dst);
 #endif

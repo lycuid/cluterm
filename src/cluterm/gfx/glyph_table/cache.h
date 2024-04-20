@@ -4,9 +4,8 @@
 #include <cluterm/gfx/glyph_table.h>
 #include <cluterm/terminal/buffer.h>
 #include <stdbool.h>
-#include <stdlib.h>
 
-#define MAP_MAX_SIZE (1 << 6)
+#define MAP_MAX_SIZE (1 << 4)
 
 typedef Cell Key;
 typedef Glyph Value;

@@ -5,8 +5,6 @@
 #include <cluterm/utf8.h>
 #include <cluterm/vte/parser.h>
 #include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
 
 typedef uint16_t CellState;
 #define CELL_NORMAL    0

@@ -9,28 +9,28 @@
 
 #define PARAM(n) (n < csi->nparam ? MAX(1, csi->param[n]) : 1)
 
-EXPORT void action_csi(Terminal *term, CSI_Payload *csi)
+EXPORT void csi_perform_action(Terminal *term, CSI_Payload *csi)
 {
     TerminalBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor    = &b->cursor;
     switch (csi->action) {
 
-    case CSI_CUU: term_cmove(term, -PARAM(0), 0); break;
-    case CSI_CUD: term_cmove(term, PARAM(0), 0); break;
-    case CSI_CUF: term_cmove(term, 0, PARAM(0)); break;
-    case CSI_CUB: term_cmove(term, 0, -PARAM(0)); break;
-    case CSI_CNL: term_cmove(term, PARAM(0), -cursor->x); break;
-    case CSI_CPL: term_cmove(term, -PARAM(0), -cursor->x); break;
+    case CSI_CUU: move_cursor(term, -PARAM(0), 0); break;
+    case CSI_CUD: move_cursor(term, PARAM(0), 0); break;
+    case CSI_CUF: move_cursor(term, 0, PARAM(0)); break;
+    case CSI_CUB: move_cursor(term, 0, -PARAM(0)); break;
+    case CSI_CNL: move_cursor(term, PARAM(0), -cursor->x); break;
+    case CSI_CPL: move_cursor(term, -PARAM(0), -cursor->x); break;
 
     case CSI_VPA: { // 1-based values (default: 1).
-        term_cmoveto(term, CLAMP(csi->param[0], 1, b->rows) - 1, cursor->x);
+        move_cursor_to(term, CLAMP(csi->param[0], 1, b->rows) - 1, cursor->x);
     } break;
     case CSI_CHA: { // 1-based values (default: 1).
-        term_cmoveto(term, cursor->y, CLAMP(csi->param[0], 1, b->cols) - 1);
+        move_cursor_to(term, cursor->y, CLAMP(csi->param[0], 1, b->cols) - 1);
     } break;
 
-    case CSI_CHT: term_puttab(term, csi->param[0], 1); break;
-    case CSI_CBT: term_puttab(term, csi->param[0], -1); break;
+    case CSI_CHT: put_tab(term, csi->param[0], 1); break;
+    case CSI_CBT: put_tab(term, csi->param[0], -1); break;
 
     case CSI_TBC: {
         switch (csi->param[0]) {
@@ -45,7 +45,7 @@ EXPORT void action_csi(Terminal *term, CSI_Payload *csi)
 
     // 1-based values (default: 1).
     case CSI_HVP: // fallthrough.
-    case CSI_CUP: term_cmoveto(term, PARAM(0) - 1, PARAM(1) - 1); break;
+    case CSI_CUP: move_cursor_to(term, PARAM(0) - 1, PARAM(1) - 1); break;
 
     case CSI_ED: { // cursor position shouldn't change.
         switch (csi->param[0]) {
@@ -118,28 +118,44 @@ EXPORT void action_csi(Terminal *term, CSI_Payload *csi)
                 attrs->bg = DefaultBG;
             } break;
 
-            // clang-format off
-
             // color 0-8 foreground.
-            case 30: case 31: case 32: case 33: case 34: case 35: case 36: case 37: {
-                attrs->fg = color16[csi->param[i] - 30];
-            } break;
+            case 30: // fallthrough.
+            case 31: // fallthrough.
+            case 32: // fallthrough.
+            case 33: // fallthrough.
+            case 34: // fallthrough.
+            case 35: // fallthrough.
+            case 36: // fallthrough.
+            case 37: attrs->fg = color16[csi->param[i] - 30]; break;
             case 39: attrs->fg = DefaultFG; break;
             // color 0-8 background.
-            case 40: case 41: case 42: case 43: case 44: case 45: case 46: case 47: {
-                attrs->bg = color16[csi->param[i] - 40];
-            } break;
+            case 40: // fallthrough.
+            case 41: // fallthrough.
+            case 42: // fallthrough.
+            case 43: // fallthrough.
+            case 44: // fallthrough.
+            case 45: // fallthrough.
+            case 46: // fallthrough.
+            case 47: attrs->bg = color16[csi->param[i] - 40]; break;
             case 49: attrs->bg = DefaultBG; break;
             // color 8-16 foreground.
-            case 90: case 91: case 92: case 93: case 94: case 95: case 96: case 97: {
-                attrs->fg = color16[csi->param[i] - 90 + 8];
-            } break;
+            case 90: // fallthrough.
+            case 91: // fallthrough.
+            case 92: // fallthrough.
+            case 93: // fallthrough.
+            case 94: // fallthrough.
+            case 95: // fallthrough.
+            case 96: // fallthrough.
+            case 97: attrs->fg = color16[csi->param[i] - 90 + 8]; break;
             // color 8-16 background.
-            case 100: case 101: case 102: case 103: case 104: case 105: case 106: case 107: {
-                attrs->bg = color16[csi->param[i] - 100 + 8];
-            } break;
-
-            // clang-format on
+            case 100: // fallthrough.
+            case 101: // fallthrough.
+            case 102: // fallthrough.
+            case 103: // fallthrough.
+            case 104: // fallthrough.
+            case 105: // fallthrough.
+            case 106: // fallthrough.
+            case 107: attrs->bg = color16[csi->param[i] - 100 + 8]; break;
 
 #define GetColor(e, color)                                                     \
     {                                                                          \
@@ -157,13 +173,14 @@ EXPORT void action_csi(Terminal *term, CSI_Payload *csi)
             case 38: GetColor(csi, attrs->fg); break;
             case 48: GetColor(csi, attrs->bg); break;
 #undef GetColor
+
             default: break;
             }
         }
     } break;
 
-    case CSI_SC: term_cursor_save(term); break;
-    case CSI_RC: term_cursor_restore(term); break;
+    case CSI_SC: save_cursor(term); break;
+    case CSI_RC: restore_cursor(term); break;
 
     case CSI_DECSTBM: {
         Region *region = &b->scroll_region;

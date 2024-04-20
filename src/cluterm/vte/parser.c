@@ -3,6 +3,9 @@
 #include <cluterm/utf8.h>
 #include <cluterm/utils.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 // clang-format off
 
 typedef unsigned char uchar;
@@ -17,23 +20,23 @@ typedef unsigned char uchar;
 #define IS_CSI_FINAL(ch) BETWEEN(ch, 0x40, 0x7e)
 #define IS_PRINTABLE(ch) BETWEEN(ch, 0x20, 0x7f)
 
-#define p_buffer(p)          ((p)->buffer + (p)->cursor)
-#define p_buflen(p)          ((p)->size - (p)->cursor)
-#define p_peek(p)            ((p)->cursor < (p)->size ? &(p)->buffer[(p)->cursor] : NULL)
-#define p_next(p)            ((p)->buffer[(p)->cursor++])
-#define p_advance(p)         (p_advance_by(p, 1))
-#define p_advance_by(p, inc) ((p)->cursor += inc)
-#define p_rollback(p)        (--(p)->cursor)
-#define p_consume(p, ch)     ((p)->buffer[(p)->cursor] == ch && p_advance(p) > 0)
+#define r_buffer(r)          ((r)->buffer + (r)->cursor)
+#define r_buflen(r)          ((r)->size - (r)->cursor)
+#define r_peek(r)            ((r)->cursor < (r)->size ? &(r)->buffer[(r)->cursor] : NULL)
+#define r_next(r)            ((r)->buffer[(r)->cursor++])
+#define r_advance(r)         (r_advance_by(r, 1))
+#define r_advance_by(r, inc) ((r)->cursor += inc)
+#define r_rollback(r)        (--(r)->cursor)
+#define r_consume(r, ch)     ((r)->buffer[(r)->cursor] == ch && r_advance(r) > 0)
 
-#define p_consume_param_delim(p) (p_consume((p), ';') || p_consume((p), ':'))
+#define r_consume_param_delim(p) (r_consume((p), ';') || r_consume((p), ':'))
 
-static inline int p_consume_number(Parser *p)
+static inline int r_consume_number(Reader *r)
 {
     int n = 0;
-    for (const char *ch = p_peek(p); ch && BETWEEN(*ch, '0', '9');
-         ch             = p_peek(p))
-        n = n * 10 + p_next(p) - '0';
+    for (const char *ch = r_peek(r); ch && BETWEEN(*ch, '0', '9');
+         ch             = r_peek(r))
+        n = n * 10 + r_next(r) - '0';
     return n;
 }
 
@@ -51,7 +54,7 @@ void parser_init(VT_Parser *vtp) { transition(vtp, STATE_GROUND); }
 
 void parser_feed(VT_Parser *vtp, const char *stream, uint32_t slen)
 {
-    vtp->inner = PARSER(stream, slen);
+    vtp->reader = READER(stream, slen);
 }
 
 FSM_Event parser_run(VT_Parser *vtp)
@@ -60,8 +63,8 @@ FSM_Event parser_run(VT_Parser *vtp)
         transition(vtp, STATE_GROUND);
     vtp->fsm.dispatching = false;
 
-    for (Parser *p = &vtp->inner; !vtp->fsm.dispatching && p_peek(p) != NULL;) {
-        uchar input = p_next(p);
+    for (Reader *r = &vtp->reader; !vtp->fsm.dispatching && r_peek(r) != NULL;) {
+        uchar input = r_next(r);
 
         switch (vtp->fsm.state) {
         case STATE_GROUND: {
@@ -177,13 +180,13 @@ static inline void collect(VT_Parser *vtp, uchar input)
 
 static inline void forward(VT_Parser *vtp, FSM_State state)
 {
-    p_rollback(&vtp->inner);
+    r_rollback(&vtp->reader);
     transition(vtp, state);
 }
 
 static inline void transition(VT_Parser *vtp, FSM_State next_state)
 {
-#if defined(_DEBUG__VTE_PARSER)
+#if defined(DEBUG__VTE_PARSER)
     // {{{
     printf("Tranistion { ");
 #define FROM_REPR(sym)                                                         \
@@ -263,7 +266,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
     case EVENT_OSC:  prepare_osc(vtp, &vtp->payload.osc);   break;
     }
 
-#if defined(_DEBUG__VTE_PARSER)
+#if defined(DEBUG__VTE_PARSER)
     // {{{
     if (true) {
         printf("EMIT { ");
@@ -374,8 +377,8 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
 
 static inline void prepare_ctrl(VT_Parser *vtp, CTRL_Payload *ctrl)
 {
-    Parser *p = &vtp->inner;
-    switch (p_rollback(p), ctrl->value = p_next(p)) {
+    Reader *r = &vtp->reader;
+    switch (r_rollback(r), ctrl->value = r_next(r)) {
     case 0x07: ctrl->action = C0_BEL;       break;
     case 0x08: ctrl->action = C0_BS;        break;
     case 0x09: ctrl->action = C0_HT;        break;
@@ -423,7 +426,7 @@ static inline void prepare_csi(VT_Parser *vtp, CSI_Payload *csi)
 {
     memset(csi->param, csi->nparam = 0, sizeof(csi->param));
 
-    Parser param_p = PARSER(vtp->seq, vtp->nseq - csi->ninterm);
+    Reader param_r = READER(vtp->seq, vtp->nseq - csi->ninterm);
     switch (csi->action = CSI_UNKNOWN, csi->final_byte) {
     case 'A': { csi->action = CSI_CUU; goto ENSURE_SINGLE_PARAM; }
     case 'B': { csi->action = CSI_CUD; goto ENSURE_SINGLE_PARAM; }
@@ -447,7 +450,7 @@ static inline void prepare_csi(VT_Parser *vtp, CSI_Payload *csi)
     case 'X': { csi->action = CSI_ECH; goto ENSURE_SINGLE_PARAM; }
     // CSI Ps C (force single param, default: 0).
 ENSURE_SINGLE_PARAM: {
-        csi->param[csi->nparam++] = p_consume_number(&param_p);
+        csi->param[csi->nparam++] = r_consume_number(&param_r);
     } break;
 
     case 'H': { csi->action = CSI_CUP;     goto ENSURE_DOUBLE_PARAM; }
@@ -455,16 +458,16 @@ ENSURE_SINGLE_PARAM: {
     case 'r': { csi->action = CSI_DECSTBM; goto ENSURE_DOUBLE_PARAM; }
     // CSI Ps ; Ps C (force two delimited params, default: {0, 0}).
 ENSURE_DOUBLE_PARAM: {
-        csi->param[csi->nparam++] = p_consume_number(&param_p);
-        (void)p_consume_param_delim(&param_p);
-        csi->param[csi->nparam++] = p_consume_number(&param_p);
+        csi->param[csi->nparam++] = r_consume_number(&param_r);
+        (void)r_consume_param_delim(&param_r);
+        csi->param[csi->nparam++] = r_consume_number(&param_r);
     } break;
 
     case 'h': { csi->action = CSI_DECSET; goto CHECK_PRIVATE_MODE; }
     case 'l': { csi->action = CSI_DECRST; goto CHECK_PRIVATE_MODE; }
     // CSI ? Pm C (check for private marker, e.g: '?').
 CHECK_PRIVATE_MODE: {
-        if (p_consume(&param_p, '?')) {
+        if (r_consume(&param_r, '?')) {
             goto ENSURE_MULTIPLE_PARAM;
         } else {
             csi->action = CSI_UNKNOWN; goto DONE;
@@ -475,8 +478,8 @@ CHECK_PRIVATE_MODE: {
     // CSI Ps ; Pm C (delimited params).
 ENSURE_MULTIPLE_PARAM: {
         do {
-            csi->param[csi->nparam++] = p_consume_number(&param_p);
-        } while (p_consume_param_delim(&param_p));
+            csi->param[csi->nparam++] = r_consume_number(&param_r);
+        } while (r_consume_param_delim(&param_r));
     } break;
 
     case 's': { csi->action = CSI_SC;      goto DONE; }
@@ -485,7 +488,7 @@ ENSURE_MULTIPLE_PARAM: {
     }
 
 DONE:
-    if (p_buflen(&param_p)) // extra unparsed seq.
+    if (r_buflen(&param_r)) // extra unparsed seq.
         csi->action = CSI_UNKNOWN;
 }
 
