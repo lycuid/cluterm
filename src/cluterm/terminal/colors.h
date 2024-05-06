@@ -2,7 +2,6 @@
 #define __TERMINAL__COLORS_H__
 
 #include <cluterm/utils.h>
-#include <stdint.h>
 
 #define RGB(r, g, b) ((r) << (8 * 2)) | ((g) << (8 * 1)) | ((b) << (8 * 0))
 

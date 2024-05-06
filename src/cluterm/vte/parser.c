@@ -3,6 +3,9 @@
 #include <cluterm/utf8.h>
 #include <cluterm/utils.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 // clang-format off
 
 typedef unsigned char uchar;
@@ -17,23 +20,23 @@ typedef unsigned char uchar;
 #define IS_CSI_FINAL(ch) BETWEEN(ch, 0x40, 0x7e)
 #define IS_PRINTABLE(ch) BETWEEN(ch, 0x20, 0x7f)
 
-#define p_buffer(p)          ((p)->buffer + (p)->cursor)
-#define p_buflen(p)          ((p)->size - (p)->cursor)
-#define p_peek(p)            ((p)->cursor < (p)->size ? &(p)->buffer[(p)->cursor] : NULL)
-#define p_next(p)            ((p)->buffer[(p)->cursor++])
-#define p_advance(p)         (p_advance_by(p, 1))
-#define p_advance_by(p, inc) ((p)->cursor += inc)
-#define p_rollback(p)        (--(p)->cursor)
-#define p_consume(p, ch)     ((p)->buffer[(p)->cursor] == ch && p_advance(p) > 0)
+#define r_buffer(r)          ((r)->buffer + (r)->cursor)
+#define r_buflen(r)          ((r)->size - (r)->cursor)
+#define r_peek(r)            ((r)->cursor < (r)->size ? &(r)->buffer[(r)->cursor] : NULL)
+#define r_next(r)            ((r)->buffer[(r)->cursor++])
+#define r_advance(r)         (r_advance_by(r, 1))
+#define r_advance_by(r, inc) ((r)->cursor += inc)
+#define r_rollback(r)        (--(r)->cursor)
+#define r_consume(r, ch)     ((r)->buffer[(r)->cursor] == ch && r_advance(r) > 0)
 
-#define p_consume_param_delim(p) (p_consume((p), ';') || p_consume((p), ':'))
+#define r_consume_param_delim(p) (r_consume((p), ';') || r_consume((p), ':'))
 
-static inline int p_consume_number(Parser *p)
+static inline int r_consume_number(Reader *r)
 {
     int n = 0;
-    for (const char *ch = p_peek(p); ch && BETWEEN(*ch, '0', '9');
-         ch             = p_peek(p))
-        n = n * 10 + p_next(p) - '0';
+    for (const char *ch = r_peek(r); ch && BETWEEN(*ch, '0', '9');
+         ch             = r_peek(r))
+        n = n * 10 + r_next(r) - '0';
     return n;
 }
 
@@ -42,16 +45,16 @@ static inline void forward(VT_Parser *, FSM_State);
 static inline void transition(VT_Parser *, FSM_State);
 static inline void dispatch(VT_Parser *, FSM_Event);
 
-static inline void prepare_ctrl(VT_Parser *, CTRL_Payload *);
-static inline void prepare_esc(VT_Parser *, ESC_Payload *);
-static inline void prepare_csi(VT_Parser *, CSI_Payload *);
-static inline void prepare_osc(VT_Parser *, OSC_Payload *);
+static inline void prepare_ctrl_payload(VT_Parser *, CTRL_Payload *);
+static inline void prepare_esc_payload(VT_Parser *, ESC_Payload *);
+static inline void prepare_csi_payload(VT_Parser *, CSI_Payload *);
+static inline void prepare_osc_payload(VT_Parser *, OSC_Payload *);
 
 void parser_init(VT_Parser *vtp) { transition(vtp, STATE_GROUND); }
 
 void parser_feed(VT_Parser *vtp, const char *stream, uint32_t slen)
 {
-    vtp->inner = PARSER(stream, slen);
+    vtp->reader = READER(stream, slen);
 }
 
 FSM_Event parser_run(VT_Parser *vtp)
@@ -60,8 +63,9 @@ FSM_Event parser_run(VT_Parser *vtp)
         transition(vtp, STATE_GROUND);
     vtp->fsm.dispatching = false;
 
-    for (Parser *p = &vtp->inner; !vtp->fsm.dispatching && p_peek(p) != NULL;) {
-        uchar input = p_next(p);
+    for (Reader *r = &vtp->reader;
+         !vtp->fsm.dispatching && r_peek(r) != NULL;) {
+        uchar input = r_next(r);
 
         switch (vtp->fsm.state) {
         case STATE_GROUND: {
@@ -88,9 +92,9 @@ FSM_Event parser_run(VT_Parser *vtp)
         } break;
         case STATE_ESC: {
             switch (input) {
-            case '[': transition(vtp, STATE_CSI_PARAM);   break;
-            case ']': transition(vtp, STATE_OSC_STRING);  break;
-            default:  forward(vtp, STATE_ESC_INTERM);     break;
+            case '[': transition(vtp, STATE_CSI_PARAM); break;
+            case ']': transition(vtp, STATE_OSC_STRING); break;
+            default: forward(vtp, STATE_ESC_INTERM); break;
             }
         } break;
         case STATE_ESC_INTERM: {
@@ -132,7 +136,7 @@ FSM_Event parser_run(VT_Parser *vtp)
         case STATE_OSC_STRING: {
             switch (input) {
             case 0x9c: // fallthrough.
-            case 0x07: dispatch(vtp, EVENT_OSC);      break;
+            case 0x07: dispatch(vtp, EVENT_OSC); break;
             case 0x27: transition(vtp, STATE_OSC_ST); break;
             default: {
                 if (IS_PRINTABLE(input))
@@ -144,8 +148,8 @@ FSM_Event parser_run(VT_Parser *vtp)
         } break;
         case STATE_OSC_ST: {
             switch (input) {
-            case '\\':  dispatch(vtp, EVENT_OSC);   break;
-            default:    forward(vtp, STATE_ESC);    break;
+            case '\\': dispatch(vtp, EVENT_OSC); break;
+            default: forward(vtp, STATE_ESC); break;
             }
         } break;
         }
@@ -177,13 +181,13 @@ static inline void collect(VT_Parser *vtp, uchar input)
 
 static inline void forward(VT_Parser *vtp, FSM_State state)
 {
-    p_rollback(&vtp->inner);
+    r_rollback(&vtp->reader);
     transition(vtp, state);
 }
 
 static inline void transition(VT_Parser *vtp, FSM_State next_state)
 {
-#if defined(_DEBUG__VTE_PARSER)
+#if defined(_DEBUG__VTE_PARSER_)
     // {{{
     printf("Tranistion { ");
 #define FROM_REPR(sym)                                                         \
@@ -257,13 +261,21 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
     case EVENT_PRINT: {
         vtp->payload.value = vtp->utf8_decoder.rune;
     } break;
-    case EVENT_CTRL: prepare_ctrl(vtp, &vtp->payload.ctrl); break;
-    case EVENT_ESC:  prepare_esc(vtp, &vtp->payload.esc);   break;
-    case EVENT_CSI:  prepare_csi(vtp, &vtp->payload.csi);   break;
-    case EVENT_OSC:  prepare_osc(vtp, &vtp->payload.osc);   break;
+    case EVENT_CTRL: {
+        prepare_ctrl_payload(vtp, &vtp->payload.ctrl);
+    } break;
+    case EVENT_ESC: {
+        prepare_esc_payload(vtp, &vtp->payload.esc);
+    } break;
+    case EVENT_CSI: {
+        prepare_csi_payload(vtp, &vtp->payload.csi);
+    } break;
+    case EVENT_OSC: {
+        prepare_osc_payload(vtp, &vtp->payload.osc);
+    } break;
     }
 
-#if defined(_DEBUG__VTE_PARSER)
+#if defined(_DEBUG__VTE_PARSER_)
     // {{{
     if (true) {
         printf("EMIT { ");
@@ -372,29 +384,29 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
     vtp->fsm.dispatching = true;
 }
 
-static inline void prepare_ctrl(VT_Parser *vtp, CTRL_Payload *ctrl)
+static inline void prepare_ctrl_payload(VT_Parser *vtp, CTRL_Payload *ctrl)
 {
-    Parser *p = &vtp->inner;
-    switch (p_rollback(p), ctrl->value = p_next(p)) {
-    case 0x07: ctrl->action = C0_BEL;       break;
-    case 0x08: ctrl->action = C0_BS;        break;
-    case 0x09: ctrl->action = C0_HT;        break;
-    case 0x0a: ctrl->action = C0_LF;        break;
-    case 0x0b: ctrl->action = C0_VT;        break;
-    case 0x0c: ctrl->action = C0_FF;        break;
-    case 0x0d: ctrl->action = C0_CR;        break;
-    case 0x0e: ctrl->action = C0_SO;        break;
-    case 0x0f: ctrl->action = C0_SI;        break;
-    default:   vtp->fsm.event = EVENT_NOOP; break;
+    Reader *r = &vtp->reader;
+    switch (r_rollback(r), ctrl->value = r_next(r)) {
+    case 0x07: { ctrl->action = C0_BEL; } break;
+    case 0x08: { ctrl->action = C0_BS;  } break;
+    case 0x09: { ctrl->action = C0_HT;  } break;
+    case 0x0a: { ctrl->action = C0_LF;  } break;
+    case 0x0b: { ctrl->action = C0_VT;  } break;
+    case 0x0c: { ctrl->action = C0_FF;  } break;
+    case 0x0d: { ctrl->action = C0_CR;  } break;
+    case 0x0e: { ctrl->action = C0_SO;  } break;
+    case 0x0f: { ctrl->action = C0_SI;  } break;
+    default:   { vtp->fsm.event = EVENT_NOOP; } break;
     }
 }
 
-static inline void prepare_esc(VT_Parser *vtp, ESC_Payload *esc)
+static inline void prepare_esc_payload(VT_Parser *vtp, ESC_Payload *esc)
 {
     switch (esc->action = ESC_UNKNOWN, esc->final_byte) {
-    case 'D': esc->action = ESC_IND; goto ENSURE_EMPTY_INTERM;
-    case 'M': esc->action = ESC_RI;  goto ENSURE_EMPTY_INTERM;
-    case 'H': esc->action = ESC_HTS; goto ENSURE_EMPTY_INTERM;
+    case 'D': { esc->action = ESC_IND; goto ENSURE_EMPTY_INTERM; }
+    case 'M': { esc->action = ESC_RI;  goto ENSURE_EMPTY_INTERM; }
+    case 'H': { esc->action = ESC_HTS; goto ENSURE_EMPTY_INTERM; }
     // ESC C.
 ENSURE_EMPTY_INTERM: {
         if (vtp->nseq) {
@@ -402,8 +414,8 @@ ENSURE_EMPTY_INTERM: {
         }
     } break;
 
-    case '0': esc->action = ESC_CS_LINEGFX; goto ENSURE_CHARSET_INDEX;
-    case 'B': esc->action = ESC_CS_USASCII; goto ENSURE_CHARSET_INDEX;
+    case '0': { esc->action = ESC_CS_LINEGFX; goto ENSURE_CHARSET_INDEX; }
+    case 'B': { esc->action = ESC_CS_USASCII; goto ENSURE_CHARSET_INDEX; }
     // ESC [()*+] C (ensure index to designate the character set).
 ENSURE_CHARSET_INDEX: {
         if (!(vtp->nseq == 1 && BETWEEN(vtp->seq[0], '(', '+'))) {
@@ -411,19 +423,19 @@ ENSURE_CHARSET_INDEX: {
         }
     } break;
 
-    case '7': esc->action = ESC_DECSC;   goto DONE;
-    case '8': esc->action = ESC_DECRC;   goto DONE;
-    default:  esc->action = ESC_UNKNOWN; goto DONE;
+    case '7': { esc->action = ESC_DECSC;   goto DONE; }
+    case '8': { esc->action = ESC_DECRC;   goto DONE; }
+    default:  { esc->action = ESC_UNKNOWN; goto DONE; }
     }
 DONE:
     return;
 }
 
-static inline void prepare_csi(VT_Parser *vtp, CSI_Payload *csi)
+static inline void prepare_csi_payload(VT_Parser *vtp, CSI_Payload *csi)
 {
     memset(csi->param, csi->nparam = 0, sizeof(csi->param));
 
-    Parser param_p = PARSER(vtp->seq, vtp->nseq - csi->ninterm);
+    Reader param_r = READER(vtp->seq, vtp->nseq - csi->ninterm);
     switch (csi->action = CSI_UNKNOWN, csi->final_byte) {
     case 'A': { csi->action = CSI_CUU; goto ENSURE_SINGLE_PARAM; }
     case 'B': { csi->action = CSI_CUD; goto ENSURE_SINGLE_PARAM; }
@@ -447,7 +459,7 @@ static inline void prepare_csi(VT_Parser *vtp, CSI_Payload *csi)
     case 'X': { csi->action = CSI_ECH; goto ENSURE_SINGLE_PARAM; }
     // CSI Ps C (force single param, default: 0).
 ENSURE_SINGLE_PARAM: {
-        csi->param[csi->nparam++] = p_consume_number(&param_p);
+        csi->param[csi->nparam++] = r_consume_number(&param_r);
     } break;
 
     case 'H': { csi->action = CSI_CUP;     goto ENSURE_DOUBLE_PARAM; }
@@ -455,16 +467,16 @@ ENSURE_SINGLE_PARAM: {
     case 'r': { csi->action = CSI_DECSTBM; goto ENSURE_DOUBLE_PARAM; }
     // CSI Ps ; Ps C (force two delimited params, default: {0, 0}).
 ENSURE_DOUBLE_PARAM: {
-        csi->param[csi->nparam++] = p_consume_number(&param_p);
-        (void)p_consume_param_delim(&param_p);
-        csi->param[csi->nparam++] = p_consume_number(&param_p);
+        csi->param[csi->nparam++] = r_consume_number(&param_r);
+        (void)r_consume_param_delim(&param_r);
+        csi->param[csi->nparam++] = r_consume_number(&param_r);
     } break;
 
     case 'h': { csi->action = CSI_DECSET; goto CHECK_PRIVATE_MODE; }
     case 'l': { csi->action = CSI_DECRST; goto CHECK_PRIVATE_MODE; }
     // CSI ? Pm C (check for private marker, e.g: '?').
 CHECK_PRIVATE_MODE: {
-        if (p_consume(&param_p, '?')) {
+        if (r_consume(&param_r, '?')) {
             goto ENSURE_MULTIPLE_PARAM;
         } else {
             csi->action = CSI_UNKNOWN; goto DONE;
@@ -475,8 +487,8 @@ CHECK_PRIVATE_MODE: {
     // CSI Ps ; Pm C (delimited params).
 ENSURE_MULTIPLE_PARAM: {
         do {
-            csi->param[csi->nparam++] = p_consume_number(&param_p);
-        } while (p_consume_param_delim(&param_p));
+            csi->param[csi->nparam++] = r_consume_number(&param_r);
+        } while (r_consume_param_delim(&param_r));
     } break;
 
     case 's': { csi->action = CSI_SC;      goto DONE; }
@@ -485,11 +497,11 @@ ENSURE_MULTIPLE_PARAM: {
     }
 
 DONE:
-    if (p_buflen(&param_p)) // extra unparsed seq.
+    if (r_buflen(&param_r)) // extra unparsed seq.
         csi->action = CSI_UNKNOWN;
 }
 
-static inline void prepare_osc(VT_Parser *vtp, OSC_Payload *osc)
+static inline void prepare_osc_payload(VT_Parser *vtp, OSC_Payload *osc)
 {
     (void)vtp;
     (void)osc;

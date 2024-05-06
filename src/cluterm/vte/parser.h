@@ -3,18 +3,14 @@
 
 #include <cluterm/utf8.h>
 #include <cluterm/vte.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-typedef struct Parser {
+typedef struct Reader {
     const char *buffer;
     uint32_t cursor, size;
-} Parser;
+} Reader;
 
-#define PARSER(str, len)                                                       \
-    (Parser) { .buffer = str, .cursor = 0, .size = len }
+#define READER(str, len)                                                       \
+    (Reader) { .buffer = str, .cursor = 0, .size = len }
 
 typedef enum FSM_State {
     STATE_GROUND = 0,
@@ -66,7 +62,7 @@ typedef union VT_Payload {
 } VT_Payload;
 
 typedef struct VT_Parser {
-    Parser inner;
+    Reader reader;
     UTF8_Decoder utf8_decoder;
     char seq[1 << 6];
     int nseq;

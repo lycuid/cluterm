@@ -4,7 +4,7 @@
 #include <cluterm/terminal.h>
 #include <cluterm/terminal/actions.h>
 
-EXPORT void action_osc(Terminal *term, OSC_Payload *osc)
+EXPORT void osc_perform_action(Terminal *term, OSC_Payload *osc)
 {
     (void)term;
     (void)osc;

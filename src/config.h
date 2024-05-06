@@ -2,7 +2,6 @@
 #define __CONFIG_H__
 
 #include <cluterm/gfx.h>
-#include <stdint.h>
 
 static const int Margin[] = {
     [Top]    = 0,

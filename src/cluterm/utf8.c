@@ -1,7 +1,6 @@
 #include "utf8.h"
 #include <cluterm/utils.h>
 #include <stdbool.h>
-#include <string.h>
 
 #define MASK(ch, m)        (((uint8_t)(ch)) & ~utf8_mask[m])
 #define BYTE(rune, pos, m) (utf8_byte[m] | MASK(rune >> (6 * (pos - 1)), m))

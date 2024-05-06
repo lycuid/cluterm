@@ -26,8 +26,8 @@ define COMPILE =
 endef
 
 $(BIN): $(OBJS)
-		@mkdir -p $(@D)
-		$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 $(OBJS): $(IDIR)/config.h $(IDIR)/$(NAME)/utils.h
 
