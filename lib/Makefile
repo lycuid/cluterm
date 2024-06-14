@@ -2,7 +2,7 @@ include ../config.mk
 
 IDIR:=.
 ODIR:=$(BUILD)/cache
-LIB:=$(BUILD)/lib/lib$(NAME).a
+LIB:=$(BUILD)/lib$(NAME).a
 
 SRCS:=$(IDIR)/$(NAME).c            \
       $(IDIR)/$(NAME)/buffer.c     \
@@ -19,9 +19,12 @@ $(LIB): $(OBJS) ; @mkdir -p $(@D)
 $(ODIR)/%.o: $(IDIR)/%.c $(IDIR)/%.h ; @mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c -fPIC -o $@ $<
 
-$(ODIR)/$(NAME).o:              \
-	$(IDIR)/$(NAME)/actions.h   \
-	$(IDIR)/$(NAME)/actions/*.h \
+$(ODIR)/$(NAME).o:               \
+	$(IDIR)/$(NAME)/actions.h      \
+	$(IDIR)/$(NAME)/actions/csi.h  \
+	$(IDIR)/$(NAME)/actions/ctrl.h \
+	$(IDIR)/$(NAME)/actions/esc.h  \
+	$(IDIR)/$(NAME)/actions/osc.h  \
 	$(IDIR)/$(NAME)/colors.h
 
 .PHONY: clean compile_flags
