@@ -1,28 +1,30 @@
 include ../config.mk
 
-IDIR:=.
-ODIR:=$(BUILD)/cache
-LIB:=$(BUILD)/lib/lib$(NAME).a
+I_DIR:=.
+O_DIR:=$(BUILD)/cache
+LIB:=$(BUILD)/lib$(NAME).a
 
-SRCS:=$(IDIR)/$(NAME).c            \
-      $(IDIR)/$(NAME)/buffer.c     \
-      $(IDIR)/$(NAME)/utf8.c       \
-      $(IDIR)/$(NAME)/vte/parser.c \
-      $(IDIR)/$(NAME)/vte/tty.c
+O_FILES:=$(O_DIR)/$(NAME).o            \
+         $(O_DIR)/$(NAME)/buffer.o     \
+         $(O_DIR)/$(NAME)/utf8.o       \
+         $(O_DIR)/$(NAME)/vte/parser.o \
+         $(O_DIR)/$(NAME)/vte/tty.o
 
-OBJS:=$(SRCS:$(IDIR)/%.c=$(ODIR)/%.o)
-override CFLAGS+= $(FLAGS) $(DEFINE) -fPIC -I$(IDIR)
+override CFLAGS+= $(FLAGS) $(DEFINE) -fPIC -I$(I_DIR)
 
-$(LIB): $(OBJS) ; @mkdir -p $(@D)
+$(LIB): $(O_FILES) ; @mkdir -p $(@D)
 	$(AR) rcs $@ $^
 
-$(ODIR)/%.o: $(IDIR)/%.c $(IDIR)/%.h ; @mkdir -p $(@D)
+$(O_DIR)/%.o: $(I_DIR)/%.c $(I_DIR)/%.h ; @mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c -fPIC -o $@ $<
 
-$(ODIR)/$(NAME).o:              \
-	$(IDIR)/$(NAME)/actions.h   \
-	$(IDIR)/$(NAME)/actions/*.h \
-	$(IDIR)/$(NAME)/colors.h
+$(O_DIR)/$(NAME).o:               \
+	$(I_DIR)/$(NAME)/actions.h      \
+	$(I_DIR)/$(NAME)/actions/csi.h  \
+	$(I_DIR)/$(NAME)/actions/ctrl.h \
+	$(I_DIR)/$(NAME)/actions/esc.h  \
+	$(I_DIR)/$(NAME)/actions/osc.h  \
+	$(I_DIR)/$(NAME)/colors.h
 
 .PHONY: clean compile_flags
 clean: ; rm -rf $(BUILD)
