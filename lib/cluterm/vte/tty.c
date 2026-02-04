@@ -23,7 +23,6 @@ void tty_init(TTY *tty)
     TRY(grantpt(tty->ptmx), "pts chown");
     TRY(unlockpt(tty->ptmx), "pts unlock"); // ioctl: TIOCSPTLCK
     fcntl(tty->ptmx, F_SETFL, fcntl(tty->ptmx, F_GETFL) | O_NONBLOCK);
-    tty_resize(tty, Rows, Columns);
 }
 
 void tty_start(TTY *tty, const char *cmd)
@@ -31,6 +30,7 @@ void tty_start(TTY *tty, const char *cmd)
     TRY((tty->shell = fork()), "starting child process for shell");
     if (tty->shell) {
         fcntl(tty->shell, F_SETFL, fcntl(tty->shell, F_GETFL) | O_NONBLOCK);
+        tty_resize(tty, Rows, Columns);
         return;
     }
 
@@ -40,6 +40,8 @@ void tty_start(TTY *tty, const char *cmd)
     TRY((pts = open(pts_path, O_RDWR, 0)), "pts open");
 
     puts("child executed!.");
+    setsid();
+    TRY(ioctl(pts, TIOCSCTTY, 0), "ioctl: TIOCSCTTY failed.");
     ASSERT(dup2(pts, STDIN_FILENO) != STDIN_FILENO, "[stdin] dup: failed!.\n");
     ASSERT(dup2(pts, STDOUT_FILENO) != STDOUT_FILENO,
            "[stdout] dup: failed!.\n")
@@ -47,7 +49,6 @@ void tty_start(TTY *tty, const char *cmd)
            "[stderr] dup: failed!.\n")
     close(pts);
     close(tty->ptmx);
-    setsid();
     execl(cmd, cmd, NULL);
     exit(EXIT_SUCCESS);
 }
@@ -55,7 +56,8 @@ void tty_start(TTY *tty, const char *cmd)
 void tty_resize(TTY *tty, int rows, int cols)
 {
     const struct winsize size = {.ws_row = rows, .ws_col = cols};
-    printf("resize: %d.\n", ioctl(tty->ptmx, TIOCSWINSZ, &size));
+    printf("resize: master(%d) slave(%d).\n",
+           ioctl(tty->ptmx, TIOCSWINSZ, &size), kill(tty->shell, SIGWINCH));
     printf("tty resized to %dx%d.\n", cols, rows);
     fflush(stdout);
 }

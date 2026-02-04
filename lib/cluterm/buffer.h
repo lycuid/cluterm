@@ -80,8 +80,8 @@ void buffer_clearline(CluTermBuffer *, int, int, int);
 void buffer_clearbox(CluTermBuffer *, int, int, int, int);
 // adds 'n' lines.
 void buffer_addlines(CluTermBuffer *, int);
-void buffer_scrollup_relative(CluTermBuffer *b, int, int);
-void buffer_scrolldown_relative(CluTermBuffer *b, int, int);
+void buffer_scrollup_relative(CluTermBuffer *, int, int);
+void buffer_scrolldown_relative(CluTermBuffer *, int, int);
 // insert 'n' chars after cursor.
 void buffer_insert_chars(CluTermBuffer *, int);
 // delete 'n' chars after cursor.

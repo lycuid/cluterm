@@ -278,7 +278,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
 #if defined(_DEBUG__VTE_PARSER_)
     // {{{
     if (true) {
-        printf("EMIT { ");
+        printf("Dispatch { ");
         switch (vtp->fsm.event) {
 #define CASE_REPR(sym)                                                         \
     case sym: printf("[" #sym "]"); break

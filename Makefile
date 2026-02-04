@@ -1,12 +1,12 @@
 include config.mk
 
-I_DIR:=src
+FRONTEND:=frontend
 BIN:=$(BUILD)/bin/$(NAME)
 
-.PHONY: with_sdl2
-with_sdl2: lib ; mkdir -p $(shell dirname $(BIN))
-	$(MAKE) -j -C $(I_DIR)/$@
-	cp $(I_DIR)/$@/$(BIN) $(BIN)
+.PHONY: $(FRONTEND)/sdl2
+$(FRONTEND)/sdl2: lib ; mkdir -p $(shell dirname $(BIN))
+	$(MAKE) -j -C $@
+	cp $@/$(BIN) $(BIN)
 
 .PHONY: lib
 lib:
@@ -22,9 +22,9 @@ debug: $(BIN) ; lldb $(BIN)
 clean: ; rm -rf $(BUILD)
 	$(MAKE) -C lib $@
 	$(MAKE) -C tests $@
-	$(MAKE) -C $(I_DIR)/with_sdl2 $@
+	$(MAKE) -C $(FRONTEND)/sdl2 $@
 compile_flags:
 	$(MAKE) -C lib $@
 	$(MAKE) -C tests $@
-	$(MAKE) -C $(I_DIR)/with_sdl2 $@
+	$(MAKE) -C $(FRONTEND)/sdl2 $@
 fmt: ; git ls-files | grep -E '\.[ch]$$' | xargs -i clang-format -i {}

@@ -140,8 +140,8 @@ void draw_cell(Cell cell, int y, int x)
     if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
         underline(&dst, cell.attrs.fg);
 #if 0
-  if (cell.value != ' ')
-    bounding_box(&dst);
+    if (cell.value != ' ')
+        bounding_box(&dst);
 #endif
 }
 
