@@ -9,7 +9,7 @@
 #include <stdbool.h>
 
 #define PRINTABLE_ASCII_START 32
-#define PRINTABLE_ASCII_END   127
+#define PRINTABLE_ASCII_END   126
 
 #define IS_PRINTABLE_ASCII(value)                                              \
     BETWEEN((value), PRINTABLE_ASCII_START, PRINTABLE_ASCII_END)

@@ -79,4 +79,3 @@ void parser_feed(VT_Parser *, const char *, uint32_t);
 FSM_Event parser_run(VT_Parser *);
 
 #endif
-// vim:fdm=marker

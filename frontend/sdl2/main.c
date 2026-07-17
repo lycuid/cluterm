@@ -29,10 +29,9 @@ static inline int tryn(int expr)
     return expr;
 }
 
-static inline void load_font(const char *pattern, TTF_Font **font)
+static inline void load_font(FcConfig *config, const char *pattern,
+                             TTF_Font **font)
 {
-    FcConfig *config = FcInitLoadConfigAndFonts();
-
     FcPattern *pat = FcNameParse((const FcChar8 *)pattern);
     FcConfigSubstitute(config, pat, FcMatchPattern);
     FcDefaultSubstitute(pat);
@@ -62,10 +61,16 @@ static inline void sdl_init(void)
     ctx.renderer =
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
 
-    load_font(Fonts[FontRegular], &ctx.fonts[FontRegular]);
-    load_font(Fonts[FontBold], &ctx.fonts[FontBold]);
-    load_font(Fonts[FontItalic], &ctx.fonts[FontItalic]);
-    load_font(Fonts[FontBoldItalic], &ctx.fonts[FontBoldItalic]);
+    /* load fonts */ {
+        FcConfig *config = FcInitLoadConfigAndFonts();
+
+        load_font(config, Fonts[FontRegular], &ctx.fonts[FontRegular]);
+        load_font(config, Fonts[FontBold], &ctx.fonts[FontBold]);
+        load_font(config, Fonts[FontItalic], &ctx.fonts[FontItalic]);
+        load_font(config, Fonts[FontBoldItalic], &ctx.fonts[FontBoldItalic]);
+
+        FcConfigDestroy(config);
+    }
 
     /* cell size */ {
         char printable_ascii[128 - 32] = {0};
@@ -220,6 +225,7 @@ static inline void handle_keydown(CluTerm *term, SDL_Event *e)
     case SDLK_QUOTE:      { repr[0] = SHIFT(key) ? '"' : repr[0]; } break;
     case SDLK_COMMA:      { repr[0] = SHIFT(key) ? '<' : repr[0]; } break;
     case SDLK_PERIOD:     { repr[0] = SHIFT(key) ? '>' : repr[0]; } break;
+    case SDLK_SLASH:      { repr[0] = SHIFT(key) ? '?' : repr[0]; } break;
     case SDLK_BACKSLASH:  { repr[0] = SHIFT(key) ? '|' : repr[0]; } break;
     case SDLK_BACKQUOTE:  { repr[0] = SHIFT(key) ? '~' : repr[0]; } break;
 
@@ -254,7 +260,7 @@ int main(void)
         create_page((term));                                                   \
     SDL_RenderPresent(ctx.renderer);
 
-#define STREAM_SIZE 4096
+#define STREAM_SIZE (64 * 1024)
     char stream[STREAM_SIZE] = {0};
 
     CLEAR_AND_RENDER(NULL);
@@ -303,6 +309,7 @@ int main(void)
             SDL_DestroyWindow(ctx.window);
         TTF_Quit();
         SDL_Quit();
+        FcFini();
         printf("SDL cleanup: Done!.\n");
         fflush(stdout);
     }

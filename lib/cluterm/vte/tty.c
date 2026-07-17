@@ -11,8 +11,10 @@
 #include <unistd.h>
 
 #define ASSERT(expr, ...)                                                      \
-    if ((expr))                                                                \
-        err(1, __VA_ARGS__);
+    do {                                                                       \
+        if ((expr))                                                            \
+            err(1, __VA_ARGS__);                                               \
+    } while (0)
 
 #define TRY(expr, msg)                                                         \
     ASSERT((expr) == -1, "%s: (%s)\n.", msg, strerror(errno));
@@ -27,30 +29,29 @@ void tty_init(TTY *tty)
 
 void tty_start(TTY *tty, const char *cmd)
 {
+    const char *pts_path = ptsname(tty->ptmx); // ioctl: TIOCGPTN
+    puts(pts_path);
+
     TRY((tty->shell = fork()), "starting child process for shell");
     if (tty->shell) {
-        fcntl(tty->shell, F_SETFL, fcntl(tty->shell, F_GETFL) | O_NONBLOCK);
         tty_resize(tty, Rows, Columns);
         return;
     }
 
-    const char *pts_path = ptsname(tty->ptmx); // ioctl: TIOCGPTN
-    puts(pts_path);
     int pts;
     TRY((pts = open(pts_path, O_RDWR, 0)), "pts open");
 
     puts("child executed!.");
-    setsid();
+    TRY(setsid(), "setsid()");
     TRY(ioctl(pts, TIOCSCTTY, 0), "ioctl: TIOCSCTTY failed.");
     ASSERT(dup2(pts, STDIN_FILENO) != STDIN_FILENO, "[stdin] dup: failed!.\n");
     ASSERT(dup2(pts, STDOUT_FILENO) != STDOUT_FILENO,
-           "[stdout] dup: failed!.\n")
+           "[stdout] dup: failed!.\n");
     ASSERT(dup2(pts, STDERR_FILENO) != STDERR_FILENO,
-           "[stderr] dup: failed!.\n")
+           "[stderr] dup: failed!.\n");
     close(pts);
     close(tty->ptmx);
-    execl(cmd, cmd, NULL);
-    exit(EXIT_SUCCESS);
+    TRY(execl(cmd, cmd, NULL), "execl()");
 }
 
 void tty_resize(TTY *tty, int rows, int cols)
@@ -66,5 +67,5 @@ void tty_destroy(TTY *tty)
 {
     close(tty->ptmx);
     kill(tty->shell, SIGHUP);
-    wait(NULL);
+    waitpid(tty->shell, NULL, 0);
 }

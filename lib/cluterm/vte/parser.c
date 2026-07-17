@@ -41,7 +41,7 @@ static inline int r_consume_number(Reader *r)
 }
 
 static inline void collect(VT_Parser *, uchar);
-static inline void forward(VT_Parser *, FSM_State);
+static inline void replay(VT_Parser *, FSM_State);
 static inline void transition(VT_Parser *, FSM_State);
 static inline void dispatch(VT_Parser *, FSM_Event);
 
@@ -94,42 +94,42 @@ FSM_Event parser_run(VT_Parser *vtp)
             switch (input) {
             case '[': transition(vtp, STATE_CSI_PARAM); break;
             case ']': transition(vtp, STATE_OSC_STRING); break;
-            default: forward(vtp, STATE_ESC_INTERM); break;
+            default: replay(vtp, STATE_ESC_INTERM); break;
             }
         } break;
         case STATE_ESC_INTERM: {
             if (IS_INTERM(input))
                 collect(vtp, input);
             else
-                forward(vtp, STATE_ESC_FINAL);
+                replay(vtp, STATE_ESC_FINAL);
         } break;
         case STATE_ESC_FINAL: {
             if (IS_ESC_FINAL(input))
                 collect(vtp, input);
             else
-                forward(vtp, STATE_GROUND);
+                replay(vtp, STATE_GROUND);
         } break;
         case STATE_CSI_PARAM: {
             if (IS_CSI_PARAM(input))
                 collect(vtp, input);
             else
-                forward(vtp, STATE_CSI_INTERM);
+                replay(vtp, STATE_CSI_INTERM);
         } break;
         case STATE_CSI_INTERM: {
             if (IS_INTERM(input))
                 collect(vtp, input);
             else
-                forward(vtp, STATE_CSI_FINAL);
+                replay(vtp, STATE_CSI_FINAL);
         } break;
         case STATE_CSI_FINAL: {
             if (IS_CSI_FINAL(input))
                 collect(vtp, input);
             else
-                forward(vtp, STATE_CSI_IGNORE);
+                replay(vtp, STATE_CSI_IGNORE);
         } break;
         case STATE_CSI_IGNORE: {
             if (IS_CTRL(input))
-                forward(vtp, STATE_GROUND);
+                replay(vtp, STATE_GROUND);
             else if (IS_CSI_FINAL(input))
                 transition(vtp, STATE_GROUND);
         } break;
@@ -142,14 +142,14 @@ FSM_Event parser_run(VT_Parser *vtp)
                 if (IS_PRINTABLE(input))
                     collect(vtp, input);
                 else
-                    forward(vtp, STATE_GROUND);
+                    replay(vtp, STATE_GROUND);
             } break;
             }
         } break;
         case STATE_OSC_ST: {
             switch (input) {
             case '\\': dispatch(vtp, EVENT_OSC); break;
-            default: forward(vtp, STATE_ESC); break;
+            default: replay(vtp, STATE_ESC); break;
             }
         } break;
         }
@@ -179,7 +179,7 @@ static inline void collect(VT_Parser *vtp, uchar input)
     }
 }
 
-static inline void forward(VT_Parser *vtp, FSM_State state)
+static inline void replay(VT_Parser *vtp, FSM_State state)
 {
     r_rollback(&vtp->reader);
     transition(vtp, state);

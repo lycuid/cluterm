@@ -1,6 +1,7 @@
 #ifndef __CLUTERM__ACTIONS__CSI_H__
 #define __CLUTERM__ACTIONS__CSI_H__
 
+#include "cluterm/buffer.h"
 #include <cluterm.h>
 #include <cluterm/actions.h>
 #include <cluterm/colors.h>
@@ -116,7 +117,8 @@ EXPORT void csi_perform_action(CluTerm *term, CSI_Payload *csi)
             } break;
 
             case 21: UNSET(attrs->state, CELL_BOLD); break;
-            case 24: UNSET(attrs->state, CELL_ITALIC); break;
+            case 23: UNSET(attrs->state, CELL_ITALIC); break;
+            case 24: UNSET(attrs->state, CELL_UNDERLINE); break;
             case 27: {
                 attrs->fg = DefaultFG;
                 attrs->bg = DefaultBG;
