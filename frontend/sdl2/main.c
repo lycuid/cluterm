@@ -145,8 +145,7 @@ void draw_cell(Cell cell, int y, int x)
     if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
         underline(&dst, cell.attrs.fg);
 #if 0
-    if (cell.value != ' ')
-        bounding_box(&dst);
+    bounding_box(&dst);
 #endif
 }
 
@@ -156,14 +155,13 @@ static inline void create_page(CluTerm *term)
     Cursor *c        = &b->cursor;
     for (int y = 0; y < b->rows; ++y) {
         for (int x = b->cols - 1; x >= 0; --x) {
-            Cell cell = b->lines[tline(b, y)][x];
+            Cell cell = line_at(b, y)[x];
             if (y == c->y && x == c->x && (c->state & CursorHide) == 0) {
                 Rgb tmp       = cell.attrs.fg;
                 cell.attrs.fg = cell.attrs.bg;
                 cell.attrs.bg = tmp;
             }
-            if (cell.value == ' ' && cell.attrs.fg == DefaultFG &&
-                cell.attrs.bg == DefaultBG)
+            if (cell.value == ' ' && cell.attrs.bg == DefaultBG)
                 continue;
             draw_cell(cell, y, x);
         }

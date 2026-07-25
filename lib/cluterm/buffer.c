@@ -69,7 +69,7 @@ void buffer_init(CluTermBuffer *b, int rows, int cols, int history)
 void buffer_destroy(CluTermBuffer *b)
 {
     if (b->lines) {
-        for (int y = 0; y < b->rows; ++y)
+        for (int y = 0; y < buffer_lines(b); ++y)
             free(b->lines[y]);
         free(b->lines);
     }
@@ -101,10 +101,10 @@ void buffer_scrollup_relative(CluTermBuffer *b, int origin, int lines)
         return;
     lines = MIN(lines, b->scroll_region.end - b->scroll_region.start);
     for (int i = origin - 1; i >= 0; --i)
-        SWAP(b->lines[tline(b, i)], b->lines[tline(b, i + lines)]);
+        SWAP(line_at(b, i), line_at(b, i + lines));
     buffer_addlines(b, lines);
     for (int i = b->rows - 1; i > b->scroll_region.end; --i)
-        SWAP(b->lines[tline(b, i)], b->lines[tline(b, i - lines)]);
+        SWAP(line_at(b, i), line_at(b, i - lines));
 }
 
 void buffer_scrolldown_relative(CluTermBuffer *b, int origin, int lines)
@@ -114,14 +114,14 @@ void buffer_scrolldown_relative(CluTermBuffer *b, int origin, int lines)
     lines =
         MIN(lines, b->scroll_region.end - MAX(b->scroll_region.start, origin));
     for (int i = b->scroll_region.end; i >= origin + lines; --i)
-        SWAP(b->lines[tline(b, i)], b->lines[tline(b, i - lines)]);
+        SWAP(line_at(b, i), line_at(b, i - lines));
     buffer_clearbox(b, origin, 0, origin + lines - 1, b->cols - 1);
 }
 
 static inline void buffer_insert_delete_chars(CluTermBuffer *b, int count,
                                               bool insert)
 {
-    Cell *xptr = b->lines[tline(b, b->cursor.y)] + b->cursor.x;
+    Cell *xptr = line_at(b, b->cursor.y) + b->cursor.x;
     int dx     = MIN(b->cols - 1 - b->cursor.x, count),
         shift  = b->cols - 1 - b->cursor.x - dx;
 
@@ -130,7 +130,7 @@ static inline void buffer_insert_delete_chars(CluTermBuffer *b, int count,
 
     xptr += shift * !insert;
     for (int i = 0; i < dx; ++i)
-        *(xptr + i) = CELL(' ', b->cell_attrs); // DebugCell;
+        *(xptr + i) = CELL(' ', b->cell_attrs);
 }
 
 void buffer_insert_chars(CluTermBuffer *b, int count)
@@ -152,12 +152,9 @@ void buffer_resize(CluTermBuffer *b, int rows, int cols)
         for (int x = 0; x < cols; ++x)
             lines[y][x] = DEFAULT_CELL(' ');
     }
-    for (int y = 0; y < MIN(rows, b->rows); ++y) {
-        memmove(lines[y], b->lines[tline(b, y)],
-                MIN(cols, b->cols) * sizeof(Cell));
-        lines[y] = realloc(lines[y], cols * sizeof(Cell));
-    }
-    for (int y = 0; y < b->rows; ++y)
+    for (int y = 0; y < MIN(rows, b->rows); ++y)
+        memmove(lines[y], line_at(b, y), MIN(cols, b->cols) * sizeof(Cell));
+    for (int y = 0; y < buffer_lines(b); ++y)
         free(b->lines[y]);
     free(b->lines);
     b->rows = rows, b->cols = cols, b->lines = lines;

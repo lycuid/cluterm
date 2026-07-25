@@ -23,7 +23,7 @@ typedef struct Cell {
 } Cell;
 
 #define DEFAULT_CELL_ATTRS                                                     \
-    (CellAttributes) { .fg = DefaultFG, .bg = DefaultBG, .state = 0x0 }
+    (CellAttributes){.fg = DefaultFG, .bg = DefaultBG, .state = 0x0}
 #define DEFAULT_CELL(val) CELL(val, DEFAULT_CELL_ATTRS)
 #define CELL(val, _attrs)                                                      \
     (Cell) { .value = val, .attrs = _attrs }
@@ -60,11 +60,11 @@ typedef struct CluTermBuffer {
     int charset[4], active_charset;
 } CluTermBuffer;
 
-#define buffer_lines(b)            ((b)->rows + (b)->history)
-#define first_row(b)               (MAX(0, (b)->last_row - (b)->rows) % buffer_lines(b))
-#define tline(b, y)                ((first_row(b) + y) % buffer_lines(b))
-#define buffer_addcell(b, y, x, c) ((b)->lines[tline(b, y)][x] = (c))
-#define buffer_clear(b)            buffer_addlines(b, ((b)->cursor.x = 0) + (b)->rows)
+#define buffer_lines(b) ((b)->rows + (b)->history)
+#define first_row(b)    (MAX(0, (b)->last_row - (b)->rows) % buffer_lines(b))
+#define line_at(b, y)   ((b)->lines[(first_row(b) + y) % buffer_lines(b)])
+#define buffer_addcell(b, y, x, c) (line_at(b, y)[x] = (c))
+#define buffer_clear(b) buffer_addlines(b, ((b)->cursor.x = 0) + (b)->rows)
 #define buffer_scrollup(b, count)                                              \
     buffer_scrollup_relative(b, (b)->scroll_region.start, count)
 #define buffer_scrolldown(b, count)                                            \

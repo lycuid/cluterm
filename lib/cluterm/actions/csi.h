@@ -94,7 +94,7 @@ EXPORT void csi_perform_action(CluTerm *term, CSI_Payload *csi)
     case CSI_ECH: {
         int offset = CLAMP(cursor->x + PARAM(0), 1, b->cols) - 1;
         for (int x = cursor->x; x <= offset; ++x)
-            b->lines[tline(b, cursor->y)][x] = CELL(' ', b->cell_attrs);
+            line_at(b, cursor->y)[x] = CELL(' ', b->cell_attrs);
     } break;
 
     case CSI_SU: buffer_scrollup(b, PARAM(0)); break;
