@@ -1,6 +1,7 @@
 #include "main.h"
 #include "glyph_table.h"
 #include <cluterm.h>
+#include <cluterm/debug.h>
 #include <cluterm/vte/tty.h>
 #include <config.h>
 #include <fontconfig/fontconfig.h>
@@ -15,18 +16,18 @@ void quit(int _arg)
     running = 0;
 }
 
-static inline void *tryp(void *expr)
+static inline void *tryp(void *res)
 {
-    if (!expr)
+    if (!res)
         die("%s\n", SDL_GetError());
-    return expr;
+    return res;
 }
 
-static inline int tryn(int expr)
+static inline int tryn(int res)
 {
-    if (expr < 0)
+    if (res < 0)
         die("%s\n", SDL_GetError());
-    return expr;
+    return res;
 }
 
 static inline void load_font(FcConfig *config, const char *pattern,
@@ -46,8 +47,7 @@ static inline void load_font(FcConfig *config, const char *pattern,
         if (FcPatternGetString(font_pat, FC_FILE, 0, &font_file) ==
             FcResultMatch)
             *font = TTF_OpenFont((const char *)font_file, font_size * 1.3);
-        printf("font file: %s (%d).\n", font_file, font_size);
-        fflush(stdout);
+        debug_1("font file: %s (%d).\n", font_file, font_size);
     }
     FcPatternDestroy(font_pat);
 }
@@ -80,8 +80,7 @@ static inline void sdl_init(void)
                      &ctx.f_height);
         ctx.f_width = ctx.f_width / LENGTH(printable_ascii) +
                       (ctx.f_width % LENGTH(printable_ascii) != 0);
-        printf("font size: %d %d.\n", ctx.f_width, ctx.f_height);
-        fflush(stdout);
+        debug_1("font size: %d %d.\n", ctx.f_width, ctx.f_height);
     }
 
     SDL_SetWindowSize(ctx.window,
@@ -144,7 +143,7 @@ void draw_cell(Cell cell, int y, int x)
     }
     if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
         underline(&dst, cell.attrs.fg);
-#if 0
+#if DEBUG_LVL >= 4
     bounding_box(&dst);
 #endif
 }
@@ -308,8 +307,7 @@ int main(void)
         TTF_Quit();
         SDL_Quit();
         FcFini();
-        printf("SDL cleanup: Done!.\n");
-        fflush(stdout);
+        debug_1("SDL cleanup: Done!.\n");
     }
     return 0;
 }

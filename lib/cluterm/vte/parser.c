@@ -1,10 +1,9 @@
 // vim:fdm=marker
 #include "parser.h"
+#include <cluterm/debug.h>
 #include <cluterm/utf8.h>
 #include <cluterm/utils.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 // clang-format off
 
@@ -187,11 +186,11 @@ static inline void replay(VT_Parser *vtp, FSM_State state)
 
 static inline void transition(VT_Parser *vtp, FSM_State next_state)
 {
-#if defined(_DEBUG__VTE_PARSER_)
+#if DEBUG_LVL >= 2
     // {{{
-    printf("Tranistion { ");
+    debug("Tranistion { ");
 #define FROM_REPR(sym)                                                         \
-    case sym: printf(#sym " -> "); break;
+    case sym: debug(#sym " -> "); break;
     switch (vtp->fsm.state) {
         FROM_REPR(STATE_GROUND);
         FROM_REPR(STATE_UTF8_DECODE);
@@ -207,7 +206,7 @@ static inline void transition(VT_Parser *vtp, FSM_State next_state)
     }
 #undef FROM_REPR
 #define TO_REPR(sym)                                                           \
-    case sym: printf(#sym); break;
+    case sym: debug(#sym); break;
     switch (next_state) {
         TO_REPR(STATE_GROUND);
         TO_REPR(STATE_UTF8_DECODE);
@@ -222,7 +221,7 @@ static inline void transition(VT_Parser *vtp, FSM_State next_state)
         TO_REPR(STATE_OSC_ST);
     }
 #undef TO_REPR
-    printf(" }\n");
+    debug(" }\n");
     // }}}
 #endif
 
@@ -275,108 +274,106 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
     } break;
     }
 
-#if defined(_DEBUG__VTE_PARSER_)
+#if DEBUG_LVL >= 2
     // {{{
-    if (true) {
-        printf("Dispatch { ");
-        switch (vtp->fsm.event) {
+    debug("Dispatch { ");
+    switch (vtp->fsm.event) {
 #define CASE_REPR(sym)                                                         \
-    case sym: printf("[" #sym "]"); break
-        case EVENT_NOOP: {
-            printf("[NOOP]");
-            if (vtp->nseq) {
-                printf(": '%s'", vtp->seq);
-                fprintf(stderr, "[NOOP]: '%s'\n", vtp->seq);
-            }
-        } break;
-        case EVENT_PRINT: {
-            printf("[PRINT]");
-            printf(BETWEEN(vtp->payload.value, 32, 126) ? ": '%c'" : ": %d",
-                   vtp->payload.value);
-        } break;
-        case EVENT_CTRL: {
-            CTRL_Payload *ctrl = &vtp->payload.ctrl;
-            switch (ctrl->action) {
-                CASE_REPR(C0_BEL);
-                CASE_REPR(C0_BS);
-                CASE_REPR(C0_HT);
-                CASE_REPR(C0_LF);
-                CASE_REPR(C0_VT);
-                CASE_REPR(C0_FF);
-                CASE_REPR(C0_CR);
-                CASE_REPR(C0_SO);
-                CASE_REPR(C0_SI);
-            }
-        } break;
-        case EVENT_ESC: {
-            ESC_Payload *esc = &vtp->payload.esc;
-            switch (vtp->payload.esc.action) {
-                CASE_REPR(ESC_IND);
-                CASE_REPR(ESC_RI);
-                CASE_REPR(ESC_HTS);
-                CASE_REPR(ESC_CS_LINEGFX);
-                CASE_REPR(ESC_CS_USASCII);
-                CASE_REPR(ESC_DECSC);
-                CASE_REPR(ESC_DECRC);
-                CASE_REPR(ESC_UNKNOWN);
-            }
-            printf(": '%s'", esc->interm);
-            if (esc->action == ESC_UNKNOWN) {
-                fprintf(stderr, "ESC%s%c\n", esc->interm, esc->final_byte);
-                printf(" ESC%s%c.\n", esc->interm, esc->final_byte);
-            }
-        } break;
-        case EVENT_CSI: {
-            CSI_Payload *csi = &vtp->payload.csi;
-            switch (csi->action) {
-                CASE_REPR(CSI_CUU);
-                CASE_REPR(CSI_CUD);
-                CASE_REPR(CSI_CUF);
-                CASE_REPR(CSI_CUB);
-                CASE_REPR(CSI_CNL);
-                CASE_REPR(CSI_CPL);
-                CASE_REPR(CSI_CHA);
-                CASE_REPR(CSI_CUP);
-                CASE_REPR(CSI_TBC);
-                CASE_REPR(CSI_CHT);
-                CASE_REPR(CSI_CBT);
-                CASE_REPR(CSI_ED);
-                CASE_REPR(CSI_EL);
-                CASE_REPR(CSI_IL);
-                CASE_REPR(CSI_DL);
-                CASE_REPR(CSI_ICH);
-                CASE_REPR(CSI_DCH);
-                CASE_REPR(CSI_ECH);
-                CASE_REPR(CSI_SU);
-                CASE_REPR(CSI_SD);
-                CASE_REPR(CSI_HVP);
-                CASE_REPR(CSI_VPA);
-                CASE_REPR(CSI_SGR);
-                CASE_REPR(CSI_SC);
-                CASE_REPR(CSI_RC);
-                CASE_REPR(CSI_DECSTBM);
-                CASE_REPR(CSI_DECSET);
-                CASE_REPR(CSI_DECRST);
-                CASE_REPR(CSI_UNKNOWN);
-            }
-            if (csi->nparam)
-                printf(": %d", csi->param[0]);
-            for (int i = 1; i < csi->nparam; ++i)
-                printf(" %d", csi->param[i]);
-            if (csi->ninterm)
-                printf(" ([%d]: %s)", csi->ninterm, csi->interm);
-            if (csi->action == CSI_UNKNOWN) {
-                fprintf(stderr, "ESC[%s%c\n", vtp->seq, csi->final_byte);
-                printf(" ESC[%s%c", vtp->seq, csi->final_byte);
-            }
-        } break;
-        case EVENT_OSC: {
-            printf("OSC Event.\n");
-        } break;
-#undef CASE_REPR
+    case sym: debug("[" #sym "]"); break
+    case EVENT_NOOP: {
+        debug("[NOOP]");
+        if (vtp->nseq) {
+            debug(": '%s'", vtp->seq);
+            fprintf(stderr, "[NOOP]: '%s'\n", vtp->seq);
         }
-        printf(" }\n");
+    } break;
+    case EVENT_PRINT: {
+        debug("[PRINT]");
+        debug(BETWEEN(vtp->payload.value, 32, 126) ? ": '%c'" : ": %d",
+              vtp->payload.value);
+    } break;
+    case EVENT_CTRL: {
+        CTRL_Payload *ctrl = &vtp->payload.ctrl;
+        switch (ctrl->action) {
+            CASE_REPR(C0_BEL);
+            CASE_REPR(C0_BS);
+            CASE_REPR(C0_HT);
+            CASE_REPR(C0_LF);
+            CASE_REPR(C0_VT);
+            CASE_REPR(C0_FF);
+            CASE_REPR(C0_CR);
+            CASE_REPR(C0_SO);
+            CASE_REPR(C0_SI);
+        }
+    } break;
+    case EVENT_ESC: {
+        ESC_Payload *esc = &vtp->payload.esc;
+        switch (vtp->payload.esc.action) {
+            CASE_REPR(ESC_IND);
+            CASE_REPR(ESC_RI);
+            CASE_REPR(ESC_HTS);
+            CASE_REPR(ESC_CS_LINEGFX);
+            CASE_REPR(ESC_CS_USASCII);
+            CASE_REPR(ESC_DECSC);
+            CASE_REPR(ESC_DECRC);
+            CASE_REPR(ESC_UNKNOWN);
+        }
+        debug(": '%s'", esc->interm);
+        if (esc->action == ESC_UNKNOWN) {
+            fprintf(stderr, "ESC%s%c\n", esc->interm, esc->final_byte);
+            debug(" ESC%s%c.\n", esc->interm, esc->final_byte);
+        }
+    } break;
+    case EVENT_CSI: {
+        CSI_Payload *csi = &vtp->payload.csi;
+        switch (csi->action) {
+            CASE_REPR(CSI_CUU);
+            CASE_REPR(CSI_CUD);
+            CASE_REPR(CSI_CUF);
+            CASE_REPR(CSI_CUB);
+            CASE_REPR(CSI_CNL);
+            CASE_REPR(CSI_CPL);
+            CASE_REPR(CSI_CHA);
+            CASE_REPR(CSI_CUP);
+            CASE_REPR(CSI_TBC);
+            CASE_REPR(CSI_CHT);
+            CASE_REPR(CSI_CBT);
+            CASE_REPR(CSI_ED);
+            CASE_REPR(CSI_EL);
+            CASE_REPR(CSI_IL);
+            CASE_REPR(CSI_DL);
+            CASE_REPR(CSI_ICH);
+            CASE_REPR(CSI_DCH);
+            CASE_REPR(CSI_ECH);
+            CASE_REPR(CSI_SU);
+            CASE_REPR(CSI_SD);
+            CASE_REPR(CSI_HVP);
+            CASE_REPR(CSI_VPA);
+            CASE_REPR(CSI_SGR);
+            CASE_REPR(CSI_SC);
+            CASE_REPR(CSI_RC);
+            CASE_REPR(CSI_DECSTBM);
+            CASE_REPR(CSI_DECSET);
+            CASE_REPR(CSI_DECRST);
+            CASE_REPR(CSI_UNKNOWN);
+        }
+        if (csi->nparam)
+            debug(": %d", csi->param[0]);
+        for (int i = 1; i < csi->nparam; ++i)
+            debug(" %d", csi->param[i]);
+        if (csi->ninterm)
+            debug(" ([%d]: %s)", csi->ninterm, csi->interm);
+        if (csi->action == CSI_UNKNOWN) {
+            fprintf(stderr, "ESC[%s%c\n", vtp->seq, csi->final_byte);
+            debug(" ESC[%s%c", vtp->seq, csi->final_byte);
+        }
+    } break;
+    case EVENT_OSC: {
+        debug("OSC Event.\n");
+    } break;
+#undef CASE_REPR
     }
+    debug(" }\n");
     fflush(stdout);
     // }}}
 #endif

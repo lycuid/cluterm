@@ -1,8 +1,8 @@
 #include "tty.h"
+#include <cluterm/debug.h>
 #include <config.h>
 #include <err.h>
 #include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/fcntl.h>
@@ -30,7 +30,7 @@ void tty_init(TTY *tty)
 void tty_start(TTY *tty, const char *cmd)
 {
     const char *pts_path = ptsname(tty->ptmx); // ioctl: TIOCGPTN
-    puts(pts_path);
+    debug_1("pts_path: '%s'.\n", pts_path);
 
     TRY((tty->shell = fork()), "starting child process for shell");
     if (tty->shell) {
@@ -41,7 +41,7 @@ void tty_start(TTY *tty, const char *cmd)
     int pts;
     TRY((pts = open(pts_path, O_RDWR, 0)), "pts open");
 
-    puts("child executed!.");
+    debug_1("child executed!.\n");
     TRY(setsid(), "setsid()");
     TRY(ioctl(pts, TIOCSCTTY, 0), "ioctl: TIOCSCTTY failed.");
     ASSERT(dup2(pts, STDIN_FILENO) != STDIN_FILENO, "[stdin] dup: failed!.\n");
@@ -56,11 +56,12 @@ void tty_start(TTY *tty, const char *cmd)
 
 void tty_resize(TTY *tty, int rows, int cols)
 {
-    const struct winsize size = {.ws_row = rows, .ws_col = cols};
-    printf("resize: master(%d) slave(%d).\n",
-           ioctl(tty->ptmx, TIOCSWINSZ, &size), kill(tty->shell, SIGWINCH));
-    printf("tty resized to %dx%d.\n", cols, rows);
-    fflush(stdout);
+    const struct winsize size            = {.ws_row = rows, .ws_col = cols};
+    __attribute__((unused)) int r_master = ioctl(tty->ptmx, TIOCSWINSZ, &size);
+    __attribute__((unused)) int r_slave  = kill(tty->shell, SIGWINCH);
+
+    debug_1("resize: master(%d) slave(%d).\n", r_master, r_slave);
+    debug_1("tty resized to %dx%d.\n", cols, rows);
 }
 
 void tty_destroy(TTY *tty)

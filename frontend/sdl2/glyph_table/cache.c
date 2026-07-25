@@ -1,4 +1,5 @@
 #include "cache.h"
+#include <cluterm/debug.h>
 
 struct Node {
     Key key;
@@ -107,10 +108,10 @@ void gcache_clear(GlyphCache *gcache)
 {
     while (gcache->head)
         node_free(gcache, gcache->head);
-    /* @DEBUG */ {
-        int buckets = 0;
-        for (int i = 0; i < MAP_MAX_SIZE; ++i)
-            buckets += (gcache->table[i] != NULL);
-        printf("possible memory leak in hash-table: %d.\n", buckets);
-    }
+#if DEBUG_LVL >= 1
+    int buckets = 0;
+    for (int i = 0; i < MAP_MAX_SIZE; ++i)
+        buckets += (gcache->table[i] != NULL);
+    debug_1("possible memory leak in hash-table: %d.\n", buckets);
+#endif
 }

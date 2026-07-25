@@ -4,8 +4,6 @@
 #include <cluterm.h>
 #include <cluterm/buffer.h>
 
-#define UNHANDLED(action) printf("Unhandled: %s.\n", #action);
-
 EXPORT inline void move_cursor_to(CluTerm *term, int y, int x)
 {
     CluTermBuffer *b = ACTIVE_BUFFER(term);

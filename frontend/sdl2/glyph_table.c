@@ -4,6 +4,7 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <cluterm/buffer.h>
+#include <cluterm/debug.h>
 #include <cluterm/utf8.h>
 #include <config.h>
 #include <stdbool.h>
@@ -93,6 +94,6 @@ void glyph_table_destroy(void)
     for (int i = PRINTABLE_ASCII_START; i <= PRINTABLE_ASCII_END; ++i)
         SDL_DestroyTexture(printable_ascii_glyph[i].texture);
     gcache_clear(&glyph_cache);
-    printf("Cache cleanup: Done!.\n");
-    printf("Cache hit/miss: %ld/%ld.\n", CacheHit, CacheMiss);
+    debug_1("Cache cleanup: Done!.\n");
+    debug_1("Cache hit/miss: %ld/%ld.\n", CacheHit, CacheMiss);
 }

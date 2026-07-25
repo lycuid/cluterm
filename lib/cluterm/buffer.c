@@ -23,10 +23,10 @@
 // clang-format on
 
 #include "buffer.h"
+#include <cluterm/debug.h>
 #include <cluterm/utf8.h>
 #include <config.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -73,7 +73,7 @@ void buffer_destroy(CluTermBuffer *b)
             free(b->lines[y]);
         free(b->lines);
     }
-    printf("buffer cleanup: Done!.\n");
+    debug_1("buffer cleanup: Done!.\n");
 }
 
 void buffer_clearline(CluTermBuffer *b, int y, int x0, int x1)
@@ -145,7 +145,7 @@ void buffer_delete_chars(CluTermBuffer *b, int count)
 
 void buffer_resize(CluTermBuffer *b, int rows, int cols)
 {
-    printf("buffer resized to %dx%d.\n", cols, rows);
+    debug_1("buffer resized to %dx%d.\n", cols, rows);
     Line *lines = malloc(rows * sizeof(Line));
     for (int y = 0; y < rows; ++y) {
         lines[y] = malloc(cols * sizeof(Cell));
