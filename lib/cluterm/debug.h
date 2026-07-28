@@ -4,13 +4,24 @@
 #include <stdio.h>  // IWYU pragma: keep
 #include <stdlib.h> // IWYU pragma: keep
 
+#ifndef DEBUG_SINK
+#define DEBUG_SINK stderr
+#endif
+
+#define debug_var __attribute__((unused))
+
 #define debug(...)                                                             \
     do {                                                                       \
-        printf(__VA_ARGS__);                                                   \
-        fflush(stdout);                                                        \
+        fprintf(DEBUG_SINK, __VA_ARGS__);                                      \
+        fflush(DEBUG_SINK);                                                    \
     } while (0)
 
-#define debug_0(...) debug(__VA_ARGS__)
+#define debug_0(...)                                                           \
+    do {                                                                       \
+        fprintf(DEBUG_SINK, "[%s:%d] ", __FILE_NAME__, __LINE__);              \
+        fprintf(DEBUG_SINK, __VA_ARGS__);                                      \
+        fflush(DEBUG_SINK);                                                    \
+    } while (0)
 
 #if DEBUG_LVL >= 1
 #define debug_1(...) debug_0(__VA_ARGS__)

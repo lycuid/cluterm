@@ -197,20 +197,28 @@ EXPORT void csi_perform_action(CluTerm *term, CSI_Payload *csi)
 
     case CSI_DECSET: /* fallthrough. */
     case CSI_DECRST: {
-        for (int i = 0, set = csi->action == CSI_DECSET; i < csi->nparam; ++i) {
+        bool is_decset = csi->action == CSI_DECSET;
+        for (int i = 0; i < csi->nparam; ++i) {
             switch (csi->param[i]) {
             case 2: { // CSI_DECANM
-                if (set)
+                if (is_decset)
                     memset(b->charset, CS_USASCII, sizeof(b->charset));
             } break;
             // CSI_DECOM: Set Origin mode, VT100.
-            case 6: UPDATE(term->mode, MODE_ORIGIN, set); break;
+            case 6: UPDATE(term->mode, MODE_ORIGIN, is_decset); break;
             // CSI_DECTCEM: Show cursor, VT220.
-            case 25: UPDATE(cursor->state, CursorHide, !set); break;
+            case 25: UPDATE(cursor->state, CursorHide, !is_decset); break;
             case 1049: { // Alternate screen buffer.
-                UPDATE(term->mode, MODE_ALT_BUFFER, set);
-                if (set)
-                    buffer_clear(ACTIVE_BUFFER(term));
+                UPDATE(term->mode, MODE_ALT_BUFFER, is_decset);
+                // switching buffers need to trigger clear screen, one way or
+                // another.
+                if (is_decset)
+                    (void)0;
+                // buffer_clear(ACTIVE_BUFFER(term));
+                else
+                    // setting the entire primary buffer as dirty to trigger
+                    // re-render for the entire buffer.
+                    dirty_buffer(&term->buffer[0]);
             } break;
             }
         }

@@ -64,7 +64,7 @@ typedef union VT_Payload {
 typedef struct VT_Parser {
     Reader reader;
     UTF8_Decoder utf8_decoder;
-    char seq[1 << 6];
+    char seq[1 << 12];
     int nseq;
     VT_Payload payload;
     struct {

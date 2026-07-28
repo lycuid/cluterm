@@ -6,6 +6,9 @@
 #include <cluterm/vte/parser.h>
 #include <stdbool.h>
 
+/* used by macro(dirty_line). */
+#include <string.h> // IWYU pragma: keep
+
 typedef uint16_t CellState;
 #define CELL_NORMAL    0
 #define CELL_BOLD      (1 << 0)
@@ -55,6 +58,7 @@ typedef struct CluTermBuffer {
     int rows, cols, history, last_row;
     Region scroll_region;
     Line *lines;
+    bool *dirty;
     Cursor cursor;
     CellAttributes cell_attrs;
     int charset[4], active_charset;
@@ -62,14 +66,25 @@ typedef struct CluTermBuffer {
 
 #define first_row(b)  (MAX(0, (b)->last_row - (b)->rows) % lines(b))
 #define line_at(b, y) ((b)->lines[(first_row(b) + y) % lines(b)])
+#define lines(b)      ((b)->rows + (b)->history)
 
-#define lines(b)                   ((b)->rows + (b)->history)
-#define buffer_addcell(b, y, x, c) (line_at(b, y)[x] = (c))
 #define buffer_clear(b) buffer_addlines(b, ((b)->cursor.x = 0) + (b)->rows)
 #define buffer_scrollup(b, count)                                              \
     buffer_scrollup_relative(b, (b)->scroll_region.start, count)
 #define buffer_scrolldown(b, count)                                            \
     buffer_scrolldown_relative(b, (b)->scroll_region.start, count)
+
+#define dirty_cell(b, y, x) (b)->dirty[y * (b)->cols + x] = true
+#define dirty_line(b, y)                                                       \
+    memset(&(b)->dirty[y * (b)->cols], 1, (b)->cols * sizeof(bool));
+#define dirty_buffer(b)                                                        \
+    memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(bool))
+
+static inline void buffer_addcell(CluTermBuffer *b, int y, int x, Cell c)
+{
+    line_at(b, y)[x] = c;
+    dirty_cell(b, y, x);
+}
 
 void buffer_init(CluTermBuffer *, int, int, int);
 void buffer_create_texture(CluTermBuffer *);

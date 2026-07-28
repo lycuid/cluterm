@@ -188,7 +188,7 @@ static inline void transition(VT_Parser *vtp, FSM_State next_state)
 {
 #if DEBUG_LVL >= 2
     // {{{
-    debug("Transition { ");
+    debug_2("Transition { ");
 #define FROM_REPR(sym)                                                         \
     case sym: debug(#sym " -> "); break;
     switch (vtp->fsm.state) {
@@ -276,7 +276,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
 
 #if DEBUG_LVL >= 2
     // {{{
-    debug("Dispatch { ");
+    debug_2("Dispatch { ");
     switch (vtp->fsm.event) {
 #define CASE_REPR(sym)                                                         \
     case sym: debug("[" #sym "]"); break

@@ -72,7 +72,7 @@ static const Rgb color16[]       = {
 #endif
 };
 
-__attribute__((unused)) static inline Rgb color256(uint8_t n)
+EXPORT inline Rgb color256(uint8_t n)
 {
     Rgb color = 0;
     if (n <= 15)

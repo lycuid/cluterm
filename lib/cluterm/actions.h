@@ -4,14 +4,23 @@
 #include <cluterm.h>
 #include <cluterm/buffer.h>
 
+#define dirty_cursor(b)                                                        \
+    do {                                                                       \
+        if (BETWEEN((b)->cursor.y, 0, (b)->rows - 1) &&                        \
+            BETWEEN((b)->cursor.x, 0, (b)->cols - 1))                          \
+            dirty_cell(b, (b)->cursor.y, (b)->cursor.x);                       \
+    } while (0)
+
 EXPORT inline void move_cursor_to(CluTerm *term, int y, int x)
 {
     CluTermBuffer *b = ACTIVE_BUFFER(term);
+    dirty_cursor(b);
     b->cursor.y =
         IS_SET(term->mode, MODE_ORIGIN)
             ? CLAMP(b->scroll_region.start + y, 0, b->scroll_region.end)
             : CLAMP(y, 0, b->rows - 1);
     b->cursor.x = CLAMP(x, 0, b->cols);
+    dirty_cursor(b);
 }
 
 EXPORT inline void move_cursor(CluTerm *term, int dy, int dx)
@@ -23,6 +32,7 @@ EXPORT inline void move_cursor(CluTerm *term, int dy, int dx)
 EXPORT inline void put_tab(CluTerm *term, int count, int inc)
 {
     CluTermBuffer *b = ACTIVE_BUFFER(term);
+    dirty_line(b, b->cursor.y);
     while (BETWEEN(b->cursor.x, 0, b->cols - 1) && count--) {
         do {
             b->cursor.x += inc;

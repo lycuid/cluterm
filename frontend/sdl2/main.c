@@ -93,7 +93,7 @@ static inline void sdl_init(void)
 #define UNPACK(c)                                                              \
     ((c) >> (8 * 2)) & 0xff, ((c) >> (8 * 1)) & 0xff, ((c) >> (8 * 0)) & 0xff
 
-__attribute__((unused)) static inline void bounding_box(SDL_Rect *box)
+debug_var static inline void bounding_box(SDL_Rect *box)
 {
     SDL_SetRenderDrawColor(ctx.renderer, UNPACK(0x303030), 0);
     SDL_RenderDrawLines(
@@ -122,12 +122,6 @@ static inline void underline(SDL_Rect *rect, Rgb color)
                        rect->x + rect->w, rect->y + rect->h - 2);
 }
 
-void clear(void)
-{
-    SDL_SetRenderDrawColor(ctx.renderer, UNPACK(DefaultBG), 0);
-    SDL_RenderClear(ctx.renderer);
-}
-
 void draw_cell(Cell cell, int y, int x)
 {
     const Glyph *glyph = glyph_table_request(&ctx, cell);
@@ -137,8 +131,7 @@ void draw_cell(Cell cell, int y, int x)
                           .w = glyph->w,
                           .h = glyph->h};
     if (glyph->texture) {
-        if (cell.attrs.bg != DefaultBG)
-            background(cell.attrs.bg, y, x);
+        background(cell.attrs.bg, y, x);
         SDL_RenderCopy(ctx.renderer, glyph->texture, &src, &dst);
     }
     if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
@@ -154,14 +147,16 @@ static inline void create_page(CluTerm *term)
     Cursor *c        = &b->cursor;
     for (int y = 0; y < b->rows; ++y) {
         for (int x = b->cols - 1; x >= 0; --x) {
+            if (!b->dirty[y * b->cols + x])
+                continue;
+            b->dirty[y * b->cols + x] = false;
+
             Cell cell = line_at(b, y)[x];
             if (y == c->y && x == c->x && (c->state & CursorHide) == 0) {
                 Rgb tmp       = cell.attrs.fg;
                 cell.attrs.fg = cell.attrs.bg;
                 cell.attrs.bg = tmp;
             }
-            if (cell.value == ' ' && cell.attrs.bg == DefaultBG)
-                continue;
             draw_cell(cell, y, x);
         }
     }
@@ -251,8 +246,7 @@ int main(void)
     SDL_Event e;
     ssize_t n = 0;
 
-#define CLEAR_AND_RENDER(term)                                                 \
-    clear();                                                                   \
+#define RENDER(term)                                                           \
     if ((term) != NULL)                                                        \
         create_page((term));                                                   \
     SDL_RenderPresent(ctx.renderer);
@@ -260,11 +254,11 @@ int main(void)
 #define STREAM_SIZE 4096
     char stream[STREAM_SIZE] = {0};
 
-    CLEAR_AND_RENDER(NULL);
+    RENDER(NULL);
     while (running) {
         if ((n = tty_read(&term.tty, stream, STREAM_SIZE)) > 0) {
             cluterm_write(&term, stream, n);
-            CLEAR_AND_RENDER(&term);
+            RENDER(&term);
         }
 #undef STREAM_SIZE
 
@@ -276,17 +270,18 @@ int main(void)
                 SDL_WindowEvent *win = &e.window;
                 switch (win->event) {
                 case SDL_WINDOWEVENT_EXPOSED: {
-                    CLEAR_AND_RENDER(&term);
+                    RENDER(&term);
                 } break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
                     cluterm_resize(&term, win->data2 / ctx.f_height,
                                    win->data1 / ctx.f_width);
-                    CLEAR_AND_RENDER(&term);
+                    RENDER(&term);
                 } break;
                 }
             } break;
 
+            case SDL_TEXTINPUT: debug_0("textinput(%s).\n", e.text.text); break;
             case SDL_KEYDOWN: handle_keydown(&term, &e); break;
             default: break;
             }

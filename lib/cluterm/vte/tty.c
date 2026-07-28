@@ -56,9 +56,9 @@ void tty_start(TTY *tty, const char *cmd)
 
 void tty_resize(TTY *tty, int rows, int cols)
 {
-    const struct winsize size            = {.ws_row = rows, .ws_col = cols};
-    __attribute__((unused)) int r_master = ioctl(tty->ptmx, TIOCSWINSZ, &size);
-    __attribute__((unused)) int r_slave  = kill(tty->shell, SIGWINCH);
+    const struct winsize size = {.ws_row = rows, .ws_col = cols};
+    debug_var int r_master    = ioctl(tty->ptmx, TIOCSWINSZ, &size);
+    debug_var int r_slave     = kill(tty->shell, SIGWINCH);
 
     debug_1("resize: master(%d) slave(%d).\n", r_master, r_slave);
     debug_1("tty resized to %dx%d.\n", cols, rows);
