@@ -30,9 +30,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+// making sure b->last_row => [b->rows, 2*b->rows), once it exceeds b->rows.
 #define adjust(b)                                                              \
-    ((b)->last_row = (((b)->last_row >= buffer_lines(b)) * buffer_lines(b)) +  \
-                     ((b)->last_row % buffer_lines(b)))
+    b->last_row =                                                              \
+        (((b)->last_row >= lines(b)) * lines(b)) + ((b)->last_row % lines(b));
 
 /* static const Cell DebugCell = DEFAULT_CELL('*'); */
 
@@ -57,9 +58,9 @@ void buffer_init(CluTermBuffer *b, int rows, int cols, int history)
     }
 
     b->cell_attrs = DEFAULT_CELL_ATTRS;
-    b->lines      = (Line *)malloc(buffer_lines(b) * sizeof(Line));
-    for (int y = 0; y < buffer_lines(b); ++y) {
-        b->lines[y] = (Cell *)malloc(b->cols * sizeof(Cell));
+    b->lines      = malloc(lines(b) * sizeof(Line));
+    for (int y = 0; y < lines(b); ++y) {
+        b->lines[y] = malloc(b->cols * sizeof(Cell));
         for (int x = 0; x < b->cols; ++x)
             b->lines[y][x] = DEFAULT_CELL(' ');
     }
@@ -69,7 +70,7 @@ void buffer_init(CluTermBuffer *b, int rows, int cols, int history)
 void buffer_destroy(CluTermBuffer *b)
 {
     if (b->lines) {
-        for (int y = 0; y < buffer_lines(b); ++y)
+        for (int y = 0; y < lines(b); ++y)
             free(b->lines[y]);
         free(b->lines);
     }
@@ -154,7 +155,7 @@ void buffer_resize(CluTermBuffer *b, int rows, int cols)
     }
     for (int y = 0; y < MIN(rows, b->rows); ++y)
         memmove(lines[y], line_at(b, y), MIN(cols, b->cols) * sizeof(Cell));
-    for (int y = 0; y < buffer_lines(b); ++y)
+    for (int y = 0; y < lines(b); ++y)
         free(b->lines[y]);
     free(b->lines);
     b->rows = rows, b->cols = cols, b->lines = lines;

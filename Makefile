@@ -18,7 +18,7 @@ tests:
 
 .PHONY: run debug clean compile_flags fmt
 run: ; ./$(BIN) 2>$(BUILD)/cluterm-err.txt | tee $(BUILD)/cluterm-out.txt
-debug: $(BIN) ; lldb $(BIN)
+debug: $(BIN) ; gdb $(BIN)
 clean: ; rm -rf $(BUILD)
 	$(MAKE) -C lib $@
 	$(MAKE) -C tests $@

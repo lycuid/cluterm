@@ -33,9 +33,9 @@ void cluterm_init(CluTerm *term)
 void cluterm_write(CluTerm *term, char *stream, uint32_t slen)
 {
     VT_Parser *vt_parser = &term->vt_parser;
-    CluTermBuffer *b     = ACTIVE_BUFFER(term);
     parser_feed(vt_parser, stream, slen);
     for (FSM_Event fsm_event;;) {
+        CluTermBuffer *b = ACTIVE_BUFFER(term);
         switch (fsm_event = parser_run(vt_parser)) {
         case EVENT_NOOP: {
             goto DONE;

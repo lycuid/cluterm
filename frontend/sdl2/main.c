@@ -257,7 +257,7 @@ int main(void)
         create_page((term));                                                   \
     SDL_RenderPresent(ctx.renderer);
 
-#define STREAM_SIZE (64 * 1024)
+#define STREAM_SIZE 4096
     char stream[STREAM_SIZE] = {0};
 
     CLEAR_AND_RENDER(NULL);

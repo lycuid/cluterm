@@ -60,9 +60,10 @@ typedef struct CluTermBuffer {
     int charset[4], active_charset;
 } CluTermBuffer;
 
-#define buffer_lines(b) ((b)->rows + (b)->history)
-#define first_row(b)    (MAX(0, (b)->last_row - (b)->rows) % buffer_lines(b))
-#define line_at(b, y)   ((b)->lines[(first_row(b) + y) % buffer_lines(b)])
+#define first_row(b)  (MAX(0, (b)->last_row - (b)->rows) % lines(b))
+#define line_at(b, y) ((b)->lines[(first_row(b) + y) % lines(b)])
+
+#define lines(b)                   ((b)->rows + (b)->history)
 #define buffer_addcell(b, y, x, c) (line_at(b, y)[x] = (c))
 #define buffer_clear(b) buffer_addlines(b, ((b)->cursor.x = 0) + (b)->rows)
 #define buffer_scrollup(b, count)                                              \
