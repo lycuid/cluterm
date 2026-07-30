@@ -17,8 +17,16 @@ tests:
 	$(MAKE) -j -C $@
 
 .PHONY: run debug clean compile_flags fmt
-run: ; ./$(BIN) 2>$(BUILD)/cluterm-err.txt | tee $(BUILD)/cluterm-out.txt
-debug: $(BIN) ; gdb $(BIN)
+run: ; ./$(BIN) | tee $(BUILD)/cluterm-out.txt
+
+build: ;
+	$(MAKE) CFLAGS="-DDEBUG_LVL=0 -Ofast"
+
+debug-build: ;
+	$(MAKE) \
+		CFLAGS="-DDEBUG_LVL=1 -D_COLORS__VSCODE -fsanitize=address -ggdb -O0" \
+		LDFLAGS="-fsanitize=address"
+
 clean: ; rm -rf $(BUILD)
 	$(MAKE) -C lib $@
 	$(MAKE) -C tests $@

@@ -1,4 +1,6 @@
 #include "main.h"
+#include "SDL_keyboard.h"
+#include "SDL_keycode.h"
 #include "glyph_table.h"
 #include <cluterm.h>
 #include <cluterm/debug.h>
@@ -86,6 +88,7 @@ static inline void sdl_init(void)
     SDL_SetWindowSize(ctx.window,
                       Margin[Left] + Margin[Right] + ctx.f_width * Columns,
                       Margin[Top] + Margin[Bottom] + ctx.f_height * Rows);
+    SDL_StartTextInput();
 
     glyph_table_init(&ctx); // glyph table requires fonts to be ready to use.
 }
@@ -166,13 +169,7 @@ static inline void handle_keydown(CluTerm *term, SDL_Event *e)
 {
     SDL_KeyboardEvent *key = &e->key;
 
-    char repr[2] = {key->keysym.sym, 0};
-    ssize_t n    = 1;
-
-    switch (key->keysym.sym) { // clang-format off
-#define SHIFT(key) ((key)->keysym.mod & KMOD_SHIFT)
-#define CTRL(key)  ((key)->keysym.mod & KMOD_CTRL)
-
+    switch (key->keysym.sym) {
     case SDLK_a: // fallthrough
     case SDLK_b: // fallthrough
     case SDLK_c: // fallthrough
@@ -198,43 +195,35 @@ static inline void handle_keydown(CluTerm *term, SDL_Event *e)
     case SDLK_w: // fallthrough
     case SDLK_x: // fallthrough
     case SDLK_y: // fallthrough
-    case SDLK_z: { repr[0] -= CTRL(key) ? 96 : SHIFT(key) ? 32 : 0; } break;
+    case SDLK_z: {
+        SDL_Keysym sym = key->keysym;
+        if (sym.mod & KMOD_CTRL) {
+            char value[2] = {sym.sym - 96, 0};
+            tty_write(&term->tty, value, 1);
+        }
+    } break;
 
-    case SDLK_0: { repr[0] = SHIFT(key) ? ')' : repr[0]; } break;
-    case SDLK_1: { repr[0] = SHIFT(key) ? '!' : repr[0]; } break;
-    case SDLK_2: { repr[0] = SHIFT(key) ? '@' : repr[0]; } break;
-    case SDLK_3: { repr[0] = SHIFT(key) ? '#' : repr[0]; } break;
-    case SDLK_4: { repr[0] = SHIFT(key) ? '$' : repr[0]; } break;
-    case SDLK_5: { repr[0] = SHIFT(key) ? '%' : repr[0]; } break;
-    case SDLK_6: { repr[0] = SHIFT(key) ? '^' : repr[0]; } break;
-    case SDLK_7: { repr[0] = SHIFT(key) ? '&' : repr[0]; } break;
-    case SDLK_8: { repr[0] = SHIFT(key) ? '*' : repr[0]; } break;
-    case SDLK_9: { repr[0] = SHIFT(key) ? '(' : repr[0]; } break;
+        // clang-format off
+    case SDLK_TAB:       tty_write(&term->tty, "\t", 1); break;
+    case SDLK_RETURN2:   // fallthrough
+    case SDLK_RETURN:    tty_write(&term->tty, "\r", 1); break;
+    case SDLK_ESCAPE:    tty_write(&term->tty, "\x1b", 1); break;
+    case SDLK_BACKSPACE: tty_write(&term->tty, "\x7f", 1); break;
+    case SDLK_UP:        tty_write(&term->tty, "\x1b[A", 3); break;
+    case SDLK_DOWN:      tty_write(&term->tty, "\x1b[B", 3); break;
+    case SDLK_RIGHT:     tty_write(&term->tty, "\x1b[C", 3); break;
+    case SDLK_LEFT:      tty_write(&term->tty, "\x1b[D", 3); break;
+    case SDLK_HOME:      tty_write(&term->tty, "\x1b[H", 3); break;
+    case SDLK_END:       tty_write(&term->tty, "\x1b[F", 3); break;
+    case SDLK_INSERT:    tty_write(&term->tty, "\x1b[2~", 4); break;
+    case SDLK_DELETE:    tty_write(&term->tty, "\x1b[3~", 4); break;
+    case SDLK_PAGEUP:    tty_write(&term->tty, "\x1b[5~", 4); break;
+    case SDLK_PAGEDOWN:  tty_write(&term->tty, "\x1b[6~", 4); break;
+        // clang-format on
 
-    case SDLK_MINUS:      { repr[0] = SHIFT(key) ? '_' : repr[0]; } break;
-    case SDLK_EQUALS:     { repr[0] = SHIFT(key) ? '+' : repr[0]; } break;
-    case SDLK_SEMICOLON:  { repr[0] = SHIFT(key) ? ':' : repr[0]; } break;
-    case SDLK_QUOTE:      { repr[0] = SHIFT(key) ? '"' : repr[0]; } break;
-    case SDLK_COMMA:      { repr[0] = SHIFT(key) ? '<' : repr[0]; } break;
-    case SDLK_PERIOD:     { repr[0] = SHIFT(key) ? '>' : repr[0]; } break;
-    case SDLK_SLASH:      { repr[0] = SHIFT(key) ? '?' : repr[0]; } break;
-    case SDLK_BACKSLASH:  { repr[0] = SHIFT(key) ? '|' : repr[0]; } break;
-    case SDLK_BACKQUOTE:  { repr[0] = SHIFT(key) ? '~' : repr[0]; } break;
-
-    case SDLK_LEFTBRACKET: /* fallthrough. */
-    case SDLK_RIGHTBRACKET: { repr[0] += SHIFT(key) ? 32 : 0; } break;
-#undef CTRL
-#undef SHIFT
-
-    case SDLK_UP:     { tty_write(&term->tty, "\x1b[A", 3); } break;
-    case SDLK_DOWN:   { tty_write(&term->tty, "\x1b[B", 3); } break;
-    case SDLK_RIGHT:  { tty_write(&term->tty, "\x1b[C", 3); } break;
-    case SDLK_LEFT:   { tty_write(&term->tty, "\x1b[D", 3); } break;
     default: break;
     }
-    if (BETWEEN(repr[0], 1, 127))
-        tty_write(&term->tty, repr, n);
-} // clang-format on
+}
 
 int main(void)
 {
@@ -281,8 +270,12 @@ int main(void)
                 }
             } break;
 
-            case SDL_TEXTINPUT: debug_0("textinput(%s).\n", e.text.text); break;
-            case SDL_KEYDOWN: handle_keydown(&term, &e); break;
+            case SDL_TEXTINPUT: {
+                tty_write(&term.tty, e.text.text, strlen(e.text.text));
+            } break;
+            case SDL_KEYDOWN: {
+                handle_keydown(&term, &e);
+            } break;
             default: break;
             }
         }
@@ -300,6 +293,7 @@ int main(void)
         if (ctx.window)
             SDL_DestroyWindow(ctx.window);
         TTF_Quit();
+        SDL_StopTextInput();
         SDL_Quit();
         FcFini();
         debug_1("SDL cleanup: Done!.\n");
