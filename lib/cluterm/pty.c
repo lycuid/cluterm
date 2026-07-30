@@ -1,4 +1,4 @@
-#include "tty.h"
+#include "pty.h"
 #include <cluterm/debug.h>
 #include <config.h>
 #include <err.h>
@@ -19,22 +19,22 @@
 #define TRY(expr, msg)                                                         \
     ASSERT((expr) == -1, "%s: (%s)\n.", msg, strerror(errno));
 
-void tty_init(TTY *tty)
+void pty_open(pty_t *pty)
 {
-    TRY((tty->ptmx = posix_openpt(O_RDWR)), "ptmx open");
-    TRY(grantpt(tty->ptmx), "pts chown");
-    TRY(unlockpt(tty->ptmx), "pts unlock"); // ioctl: TIOCSPTLCK
-    fcntl(tty->ptmx, F_SETFL, fcntl(tty->ptmx, F_GETFL) | O_NONBLOCK);
+    TRY((pty->ptmx = posix_openpt(O_RDWR)), "ptmx open");
+    TRY(grantpt(pty->ptmx), "pts chown");
+    TRY(unlockpt(pty->ptmx), "pts unlock"); // ioctl: TIOCSPTLCK
+    fcntl(pty->ptmx, F_SETFL, fcntl(pty->ptmx, F_GETFL) | O_NONBLOCK);
 }
 
-void tty_start(TTY *tty, const char *cmd)
+void pty_spawn(pty_t *pty, const char *cmd)
 {
-    const char *pts_path = ptsname(tty->ptmx); // ioctl: TIOCGPTN
+    const char *pts_path = ptsname(pty->ptmx); // ioctl: TIOCGPTN
     debug_1("pts_path: '%s'.\n", pts_path);
 
-    TRY((tty->shell = fork()), "starting child process for shell");
-    if (tty->shell) {
-        tty_resize(tty, Rows, Columns);
+    TRY((pty->shell = fork()), "starting child process for shell");
+    if (pty->shell) {
+        pty_resize(pty, Rows, Columns);
         return;
     }
 
@@ -50,23 +50,23 @@ void tty_start(TTY *tty, const char *cmd)
     ASSERT(dup2(pts, STDERR_FILENO) != STDERR_FILENO,
            "[stderr] dup: failed!.\n");
     close(pts);
-    close(tty->ptmx);
+    close(pty->ptmx);
     TRY(execl(cmd, cmd, NULL), "execl()");
 }
 
-void tty_resize(TTY *tty, int rows, int cols)
+void pty_resize(pty_t *pty, int rows, int cols)
 {
     const struct winsize size = {.ws_row = rows, .ws_col = cols};
-    debug_var int r_master    = ioctl(tty->ptmx, TIOCSWINSZ, &size);
-    debug_var int r_slave     = kill(tty->shell, SIGWINCH);
+    debug_var int r_master    = ioctl(pty->ptmx, TIOCSWINSZ, &size);
+    debug_var int r_slave     = kill(pty->shell, SIGWINCH);
 
     debug_1("resize: master(%d) slave(%d).\n", r_master, r_slave);
-    debug_1("tty resized to %dx%d.\n", cols, rows);
+    debug_1("pty resized to %dx%d.\n", cols, rows);
 }
 
-void tty_destroy(TTY *tty)
+void pty_destroy(pty_t *pty)
 {
-    close(tty->ptmx);
-    kill(tty->shell, SIGHUP);
-    waitpid(tty->shell, NULL, 0);
+    close(pty->ptmx);
+    kill(pty->shell, SIGHUP);
+    waitpid(pty->shell, NULL, 0);
 }

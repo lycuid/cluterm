@@ -3,9 +3,9 @@
 #include "main.h"
 #include <SDL.h>
 #include <SDL_ttf.h>
-#include <cluterm/buffer.h>
 #include <cluterm/debug.h>
 #include <cluterm/utf8.h>
+#include <cluterm/vt/buffer.h>
 #include <config.h>
 #include <stdbool.h>
 

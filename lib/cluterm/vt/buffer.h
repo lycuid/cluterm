@@ -1,9 +1,9 @@
-#ifndef __CLUTERM__BUFFER_H__
-#define __CLUTERM__BUFFER_H__
+#ifndef __CLUTERM__VT__BUFFER_H__
+#define __CLUTERM__VT__BUFFER_H__
 
-#include <cluterm/colors.h>
 #include <cluterm/utf8.h>
-#include <cluterm/vte/parser.h>
+#include <cluterm/vt/palette.h>
+#include <cluterm/vt/parser.h>
 #include <stdbool.h>
 
 /* used by macro(dirty_line). */

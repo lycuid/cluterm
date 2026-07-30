@@ -4,7 +4,7 @@
 #include <cluterm.h>
 #include <cluterm/actions.h>
 
-EXPORT void osc_perform_action(CluTerm *term, OSC_Payload *osc)
+EXPORT void osc_execute(CluTerm *term, OSC_Payload *osc)
 {
     (void)term;
     (void)osc;

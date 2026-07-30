@@ -2,7 +2,7 @@
 #define __CLUTERM__ACTIONS_H__
 
 #include <cluterm.h>
-#include <cluterm/buffer.h>
+#include <cluterm/vt/buffer.h>
 
 #define dirty_cursor(b)                                                        \
     do {                                                                       \
@@ -42,14 +42,14 @@ EXPORT inline void put_tab(CluTerm *term, int count, int inc)
     b->cursor.x = CLAMP(b->cursor.x, 0, b->cols);
 }
 
-EXPORT inline Cell translate(Cell cell, Charset charset)
+static inline Cell translate(Cell cell, Charset charset)
 {
     switch (charset) {
     case CS_USASCII: break;
     case CS_LINEGFX: {
         // This table is proudly stolen from st, which was proudly stolen from
         // rxvt.
-        static const char *vt100_0[/* 0x41..0x7e */] = {
+        static const char *const vt100_0[/* 0x41..0x7e */] = {
             "↑", "↓", "→", "←", "█", "▚", "☃",      // A - G
             0,   0,   0,   0,   0,   0,   0,   0,   // H - O
             0,   0,   0,   0,   0,   0,   0,   0,   // P - W

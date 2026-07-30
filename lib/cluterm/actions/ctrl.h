@@ -4,10 +4,11 @@
 #include <cluterm.h>
 #include <cluterm/actions.h>
 
-EXPORT void ctrl_perform_action(CluTerm *term, CTRL_Payload *ctrl)
+EXPORT void ctrl_execute(CluTerm *term, CTRL_Payload *ctrl)
 {
     CluTermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor   = &b->cursor;
+
     switch (ctrl->action) {
     case C0_BEL: /* ding dong mf. */ break;
     case C0_BS: move_cursor(term, 0, -1); break;

@@ -2,7 +2,7 @@
 #define __WITH_SDL2__GLYPH_TABLE__CACHE_H__
 
 #include "../glyph_table.h"
-#include <cluterm/buffer.h>
+#include <cluterm/vt/buffer.h>
 #include <stdbool.h>
 
 #define MAP_MAX_SIZE (1 << 6)

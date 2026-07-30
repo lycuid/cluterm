@@ -3,7 +3,7 @@
 
 #include "main.h"
 #include <SDL.h>
-#include <cluterm/buffer.h>
+#include <cluterm/vt/buffer.h>
 
 typedef struct Glyph {
     SDL_Texture *texture;

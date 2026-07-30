@@ -1,5 +1,5 @@
-#include <cluterm/vte.h>
-#include <cluterm/vte/parser.h>
+#include <cluterm/vt.h>
+#include <cluterm/vt/parser.h>
 #include <criterion/criterion.h>
 #include <stdio.h>
 

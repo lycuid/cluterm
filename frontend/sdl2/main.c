@@ -4,7 +4,7 @@
 #include "glyph_table.h"
 #include <cluterm.h>
 #include <cluterm/debug.h>
-#include <cluterm/vte/tty.h>
+#include <cluterm/pty.h>
 #include <config.h>
 #include <fontconfig/fontconfig.h>
 #include <signal.h>
@@ -199,26 +199,26 @@ static inline void handle_keydown(CluTerm *term, SDL_Event *e)
         SDL_Keysym sym = key->keysym;
         if (sym.mod & KMOD_CTRL) {
             char value[2] = {sym.sym - 96, 0};
-            tty_write(&term->tty, value, 1);
+            pty_write(&term->pty, value, 1);
         }
     } break;
 
         // clang-format off
-    case SDLK_TAB:       tty_write(&term->tty, "\t", 1); break;
     case SDLK_RETURN2:   // fallthrough
-    case SDLK_RETURN:    tty_write(&term->tty, "\r", 1); break;
-    case SDLK_ESCAPE:    tty_write(&term->tty, "\x1b", 1); break;
-    case SDLK_BACKSPACE: tty_write(&term->tty, "\x7f", 1); break;
-    case SDLK_UP:        tty_write(&term->tty, "\x1b[A", 3); break;
-    case SDLK_DOWN:      tty_write(&term->tty, "\x1b[B", 3); break;
-    case SDLK_RIGHT:     tty_write(&term->tty, "\x1b[C", 3); break;
-    case SDLK_LEFT:      tty_write(&term->tty, "\x1b[D", 3); break;
-    case SDLK_HOME:      tty_write(&term->tty, "\x1b[H", 3); break;
-    case SDLK_END:       tty_write(&term->tty, "\x1b[F", 3); break;
-    case SDLK_INSERT:    tty_write(&term->tty, "\x1b[2~", 4); break;
-    case SDLK_DELETE:    tty_write(&term->tty, "\x1b[3~", 4); break;
-    case SDLK_PAGEUP:    tty_write(&term->tty, "\x1b[5~", 4); break;
-    case SDLK_PAGEDOWN:  tty_write(&term->tty, "\x1b[6~", 4); break;
+    case SDLK_RETURN:    pty_write(&term->pty, "\r", 1); break;
+    case SDLK_TAB:       pty_write(&term->pty, "\t", 1); break;
+    case SDLK_ESCAPE:    pty_write(&term->pty, "\x1b", 1); break;
+    case SDLK_BACKSPACE: pty_write(&term->pty, "\x7f", 1); break;
+    case SDLK_UP:        pty_write(&term->pty, "\x1b[A", 3); break;
+    case SDLK_DOWN:      pty_write(&term->pty, "\x1b[B", 3); break;
+    case SDLK_RIGHT:     pty_write(&term->pty, "\x1b[C", 3); break;
+    case SDLK_LEFT:      pty_write(&term->pty, "\x1b[D", 3); break;
+    case SDLK_HOME:      pty_write(&term->pty, "\x1b[H", 3); break;
+    case SDLK_END:       pty_write(&term->pty, "\x1b[F", 3); break;
+    case SDLK_INSERT:    pty_write(&term->pty, "\x1b[2~", 4); break;
+    case SDLK_DELETE:    pty_write(&term->pty, "\x1b[3~", 4); break;
+    case SDLK_PAGEUP:    pty_write(&term->pty, "\x1b[5~", 4); break;
+    case SDLK_PAGEDOWN:  pty_write(&term->pty, "\x1b[6~", 4); break;
         // clang-format on
 
     default: break;
@@ -245,7 +245,7 @@ int main(void)
 
     RENDER(NULL);
     while (running) {
-        if ((n = tty_read(&term.tty, stream, STREAM_SIZE)) > 0) {
+        if ((n = pty_read(&term.pty, stream, STREAM_SIZE)) > 0) {
             cluterm_write(&term, stream, n);
             RENDER(&term);
         }
@@ -271,7 +271,7 @@ int main(void)
             } break;
 
             case SDL_TEXTINPUT: {
-                tty_write(&term.tty, e.text.text, strlen(e.text.text));
+                pty_write(&term.pty, e.text.text, strlen(e.text.text));
             } break;
             case SDL_KEYDOWN: {
                 handle_keydown(&term, &e);

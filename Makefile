@@ -24,7 +24,7 @@ build: ;
 
 debug-build: ;
 	$(MAKE) \
-		CFLAGS="-DDEBUG_LVL=1 -D_COLORS__VSCODE -fsanitize=address -ggdb -O0" \
+		CFLAGS="-DDEBUG_LVL=1 -DPALETTE_VSCODE -fsanitize=address -ggdb -O0" \
 		LDFLAGS="-fsanitize=address"
 
 clean: ; rm -rf $(BUILD)

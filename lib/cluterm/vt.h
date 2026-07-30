@@ -1,9 +1,7 @@
-#ifndef __CLUTERM__VTE_H__
-#define __CLUTERM__VTE_H__
+#ifndef __CLUTERM__VT_H__
+#define __CLUTERM__VT_H__
 
-#define ENUM enum __attribute__((__packed__))
-
-typedef ENUM CTRL_Action{
+typedef enum CTRL_Action {
     C0_BEL = 7, // Bell.
     C0_BS,      // Backspace.
     C0_HT,      // Horizontal tab.
@@ -15,7 +13,7 @@ typedef ENUM CTRL_Action{
     C0_SI,      // Shift in.
 } CTRL_Action;
 
-typedef ENUM ESC_Action{
+typedef enum ESC_Action {
     ESC_IND,        // ESC D            (move cursor down, scroll if at bottom).
     ESC_RI,         // ESC M            (move cursor up, scroll if at top).
     ESC_HTS,        // ESC H            (Tab set).
@@ -28,7 +26,7 @@ typedef ENUM ESC_Action{
     ESC_UNKNOWN,
 } ESC_Action;
 
-typedef ENUM CSI_Action{
+typedef enum CSI_Action {
     CSI_CUU,     // CSI Ps A           (Cursor up).
     CSI_CUD,     // CSI Ps B           (Cursor down).
     CSI_CUF,     // CSI Ps C           (Cursor forward).

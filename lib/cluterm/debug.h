@@ -4,6 +4,10 @@
 #include <stdio.h>  // IWYU pragma: keep
 #include <stdlib.h> // IWYU pragma: keep
 
+#ifndef DEBUG_LVL
+#define DEBUG_LVL 0
+#endif
+
 #ifndef DEBUG_SINK
 #define DEBUG_SINK stderr
 #endif

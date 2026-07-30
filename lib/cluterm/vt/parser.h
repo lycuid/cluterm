@@ -1,8 +1,8 @@
-#ifndef __CLUTERM__VTE__PARSER_H__
-#define __CLUTERM__VTE__PARSER_H__
+#ifndef __CLUTERM__VT__PARSER_H__
+#define __CLUTERM__VT__PARSER_H__
 
 #include <cluterm/utf8.h>
-#include <cluterm/vte.h>
+#include <cluterm/vt.h>
 
 typedef struct Reader {
     const char *buffer;
@@ -29,8 +29,14 @@ typedef enum FSM_State {
     STATE_OSC_ST,
 } FSM_State;
 
-typedef ENUM FSM_Event{EVENT_NOOP = 0, EVENT_PRINT, EVENT_CTRL,
-                       EVENT_ESC,      EVENT_CSI,   EVENT_OSC} FSM_Event;
+typedef enum FSM_Event {
+    EVENT_NOOP = 0,
+    EVENT_PRINT,
+    EVENT_ESC,
+    EVENT_CSI,
+    EVENT_CTRL,
+    EVENT_OSC
+} FSM_Event;
 
 typedef struct CTRL_Payload {
     CTRL_Action action;

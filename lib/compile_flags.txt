@@ -3,8 +3,6 @@
 -Wvla
 -pedantic
 -std=c99
--ggdb
--Ofast
 -DNAME=cluterm
 -DVERSION=0.1.0
 -D_XOPEN_SOURCE=700

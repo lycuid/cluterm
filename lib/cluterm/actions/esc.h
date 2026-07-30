@@ -5,10 +5,11 @@
 #include <cluterm/actions.h>
 #include <stdbool.h>
 
-EXPORT void esc_perform_action(CluTerm *term, ESC_Payload *esc)
+EXPORT void esc_execute(CluTerm *term, ESC_Payload *esc)
 {
     CluTermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor   = &b->cursor;
+
     switch (esc->action) {
     case ESC_IND: linefeed(term); break;
     case ESC_RI: {

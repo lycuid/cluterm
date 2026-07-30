@@ -1,13 +1,12 @@
-#ifndef __CLUTERM__COLORS_H__
-#define __CLUTERM__COLORS_H__
+#ifndef __CLUTERM__VT__PALETTE_H__
+#define __CLUTERM__VT__PALETTE_H__
 
 #include <cluterm/utils.h>
 
 #define RGB(r, g, b) ((r) << (8 * 2)) | ((g) << (8 * 1)) | ((b) << (8 * 0))
 
-static const int color256_mask[] = {0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff};
-static const Rgb color16[]       = {
-#if defined(_COLORS__VGA)
+static const Rgb color16[] = {
+#if defined(PALETTE_VGA)
     [0] = RGB(0, 0, 0),
     [1] = RGB(170, 0, 0),
     [2] = RGB(0, 170, 0),
@@ -25,7 +24,7 @@ static const Rgb color16[]       = {
     [13] = RGB(255, 85, 255),
     [14] = RGB(85, 255, 255),
     [15] = RGB(255, 255, 255)
-#elif defined(_COLORS__TERMINAL_APP)
+#elif defined(PALETTE_TERMINAL_APP)
     [0] = RGB(0, 0, 0),
     [1] = RGB(194, 54, 33),
     [2] = RGB(37, 188, 36),
@@ -43,7 +42,7 @@ static const Rgb color16[]       = {
     [13] = RGB(249, 53, 248),
     [14] = RGB(20, 240, 240),
     [15] = RGB(235, 235, 235)
-#elif defined(_COLORS__VSCODE)
+#elif defined(PALETTE_VSCODE)
     [0] = RGB(0, 0, 0),
     [1] = RGB(205, 49, 49),
     [2] = RGB(13, 188, 121),
@@ -74,6 +73,8 @@ static const Rgb color16[]       = {
 
 EXPORT inline Rgb color256(uint8_t n)
 {
+    static const int color256_mask[] = {0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff};
+
     Rgb color = 0;
     if (n <= 15)
         color = color16[n];

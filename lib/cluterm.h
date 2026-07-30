@@ -1,20 +1,21 @@
 #ifndef __CLUTERM_H__
 #define __CLUTERM_H__
 
-#include <cluterm/buffer.h>
-#include <cluterm/vte/tty.h>
+#include <cluterm/pty.h>
+#include <cluterm/vt/buffer.h>
+#include <cluterm/vt/parser.h>
 
-typedef uint16_t CluTermMode;
+typedef uint16_t cluterm_mode_t;
 #define MODE_ALT_BUFFER (1 << 0)
 #define MODE_ORIGIN     (1 << 1)
 
 typedef struct CluTerm {
-    TTY tty;
+    pty_t pty;
     VT_Parser vt_parser;
     CluTermBuffer buffer[2];
     Cursor saved_cursor[2];
     bool *tab;
-    CluTermMode mode;
+    cluterm_mode_t mode;
 } CluTerm;
 
 #define ACTIVE_BUFFER(term)                                                    \
