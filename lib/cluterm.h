@@ -6,8 +6,9 @@
 #include <cluterm/vt/parser.h>
 
 typedef uint16_t cluterm_mode_t;
-#define MODE_ALT_BUFFER (1 << 0)
-#define MODE_ORIGIN     (1 << 1)
+#define MODE_ORIGIN          (1 << 0)
+#define MODE_ALT_BUFFER      (1 << 1)
+#define MODE_BRACKETED_PASTE (1 << 2)
 
 typedef struct CluTerm {
     pty_t pty;

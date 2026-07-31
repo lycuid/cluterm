@@ -160,29 +160,37 @@ static inline void csi_sgr(CluTerm *term, CSI_Payload *csi)
 static inline void csi_decmode(CluTerm *term, CSI_Payload *csi, bool is_decset)
 {
     CluTermBuffer *b = ACTIVE_BUFFER(term);
-    Cursor *cursor   = &b->cursor;
 
     for (int i = 0; i < csi->nparam; ++i) {
         switch (csi->param[i]) {
-        case 2: { // CSI_DECANM
+
+        // CSI_DECANM
+        case 2:
             if (is_decset)
                 memset(b->charset, CS_USASCII, sizeof(b->charset));
-        } break;
+            break;
+
         // CSI_DECOM: Set Origin mode, VT100.
         case 6: UPDATE(term->mode, MODE_ORIGIN, is_decset); break;
+
         // CSI_DECTCEM: Show cursor, VT220.
-        case 25: UPDATE(cursor->state, CursorHide, !is_decset); break;
-        case 1049: { // Alternate screen buffer.
-            UPDATE(term->mode, MODE_ALT_BUFFER, is_decset);
-            // switching buffers need to trigger clear screen, one way or
-            // another.
-            if (is_decset)
-                buffer_clear(ACTIVE_BUFFER(term));
-            else
-                // setting the entire primary buffer as dirty to trigger
-                // re-render for the entire buffer.
+        case 25: UPDATE(b->cursor.state, CursorHide, !is_decset); break;
+
+        // Alternate screen buffer with save/restore cursor and screen clear.
+        case 1049: {
+            if (is_decset) {
+                save_cursor(term);
+                SET(term->mode, MODE_ALT_BUFFER);
+                buffer_clear(&term->buffer[1]);
+            } else {
+                UNSET(term->mode, MODE_ALT_BUFFER);
+                restore_cursor(term);
                 dirty_buffer(&term->buffer[0]);
+            }
         } break;
+
+        // Bracketed paste mode.
+        case 2004: UPDATE(term->mode, MODE_BRACKETED_PASTE, is_decset); break;
         }
     }
 }

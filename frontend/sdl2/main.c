@@ -1,4 +1,5 @@
 #include "main.h"
+#include "SDL_clipboard.h"
 #include "SDL_keyboard.h"
 #include "SDL_keycode.h"
 #include "glyph_table.h"
@@ -165,47 +166,74 @@ static inline void create_page(CluTerm *term)
     }
 }
 
+static inline ssize_t paste(CluTerm *term)
+{
+    char *text = SDL_GetClipboardText();
+    if (!text)
+        return -1;
+
+    if (IS_SET(term->mode, MODE_BRACKETED_PASTE))
+        pty_write(&term->pty, "\x1b[200~", 6);
+
+    size_t len = strlen(text);
+    ssize_t n  = pty_write(&term->pty, text, len);
+
+    if (IS_SET(term->mode, MODE_BRACKETED_PASTE))
+        pty_write(&term->pty, "\x1b[201~", 6);
+
+    SDL_free(text);
+    return n;
+}
+
 static inline void handle_keydown(CluTerm *term, SDL_Event *e)
 {
     SDL_KeyboardEvent *key = &e->key;
 
+    bool ctrl  = IS_SET_ANY(key->keysym.mod, KMOD_CTRL),
+         shift = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT);
+
     switch (key->keysym.sym) {
-    case SDLK_a: // fallthrough
-    case SDLK_b: // fallthrough
-    case SDLK_c: // fallthrough
-    case SDLK_d: // fallthrough
-    case SDLK_e: // fallthrough
-    case SDLK_f: // fallthrough
-    case SDLK_g: // fallthrough
-    case SDLK_h: // fallthrough
-    case SDLK_i: // fallthrough
-    case SDLK_j: // fallthrough
-    case SDLK_k: // fallthrough
-    case SDLK_l: // fallthrough
-    case SDLK_m: // fallthrough
-    case SDLK_n: // fallthrough
-    case SDLK_o: // fallthrough
-    case SDLK_p: // fallthrough
-    case SDLK_q: // fallthrough
-    case SDLK_r: // fallthrough
-    case SDLK_s: // fallthrough
-    case SDLK_t: // fallthrough
-    case SDLK_u: // fallthrough
-    case SDLK_v: // fallthrough
-    case SDLK_w: // fallthrough
-    case SDLK_x: // fallthrough
-    case SDLK_y: // fallthrough
-    case SDLK_z: {
-        SDL_Keysym sym = key->keysym;
-        if (sym.mod & KMOD_CTRL) {
-            char value[2] = {sym.sym - 96, 0};
-            pty_write(&term->pty, value, 1);
+    case SDLK_a: goto CTRL_PUT;
+    case SDLK_b: goto CTRL_PUT;
+    case SDLK_c: goto CTRL_PUT;
+    case SDLK_d: goto CTRL_PUT;
+    case SDLK_e: goto CTRL_PUT;
+    case SDLK_f: goto CTRL_PUT;
+    case SDLK_g: goto CTRL_PUT;
+    case SDLK_h: goto CTRL_PUT;
+    case SDLK_i: goto CTRL_PUT;
+    case SDLK_j: goto CTRL_PUT;
+    case SDLK_k: goto CTRL_PUT;
+    case SDLK_l: goto CTRL_PUT;
+    case SDLK_m: goto CTRL_PUT;
+    case SDLK_n: goto CTRL_PUT;
+    case SDLK_o: goto CTRL_PUT;
+    case SDLK_p: goto CTRL_PUT;
+    case SDLK_q: goto CTRL_PUT;
+    case SDLK_r: goto CTRL_PUT;
+    case SDLK_s: goto CTRL_PUT;
+    case SDLK_t: goto CTRL_PUT;
+    case SDLK_u: goto CTRL_PUT;
+    case SDLK_v: {
+        if (ctrl && shift) {
+            paste(term);
+        } else {
+            goto CTRL_PUT;
         }
+    } break;
+    case SDLK_w: goto CTRL_PUT;
+    case SDLK_x: goto CTRL_PUT;
+    case SDLK_y: goto CTRL_PUT;
+    case SDLK_z: {
+    CTRL_PUT:
+        if (ctrl)
+            pty_write(&term->pty, (char[]){key->keysym.sym - 96, 0}, 1);
     } break;
 
         // clang-format off
     case SDLK_RETURN2:   // fallthrough
     case SDLK_RETURN:    pty_write(&term->pty, "\r", 1); break;
+
     case SDLK_TAB:       pty_write(&term->pty, "\t", 1); break;
     case SDLK_ESCAPE:    pty_write(&term->pty, "\x1b", 1); break;
     case SDLK_BACKSPACE: pty_write(&term->pty, "\x7f", 1); break;
@@ -215,7 +243,9 @@ static inline void handle_keydown(CluTerm *term, SDL_Event *e)
     case SDLK_LEFT:      pty_write(&term->pty, "\x1b[D", 3); break;
     case SDLK_HOME:      pty_write(&term->pty, "\x1b[H", 3); break;
     case SDLK_END:       pty_write(&term->pty, "\x1b[F", 3); break;
-    case SDLK_INSERT:    pty_write(&term->pty, "\x1b[2~", 4); break;
+    case SDLK_INSERT: {
+        shift ? paste(term) : pty_write(&term->pty, "\x1b[2~", 4);
+    } break;
     case SDLK_DELETE:    pty_write(&term->pty, "\x1b[3~", 4); break;
     case SDLK_PAGEUP:    pty_write(&term->pty, "\x1b[5~", 4); break;
     case SDLK_PAGEDOWN:  pty_write(&term->pty, "\x1b[6~", 4); break;
