@@ -134,8 +134,8 @@ void draw_cell(Cell cell, int y, int x)
                           .y = Margin[Top] + ctx.f_height * y,
                           .w = glyph->w,
                           .h = glyph->h};
+    background(cell.attrs.bg, y, x);
     if (glyph->texture) {
-        background(cell.attrs.bg, y, x);
         SDL_RenderCopy(ctx.renderer, glyph->texture, &src, &dst);
     }
     if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
@@ -145,15 +145,17 @@ void draw_cell(Cell cell, int y, int x)
 #endif
 }
 
-static inline void create_page(CluTerm *term)
+static inline void generate_frame(CluTerm *term, bool fresh)
 {
     CluTermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *c        = &b->cursor;
     for (int y = 0; y < b->rows; ++y) {
         for (int x = b->cols - 1; x >= 0; --x) {
-            if (!b->dirty[y * b->cols + x])
-                continue;
-            b->dirty[y * b->cols + x] = false;
+            if (!fresh) {
+                if (!b->dirty[y * b->cols + x])
+                    continue;
+                b->dirty[y * b->cols + x] = false;
+            }
 
             Cell cell = line_at(b, y)[x];
             if (y == c->y && x == c->x && (c->state & CursorHide) == 0) {
@@ -166,7 +168,7 @@ static inline void create_page(CluTerm *term)
     }
 }
 
-static inline ssize_t paste(CluTerm *term)
+static inline ssize_t clipboard_paste(CluTerm *term)
 {
     char *text = SDL_GetClipboardText();
     if (!text)
@@ -216,7 +218,7 @@ static inline void handle_keydown(CluTerm *term, SDL_Event *e)
     case SDLK_u: goto CTRL_PUT;
     case SDLK_v: {
         if (ctrl && shift) {
-            paste(term);
+            clipboard_paste(term);
         } else {
             goto CTRL_PUT;
         }
@@ -244,7 +246,7 @@ static inline void handle_keydown(CluTerm *term, SDL_Event *e)
     case SDLK_HOME:      pty_write(&term->pty, "\x1b[H", 3); break;
     case SDLK_END:       pty_write(&term->pty, "\x1b[F", 3); break;
     case SDLK_INSERT: {
-        shift ? paste(term) : pty_write(&term->pty, "\x1b[2~", 4);
+        shift ? clipboard_paste(term) : pty_write(&term->pty, "\x1b[2~", 4);
     } break;
     case SDLK_DELETE:    pty_write(&term->pty, "\x1b[3~", 4); break;
     case SDLK_PAGEUP:    pty_write(&term->pty, "\x1b[5~", 4); break;
@@ -260,26 +262,41 @@ int main(void)
     CluTerm term;
     cluterm_init(&term);
     sdl_init();
-    signal(SIGCHLD, quit);
+    signal(SIGCHLD, quit); // shell exits/crashes.
 
     SDL_Event e;
     ssize_t n = 0;
+    static struct {
+        uint w, h, pending : 1;
+        uint64_t time;
+    } resize_request = {0};
 
-#define RENDER(term)                                                           \
-    if ((term) != NULL)                                                        \
-        create_page((term));                                                   \
-    SDL_RenderPresent(ctx.renderer);
+#define RENDER(term, fresh)                                                    \
+    do {                                                                       \
+        if ((term) != NULL)                                                    \
+            generate_frame(term, fresh);                                       \
+        SDL_RenderPresent(ctx.renderer);                                       \
+    } while (0)
 
+#define RESIZE_FPS  5
 #define STREAM_SIZE 4096
     char stream[STREAM_SIZE] = {0};
 
-    RENDER(NULL);
+    RENDER(NULL, 0);
     while (running) {
         if ((n = pty_read(&term.pty, stream, STREAM_SIZE)) > 0) {
             cluterm_write(&term, stream, n);
-            RENDER(&term);
+            RENDER(&term, 0);
         }
 #undef STREAM_SIZE
+
+        if (resize_request.pending &&
+            SDL_GetTicks64() - resize_request.time > 1000 / RESIZE_FPS) {
+            cluterm_resize(&term, resize_request.h, resize_request.w);
+            RENDER(&term, 1);
+            resize_request.pending = 0, resize_request.time = SDL_GetTicks64();
+        }
+#undef RESIZE_FPS
 
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
@@ -289,13 +306,13 @@ int main(void)
                 SDL_WindowEvent *win = &e.window;
                 switch (win->event) {
                 case SDL_WINDOWEVENT_EXPOSED: {
-                    RENDER(&term);
+                    RENDER(&term, 1);
                 } break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    cluterm_resize(&term, win->data2 / ctx.f_height,
-                                   win->data1 / ctx.f_width);
-                    RENDER(&term);
+                    resize_request.w       = win->data1 / ctx.f_width,
+                    resize_request.h       = win->data2 / ctx.f_height,
+                    resize_request.pending = 1;
                 } break;
                 }
             } break;
@@ -303,13 +320,11 @@ int main(void)
             case SDL_TEXTINPUT: {
                 pty_write(&term.pty, e.text.text, strlen(e.text.text));
             } break;
-            case SDL_KEYDOWN: {
-                handle_keydown(&term, &e);
-            } break;
+            case SDL_KEYDOWN: handle_keydown(&term, &e); break;
             default: break;
             }
         }
-        SDL_Delay(1);
+        SDL_Delay(16);
     }
 
     cluterm_destroy(&term);

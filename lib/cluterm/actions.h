@@ -36,8 +36,7 @@ EXPORT inline void put_tab(CluTerm *term, int count, int inc)
     while (BETWEEN(b->cursor.x, 0, b->cols - 1) && count--) {
         do {
             b->cursor.x += inc;
-        } while (BETWEEN(b->cursor.x, 0, b->cols - 1) &&
-                 !term->tab[b->cursor.x]);
+        } while (BETWEEN(b->cursor.x, 0, b->cols - 1) && !b->tab[b->cursor.x]);
     }
     b->cursor.x = CLAMP(b->cursor.x, 0, b->cols);
 }
@@ -89,14 +88,14 @@ EXPORT inline void linefeed(CluTerm *term)
 
 EXPORT inline void save_cursor(CluTerm *term)
 {
-    int buf                 = IS_SET(term->mode, MODE_ALT_BUFFER);
-    term->saved_cursor[buf] = term->buffer[buf].cursor;
+    CluTermBuffer *buf = ACTIVE_BUFFER(term);
+    buf->saved_cursor  = buf->cursor;
 }
 
 EXPORT inline void restore_cursor(CluTerm *term)
 {
-    int buf                  = IS_SET(term->mode, MODE_ALT_BUFFER);
-    term->buffer[buf].cursor = term->saved_cursor[buf];
+    CluTermBuffer *buf = ACTIVE_BUFFER(term);
+    buf->cursor        = buf->saved_cursor;
 }
 
 #endif

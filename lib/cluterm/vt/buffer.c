@@ -39,6 +39,9 @@ void buffer_init(CluTermBuffer *b, int rows, int cols, int history)
 {
     b->rows = rows, b->cols = cols, b->history = history, b->last_row = 0;
     b->scroll_region.start = 0, b->scroll_region.end = b->rows - 1;
+    b->tab = calloc(b->cols + 1, sizeof(bool));
+    for (int i = TabWidth; i <= b->cols; i += TabWidth)
+        b->tab[i] = 1;
 
     /* Cursor. */ {
         b->cursor.y = b->cursor.x = b->cursor.state = 0;
@@ -48,6 +51,7 @@ void buffer_init(CluTermBuffer *b, int rows, int cols, int history)
         /* b->cursor.cell.value = utf8_decode("▇"); */
         /* b->cursor.cell.value = utf8_decode("_"); */
         b->cursor.cell.value = utf8_decode("|");
+        b->saved_cursor      = b->cursor;
     }
 
     /* Charset */ {
@@ -73,6 +77,8 @@ void buffer_destroy(CluTermBuffer *b)
             free(b->lines[y]);
         free(b->lines);
     }
+    if (b->tab)
+        free(b->tab);
     if (b->dirty)
         free(b->dirty);
     debug_1("buffer cleanup: Done!.\n");
@@ -175,6 +181,10 @@ void buffer_resize(CluTermBuffer *b, int rows, int cols)
     b->cursor.y      = MIN(b->cursor.y, rows - 1);
     b->cursor.x      = MIN(b->cursor.x, cols - 1);
 
+    b->tab = realloc(b->tab, (b->cols + 1) * sizeof(bool));
+    memset(b->tab, 0, (b->cols + 1) * sizeof(bool));
+    for (int i = TabWidth; i <= b->cols; i += b->cols)
+        b->tab[i] = 1;
     b->dirty = realloc(b->dirty, b->rows * b->cols * sizeof(bool));
     dirty_buffer(b);
     adjust(b);

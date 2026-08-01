@@ -136,7 +136,7 @@ FSM_Event parser_run(VT_Parser *vtp)
             switch (input) {
             case 0x9c: // fallthrough.
             case 0x07: dispatch(vtp, EVENT_OSC); break;
-            case 0x27: transition(vtp, STATE_OSC_ST); break;
+            case 0x1b: transition(vtp, STATE_OSC_ST); break;
             default: {
                 if (IS_PRINTABLE(input))
                     collect(vtp, input);

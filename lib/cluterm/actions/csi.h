@@ -17,10 +17,10 @@ static inline void csi_tbc(CluTerm *term, CSI_Payload *csi)
 
     switch (csi->param[0]) {
     case 0: {
-        term->tab[cursor->x] = false;
+        b->tab[cursor->x] = 0;
     } break;
     case 3: {
-        memset(term->tab, 0, b->cols + 1);
+        memset(b->tab, 0, (b->cols + 1) * sizeof(bool));
     } break;
     }
 }
@@ -236,7 +236,7 @@ EXPORT void csi_execute(CluTerm *term, CSI_Payload *csi)
     case CSI_ECH: {
         int offset = CLAMP(cursor->x + PARAM(0), 1, b->cols) - 1;
         for (int x = cursor->x; x <= offset; ++x)
-            line_at(b, cursor->y)[x] = CELL(' ', b->cell_attrs);
+            buffer_addcell(b, cursor->y, x, CELL(' ', b->cell_attrs));
     } break;
 
     case CSI_SU: buffer_scrollup(b, PARAM(0)); break;

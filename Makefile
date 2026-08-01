@@ -17,7 +17,7 @@ tests:
 	$(MAKE) -j -C $@
 
 .PHONY: run debug clean compile_flags fmt
-run: ; ./$(BIN) | tee $(BUILD)/cluterm-out.txt
+run: ; ./$(BIN)
 
 build: ;
 	$(MAKE) CFLAGS="-DDEBUG_LVL=0 -Ofast"

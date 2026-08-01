@@ -56,10 +56,10 @@ typedef enum Charset { CS_USASCII, CS_LINEGFX } Charset;
 
 typedef struct CluTermBuffer {
     int rows, cols, history, last_row;
-    Region scroll_region;
     Line *lines;
-    bool *dirty;
-    Cursor cursor;
+    bool *tab, *dirty;
+    Cursor cursor, saved_cursor;
+    Region scroll_region;
     CellAttributes cell_attrs;
     int charset[4], active_charset;
 } CluTermBuffer;

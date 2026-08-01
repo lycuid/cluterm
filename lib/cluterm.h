@@ -14,8 +14,6 @@ typedef struct CluTerm {
     pty_t pty;
     VT_Parser vt_parser;
     CluTermBuffer buffer[2];
-    Cursor saved_cursor[2];
-    bool *tab;
     cluterm_mode_t mode;
 } CluTerm;
 
