@@ -34,7 +34,7 @@ void cluterm_write(CluTerm *term, char *stream, uint32_t slen)
         CluTermBuffer *b = ACTIVE_BUFFER(term);
 
         switch (fsm_event = parser_run(vt_parser)) {
-        case EVENT_NOOP: goto DONE;
+        case EVENT_NOOP: goto done;
         case EVENT_PRINT: {
             put_cell(term, CELL(vt_parser->payload.value, b->cell_attrs));
         } break;
@@ -44,7 +44,7 @@ void cluterm_write(CluTerm *term, char *stream, uint32_t slen)
         case EVENT_OSC: osc_execute(term, &vt_parser->payload.osc); break;
         }
     }
-DONE:
+done:
     return;
 }
 

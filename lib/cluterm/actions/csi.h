@@ -20,7 +20,7 @@ static inline void csi_tbc(CluTerm *term, CSI_Payload *csi)
         b->tab[cursor->x] = 0;
     } break;
     case 3: {
-        memset(b->tab, 0, (b->cols + 1) * sizeof(bool));
+        memset(b->tab, 0, (b->cols + 1) * sizeof(*b->tab));
     } break;
     }
 }

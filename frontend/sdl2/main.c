@@ -76,8 +76,8 @@ static inline void sdl_init(void)
     }
 
     /* cell size */ {
-        char printable_ascii[128 - 32] = {0};
-        for (int i = 0, size = LENGTH(printable_ascii); i < size; ++i)
+        char printable_ascii[128 - 32 + 1] = {0};
+        for (int i = 0, size = 128 - 32; i < size; ++i)
             printable_ascii[i] = i + 32;
         TTF_SizeText(ctx.fonts[FontRegular], printable_ascii, &ctx.f_width,
                      &ctx.f_height);
@@ -110,65 +110,112 @@ debug_var static inline void bounding_box(SDL_Rect *box)
         5);
 }
 
-static inline void background(Rgb bg, int y, int x)
+static inline void background(Rgb bg, const SDL_Rect *rect)
 {
     SDL_SetRenderDrawColor(ctx.renderer, UNPACK(bg), 0);
-    SDL_RenderFillRect(ctx.renderer, &(SDL_Rect){.x = ctx.f_width * x,
-                                                 .y = ctx.f_height * y,
-                                                 .w = ctx.f_width,
-                                                 .h = ctx.f_height});
+    SDL_RenderFillRect(ctx.renderer, rect);
 }
 
-static inline void underline(SDL_Rect *rect, Rgb color)
+static inline void underline(Rgb color, const SDL_Rect *rect)
 {
     SDL_SetRenderDrawColor(ctx.renderer, UNPACK(color), 0);
     SDL_RenderDrawLine(ctx.renderer, rect->x, rect->y + rect->h - 2,
                        rect->x + rect->w, rect->y + rect->h - 2);
 }
 
-void draw_cell(Cell cell, int y, int x)
+static inline Cell get_display_cell(const CluTermBuffer *b, int y, int x)
 {
+    const Cursor *c = &b->cursor;
+    Cell cell       = line_at(b, y)[x];
+    if (y == c->y && x == c->x && (c->state & CursorHide) == 0)
+        SWAP(cell.attrs.fg, cell.attrs.bg);
+    return cell;
+}
+
+static inline void draw_cell(const CluTermBuffer *b, int y, int x)
+{
+    Cell cell          = get_display_cell(b, y, x);
     const Glyph *glyph = glyph_table_request(&ctx, cell);
     SDL_Rect src       = {.x = 0, .y = 0, .w = glyph->w, .h = glyph->h},
-             dst       = {.x = Margin[Left] + ctx.f_width * x,
-                          .y = Margin[Top] + ctx.f_height * y,
-                          .w = glyph->w,
-                          .h = glyph->h};
-    background(cell.attrs.bg, y, x);
-    if (glyph->texture) {
+             dst       = {.x = ctx.f_width * x,
+                          .y = ctx.f_height * y,
+                          .w = ctx.f_width,
+                          .h = ctx.f_height};
+    if (glyph->texture)
         SDL_RenderCopy(ctx.renderer, glyph->texture, &src, &dst);
-    }
-    if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
-        underline(&dst, cell.attrs.fg);
 #if DEBUG_LVL >= 4
     bounding_box(&dst);
 #endif
 }
 
-static inline void generate_frame(CluTerm *term, bool fresh)
-{
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
-    Cursor *c        = &b->cursor;
-    for (int y = 0; y < b->rows; ++y) {
-        for (int x = b->cols - 1; x >= 0; --x) {
-            if (!fresh) {
-                if (!b->dirty[y * b->cols + x])
-                    continue;
-                b->dirty[y * b->cols + x] = false;
-            }
+typedef struct LineBatch {
+    int y, x, len;
+    CellAttributes attrs;
+} LineBatch;
 
-            Cell cell = line_at(b, y)[x];
-            if (y == c->y && x == c->x && (c->state & CursorHide) == 0) {
-                Rgb tmp       = cell.attrs.fg;
-                cell.attrs.fg = cell.attrs.bg;
-                cell.attrs.bg = tmp;
-            }
-            draw_cell(cell, y, x);
-        }
-    }
+#define BATCH(y)                                                               \
+    (LineBatch) { .y = y, .x = 0, .len = 0, .attrs = {0} }
+
+static inline bool cell_belongs(LineBatch *batch, Cell *cell)
+{
+    return cell->attrs.bg == batch->attrs.bg &&
+           IS_SET(cell->attrs.state, CELL_UNDERLINE) ==
+               IS_SET(batch->attrs.state, CELL_UNDERLINE);
 }
 
-static inline ssize_t clipboard_paste(CluTerm *term)
+static inline void batch_add(LineBatch *batch, int x, Cell *cell)
+{
+    if (!batch->len)
+        batch->x = x, batch->attrs = cell->attrs;
+    batch->len++;
+}
+
+static inline void batch_flush(LineBatch *batch, const CluTermBuffer *b)
+{
+    if (!batch || !batch->len)
+        return;
+
+    Cell first   = get_display_cell(b, batch->y, batch->x);
+    SDL_Rect dst = {.x = ctx.f_width * batch->x,
+                    .y = ctx.f_height * batch->y,
+                    .w = ctx.f_width * batch->len,
+                    .h = ctx.f_height};
+
+    background(first.attrs.bg, &dst);
+
+    for (int x = batch->x; x < batch->x + batch->len; ++x)
+        draw_cell(b, batch->y, x);
+
+    if (IS_SET(first.attrs.state, CELL_UNDERLINE))
+        underline(first.attrs.fg, &dst);
+
+    batch->len = 0;
+}
+
+static inline void generate_frame(const CluTerm *term, bool fresh)
+{
+    const CluTermBuffer *b = ACTIVE_BUFFER(term);
+
+    for (int y = 0; y < b->rows; ++y) {
+        LineBatch batch = BATCH(y);
+        for (int x = 0; x < b->cols; ++x) {
+            if (!fresh && !b->dirty[y * b->cols + x]) {
+                batch_flush(&batch, b);
+                continue;
+            }
+
+            Cell cell = get_display_cell(b, y, x);
+
+            if (!cell_belongs(&batch, &cell))
+                batch_flush(&batch, b);
+            batch_add(&batch, x, &cell);
+        }
+        batch_flush(&batch, b);
+    }
+    memset(b->dirty, 0, b->cols * b->rows * sizeof(*b->dirty));
+}
+
+static inline ssize_t clipboard_paste(const CluTerm *term)
 {
     char *text = SDL_GetClipboardText();
     if (!text)
@@ -187,49 +234,54 @@ static inline ssize_t clipboard_paste(CluTerm *term)
     return n;
 }
 
-static inline void handle_keydown(CluTerm *term, SDL_Event *e)
+static inline void handle_keydown(const CluTerm *term, SDL_Event *e)
 {
     SDL_KeyboardEvent *key = &e->key;
 
     bool ctrl  = IS_SET_ANY(key->keysym.mod, KMOD_CTRL),
-         shift = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT);
+         shift = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT),
+         alt   = IS_SET_ANY(key->keysym.mod, KMOD_ALT);
+
+#define ESC "\x1b"
 
     switch (key->keysym.sym) {
-    case SDLK_a: goto CTRL_PUT;
-    case SDLK_b: goto CTRL_PUT;
-    case SDLK_c: goto CTRL_PUT;
-    case SDLK_d: goto CTRL_PUT;
-    case SDLK_e: goto CTRL_PUT;
-    case SDLK_f: goto CTRL_PUT;
-    case SDLK_g: goto CTRL_PUT;
-    case SDLK_h: goto CTRL_PUT;
-    case SDLK_i: goto CTRL_PUT;
-    case SDLK_j: goto CTRL_PUT;
-    case SDLK_k: goto CTRL_PUT;
-    case SDLK_l: goto CTRL_PUT;
-    case SDLK_m: goto CTRL_PUT;
-    case SDLK_n: goto CTRL_PUT;
-    case SDLK_o: goto CTRL_PUT;
-    case SDLK_p: goto CTRL_PUT;
-    case SDLK_q: goto CTRL_PUT;
-    case SDLK_r: goto CTRL_PUT;
-    case SDLK_s: goto CTRL_PUT;
-    case SDLK_t: goto CTRL_PUT;
-    case SDLK_u: goto CTRL_PUT;
+    case SDLK_a: goto mod_put;
+    case SDLK_b: goto mod_put;
+    case SDLK_c: goto mod_put;
+    case SDLK_d: goto mod_put;
+    case SDLK_e: goto mod_put;
+    case SDLK_f: goto mod_put;
+    case SDLK_g: goto mod_put;
+    case SDLK_h: goto mod_put;
+    case SDLK_i: goto mod_put;
+    case SDLK_j: goto mod_put;
+    case SDLK_k: goto mod_put;
+    case SDLK_l: goto mod_put;
+    case SDLK_m: goto mod_put;
+    case SDLK_n: goto mod_put;
+    case SDLK_o: goto mod_put;
+    case SDLK_p: goto mod_put;
+    case SDLK_q: goto mod_put;
+    case SDLK_r: goto mod_put;
+    case SDLK_s: goto mod_put;
+    case SDLK_t: goto mod_put;
+    case SDLK_u: goto mod_put;
     case SDLK_v: {
         if (ctrl && shift) {
             clipboard_paste(term);
         } else {
-            goto CTRL_PUT;
+            goto mod_put;
         }
     } break;
-    case SDLK_w: goto CTRL_PUT;
-    case SDLK_x: goto CTRL_PUT;
-    case SDLK_y: goto CTRL_PUT;
+    case SDLK_w: goto mod_put;
+    case SDLK_x: goto mod_put;
+    case SDLK_y: goto mod_put;
     case SDLK_z: {
-    CTRL_PUT:
+    mod_put:
         if (ctrl)
-            pty_write(&term->pty, (char[]){key->keysym.sym - 96, 0}, 1);
+            pty_write(&term->pty, (char[]){key->keysym.sym - 96}, 1);
+        else if (alt)
+            pty_write(&term->pty, (char[]){0x1b, key->keysym.sym}, 2);
     } break;
 
         // clang-format off
@@ -237,25 +289,36 @@ static inline void handle_keydown(CluTerm *term, SDL_Event *e)
     case SDLK_RETURN:    pty_write(&term->pty, "\r", 1); break;
 
     case SDLK_TAB:       pty_write(&term->pty, "\t", 1); break;
-    case SDLK_ESCAPE:    pty_write(&term->pty, "\x1b", 1); break;
+    case SDLK_ESCAPE:    pty_write(&term->pty, ESC, 1); break;
     case SDLK_BACKSPACE: pty_write(&term->pty, "\x7f", 1); break;
-    case SDLK_UP:        pty_write(&term->pty, "\x1b[A", 3); break;
-    case SDLK_DOWN:      pty_write(&term->pty, "\x1b[B", 3); break;
-    case SDLK_RIGHT:     pty_write(&term->pty, "\x1b[C", 3); break;
-    case SDLK_LEFT:      pty_write(&term->pty, "\x1b[D", 3); break;
-    case SDLK_HOME:      pty_write(&term->pty, "\x1b[H", 3); break;
-    case SDLK_END:       pty_write(&term->pty, "\x1b[F", 3); break;
+    case SDLK_UP:        pty_write(&term->pty, ESC"[A", 3); break;
+    case SDLK_DOWN:      pty_write(&term->pty, ESC"[B", 3); break;
+    case SDLK_RIGHT:     pty_write(&term->pty, ESC"[C", 3); break;
+    case SDLK_LEFT:      pty_write(&term->pty, ESC"[D", 3); break;
+    case SDLK_HOME:      pty_write(&term->pty, ESC"[H", 3); break;
+    case SDLK_END:       pty_write(&term->pty, ESC"[F", 3); break;
     case SDLK_INSERT: {
-        shift ? clipboard_paste(term) : pty_write(&term->pty, "\x1b[2~", 4);
+        shift ? clipboard_paste(term) : pty_write(&term->pty, ESC"[2~", 4);
     } break;
-    case SDLK_DELETE:    pty_write(&term->pty, "\x1b[3~", 4); break;
-    case SDLK_PAGEUP:    pty_write(&term->pty, "\x1b[5~", 4); break;
-    case SDLK_PAGEDOWN:  pty_write(&term->pty, "\x1b[6~", 4); break;
+    case SDLK_DELETE:    pty_write(&term->pty, ESC"[3~", 4); break;
+    case SDLK_PAGEUP:    pty_write(&term->pty, ESC"[5~", 4); break;
+    case SDLK_PAGEDOWN:  pty_write(&term->pty, ESC"[6~", 4); break;
         // clang-format on
 
+#undef ESC
     default: break;
     }
 }
+
+#define RENDER(term, fresh)                                                    \
+    do {                                                                       \
+        if ((term) != NULL)                                                    \
+            generate_frame(term, fresh);                                       \
+        SDL_RenderPresent(ctx.renderer);                                       \
+    } while (0)
+
+#define FPS(n)      (1000 / n)
+#define STREAM_SIZE 4096
 
 int main(void)
 {
@@ -265,22 +328,12 @@ int main(void)
     signal(SIGCHLD, quit); // shell exits/crashes.
 
     SDL_Event e;
-    ssize_t n = 0;
-    static struct {
+    ssize_t n                = 0;
+    char stream[STREAM_SIZE] = {0};
+    struct {
         uint w, h, pending : 1;
         uint64_t time;
-    } resize_request = {0};
-
-#define RENDER(term, fresh)                                                    \
-    do {                                                                       \
-        if ((term) != NULL)                                                    \
-            generate_frame(term, fresh);                                       \
-        SDL_RenderPresent(ctx.renderer);                                       \
-    } while (0)
-
-#define RESIZE_FPS  5
-#define STREAM_SIZE 4096
-    char stream[STREAM_SIZE] = {0};
+    } resize = {0};
 
     RENDER(NULL, 0);
     while (running) {
@@ -290,13 +343,12 @@ int main(void)
         }
 #undef STREAM_SIZE
 
-        if (resize_request.pending &&
-            SDL_GetTicks64() - resize_request.time > 1000 / RESIZE_FPS) {
-            cluterm_resize(&term, resize_request.h, resize_request.w);
+        uint64_t tick = SDL_GetTicks64();
+        if (resize.pending && tick - resize.time > FPS(2)) {
+            cluterm_resize(&term, resize.h, resize.w);
             RENDER(&term, 1);
-            resize_request.pending = 0, resize_request.time = SDL_GetTicks64();
+            resize.pending = 0, resize.time = tick;
         }
-#undef RESIZE_FPS
 
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
@@ -310,9 +362,8 @@ int main(void)
                 } break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    resize_request.w       = win->data1 / ctx.f_width,
-                    resize_request.h       = win->data2 / ctx.f_height,
-                    resize_request.pending = 1;
+                    resize.w = win->data1 / ctx.f_width,
+                    resize.h = win->data2 / ctx.f_height, resize.pending = 1;
                 } break;
                 }
             } break;
@@ -324,7 +375,7 @@ int main(void)
             default: break;
             }
         }
-        SDL_Delay(16);
+        SDL_Delay(FPS(60));
     }
 
     cluterm_destroy(&term);

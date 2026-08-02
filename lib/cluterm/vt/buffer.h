@@ -1,6 +1,7 @@
 #ifndef __CLUTERM__VT__BUFFER_H__
 #define __CLUTERM__VT__BUFFER_H__
 
+#include <cluterm/debug.h>
 #include <cluterm/utf8.h>
 #include <cluterm/vt/palette.h>
 #include <cluterm/vt/parser.h>
@@ -74,11 +75,18 @@ typedef struct CluTermBuffer {
 #define buffer_scrolldown(b, count)                                            \
     buffer_scrolldown_relative(b, (b)->scroll_region.start, count)
 
-#define dirty_cell(b, y, x) (b)->dirty[y * (b)->cols + x] = true
+#define dirty_cell(b, y, x)                                                    \
+    do {                                                                       \
+        int i = y * (b)->cols + x, size = (b)->rows * (b)->cols;               \
+        if (i < size)                                                          \
+            (b)->dirty[i] = true;                                              \
+        else                                                                   \
+            debug_1("oob %d -> %d (%dx%d)\n", i, size, (b)->cols, (b)->rows);  \
+    } while (0)
 #define dirty_line(b, y)                                                       \
-    memset(&(b)->dirty[y * (b)->cols], 1, (b)->cols * sizeof(bool));
+    memset(&(b)->dirty[y * (b)->cols], 1, (b)->cols * sizeof(*b->dirty));
 #define dirty_buffer(b)                                                        \
-    memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(bool))
+    memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
 
 static inline void buffer_addcell(CluTermBuffer *b, int y, int x, Cell c)
 {

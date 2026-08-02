@@ -401,30 +401,30 @@ static inline void prepare_ctrl_payload(VT_Parser *vtp, CTRL_Payload *ctrl)
 static inline void prepare_esc_payload(VT_Parser *vtp, ESC_Payload *esc)
 {
     switch (esc->action = ESC_UNKNOWN, esc->final_byte) {
-    case 'D': { esc->action = ESC_IND; goto ENSURE_EMPTY_INTERM; }
-    case 'M': { esc->action = ESC_RI;  goto ENSURE_EMPTY_INTERM; }
-    case 'H': { esc->action = ESC_HTS; goto ENSURE_EMPTY_INTERM; }
+    case 'D': { esc->action = ESC_IND; goto ensure_empty_interm; }
+    case 'M': { esc->action = ESC_RI;  goto ensure_empty_interm; }
+    case 'H': { esc->action = ESC_HTS; goto ensure_empty_interm; }
     // ESC C.
-ENSURE_EMPTY_INTERM: {
+ensure_empty_interm: {
         if (vtp->nseq) {
-            esc->action = ESC_UNKNOWN; goto DONE;
+            esc->action = ESC_UNKNOWN; goto done;
         }
     } break;
 
-    case '0': { esc->action = ESC_CS_LINEGFX; goto ENSURE_CHARSET_INDEX; }
-    case 'B': { esc->action = ESC_CS_USASCII; goto ENSURE_CHARSET_INDEX; }
+    case '0': { esc->action = ESC_CS_LINEGFX; goto ensure_charset_index; }
+    case 'B': { esc->action = ESC_CS_USASCII; goto ensure_charset_index; }
     // ESC [()*+] C (ensure index to designate the character set).
-ENSURE_CHARSET_INDEX: {
+ensure_charset_index: {
         if (!(vtp->nseq == 1 && BETWEEN(vtp->seq[0], '(', '+'))) {
-            esc->action = ESC_UNKNOWN; goto DONE;
+            esc->action = ESC_UNKNOWN; goto done;
         }
     } break;
 
-    case '7': { esc->action = ESC_DECSC;   goto DONE; }
-    case '8': { esc->action = ESC_DECRC;   goto DONE; }
-    default:  { esc->action = ESC_UNKNOWN; goto DONE; }
+    case '7': { esc->action = ESC_DECSC;   goto done; }
+    case '8': { esc->action = ESC_DECRC;   goto done; }
+    default:  { esc->action = ESC_UNKNOWN; goto done; }
     }
-DONE:;
+done:;
 }
 
 static inline void prepare_csi_payload(VT_Parser *vtp, CSI_Payload *csi)
@@ -433,66 +433,66 @@ static inline void prepare_csi_payload(VT_Parser *vtp, CSI_Payload *csi)
 
     Reader param_r = READER(vtp->seq, vtp->nseq - csi->ninterm);
     switch (csi->action = CSI_UNKNOWN, csi->final_byte) {
-    case 'A': { csi->action = CSI_CUU; goto ENSURE_SINGLE_PARAM; }
-    case 'B': { csi->action = CSI_CUD; goto ENSURE_SINGLE_PARAM; }
-    case 'C': { csi->action = CSI_CUF; goto ENSURE_SINGLE_PARAM; }
-    case 'D': { csi->action = CSI_CUB; goto ENSURE_SINGLE_PARAM; }
-    case 'd': { csi->action = CSI_VPA; goto ENSURE_SINGLE_PARAM; }
-    case 'E': { csi->action = CSI_CNL; goto ENSURE_SINGLE_PARAM; }
-    case 'F': { csi->action = CSI_CPL; goto ENSURE_SINGLE_PARAM; }
-    case 'G': { csi->action = CSI_CHA; goto ENSURE_SINGLE_PARAM; }
-    case 'g': { csi->action = CSI_TBC; goto ENSURE_SINGLE_PARAM; }
-    case 'I': { csi->action = CSI_CHT; goto ENSURE_SINGLE_PARAM; }
-    case 'Z': { csi->action = CSI_CBT; goto ENSURE_SINGLE_PARAM; }
-    case 'J': { csi->action = CSI_ED;  goto ENSURE_SINGLE_PARAM; }
-    case 'K': { csi->action = CSI_EL;  goto ENSURE_SINGLE_PARAM; }
-    case 'S': { csi->action = CSI_SU;  goto ENSURE_SINGLE_PARAM; }
-    case 'T': { csi->action = CSI_SD;  goto ENSURE_SINGLE_PARAM; }
-    case 'L': { csi->action = CSI_IL;  goto ENSURE_SINGLE_PARAM; }
-    case 'M': { csi->action = CSI_DL;  goto ENSURE_SINGLE_PARAM; }
-    case '@': { csi->action = CSI_ICH; goto ENSURE_SINGLE_PARAM; }
-    case 'P': { csi->action = CSI_DCH; goto ENSURE_SINGLE_PARAM; }
-    case 'X': { csi->action = CSI_ECH; goto ENSURE_SINGLE_PARAM; }
+    case 'A': { csi->action = CSI_CUU; goto ensure_single_param; }
+    case 'B': { csi->action = CSI_CUD; goto ensure_single_param; }
+    case 'C': { csi->action = CSI_CUF; goto ensure_single_param; }
+    case 'D': { csi->action = CSI_CUB; goto ensure_single_param; }
+    case 'd': { csi->action = CSI_VPA; goto ensure_single_param; }
+    case 'E': { csi->action = CSI_CNL; goto ensure_single_param; }
+    case 'F': { csi->action = CSI_CPL; goto ensure_single_param; }
+    case 'G': { csi->action = CSI_CHA; goto ensure_single_param; }
+    case 'g': { csi->action = CSI_TBC; goto ensure_single_param; }
+    case 'I': { csi->action = CSI_CHT; goto ensure_single_param; }
+    case 'Z': { csi->action = CSI_CBT; goto ensure_single_param; }
+    case 'J': { csi->action = CSI_ED;  goto ensure_single_param; }
+    case 'K': { csi->action = CSI_EL;  goto ensure_single_param; }
+    case 'S': { csi->action = CSI_SU;  goto ensure_single_param; }
+    case 'T': { csi->action = CSI_SD;  goto ensure_single_param; }
+    case 'L': { csi->action = CSI_IL;  goto ensure_single_param; }
+    case 'M': { csi->action = CSI_DL;  goto ensure_single_param; }
+    case '@': { csi->action = CSI_ICH; goto ensure_single_param; }
+    case 'P': { csi->action = CSI_DCH; goto ensure_single_param; }
+    case 'X': { csi->action = CSI_ECH; goto ensure_single_param; }
     // CSI Ps C (force single param, default: 0).
-ENSURE_SINGLE_PARAM: {
+ensure_single_param: {
         csi->param[csi->nparam++] = r_consume_number(&param_r);
     } break;
 
-    case 'H': { csi->action = CSI_CUP;     goto ENSURE_DOUBLE_PARAM; }
-    case 'f': { csi->action = CSI_HVP;     goto ENSURE_DOUBLE_PARAM; }
-    case 'r': { csi->action = CSI_DECSTBM; goto ENSURE_DOUBLE_PARAM; }
+    case 'H': { csi->action = CSI_CUP;     goto ensure_double_param; }
+    case 'f': { csi->action = CSI_HVP;     goto ensure_double_param; }
+    case 'r': { csi->action = CSI_DECSTBM; goto ensure_double_param; }
     // CSI Ps ; Ps C (force two delimited params, default: {0, 0}).
-ENSURE_DOUBLE_PARAM: {
+ensure_double_param: {
         csi->param[csi->nparam++] = r_consume_number(&param_r);
         (void)r_consume_param_delim(&param_r);
         csi->param[csi->nparam++] = r_consume_number(&param_r);
     } break;
 
-    case 'h': { csi->action = CSI_DECSET; goto CHECK_PRIVATE_MODE; }
-    case 'l': { csi->action = CSI_DECRST; goto CHECK_PRIVATE_MODE; }
+    case 'h': { csi->action = CSI_DECSET; goto check_private_mode; }
+    case 'l': { csi->action = CSI_DECRST; goto check_private_mode; }
     // CSI ? Pm C (check for private marker, e.g: '?').
-CHECK_PRIVATE_MODE: {
+check_private_mode: {
         if (r_consume(&param_r, '?')) {
-            goto ENSURE_MULTIPLE_PARAM;
+            goto ensure_multiple_param;
         } else {
-            csi->action = CSI_UNKNOWN; goto DONE;
+            csi->action = CSI_UNKNOWN; goto done;
         }
     } break;
 
-    case 'm': { csi->action = CSI_SGR; goto ENSURE_MULTIPLE_PARAM; }
+    case 'm': { csi->action = CSI_SGR; goto ensure_multiple_param; }
     // CSI Ps ; Pm C (delimited params).
-ENSURE_MULTIPLE_PARAM: {
+ensure_multiple_param: {
         do {
             csi->param[csi->nparam++] = r_consume_number(&param_r);
         } while (r_consume_param_delim(&param_r));
     } break;
 
-    case 's': { csi->action = CSI_SC;      goto DONE; }
-    case 'u': { csi->action = CSI_RC;      goto DONE; }
-    default:  { csi->action = CSI_UNKNOWN; goto DONE; }
+    case 's': { csi->action = CSI_SC;      goto done; }
+    case 'u': { csi->action = CSI_RC;      goto done; }
+    default:  { csi->action = CSI_UNKNOWN; goto done; }
     }
 
-DONE:
+done:
     if (r_buflen(&param_r)) // extra unparsed seq.
         csi->action = CSI_UNKNOWN;
 }

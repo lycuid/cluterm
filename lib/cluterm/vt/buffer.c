@@ -181,11 +181,11 @@ void buffer_resize(CluTermBuffer *b, int rows, int cols)
     b->cursor.y      = MIN(b->cursor.y, rows - 1);
     b->cursor.x      = MIN(b->cursor.x, cols - 1);
 
-    b->tab = realloc(b->tab, (b->cols + 1) * sizeof(bool));
-    memset(b->tab, 0, (b->cols + 1) * sizeof(bool));
+    b->tab = realloc(b->tab, (b->cols + 1) * sizeof(*b->tab));
+    memset(b->tab, 0, (b->cols + 1) * sizeof(*b->tab));
     for (int i = TabWidth; i <= b->cols; i += b->cols)
         b->tab[i] = 1;
-    b->dirty = realloc(b->dirty, b->rows * b->cols * sizeof(bool));
+    b->dirty = realloc(b->dirty, b->rows * b->cols * sizeof(*b->dirty));
     dirty_buffer(b);
     adjust(b);
 }
