@@ -2,7 +2,7 @@
 #define __CLUTERM__VT__PARSER_H__
 
 #include <cluterm/utf8.h>
-#include <cluterm/vt.h>
+#include <cluterm/vt/actions.h>
 
 typedef struct Reader {
     const char *buffer;

@@ -67,97 +67,7 @@ void buffer_init(CluTermBuffer *b, int rows, int cols, int history)
             b->lines[y][x] = DEFAULT_CELL(' ');
     }
     b->dirty = malloc(rows * cols * sizeof(bool));
-    buffer_clear(b);
-}
-
-void buffer_destroy(CluTermBuffer *b)
-{
-    if (b->lines) {
-        for (int y = 0; y < lines(b); ++y)
-            free(b->lines[y]);
-        free(b->lines);
-    }
-    if (b->tab)
-        free(b->tab);
-    if (b->dirty)
-        free(b->dirty);
-    debug_1("buffer cleanup: Done!.\n");
-}
-
-void buffer_clearline(CluTermBuffer *b, int y, int x0, int x1)
-{
-    for (; x0 <= x1; ++x0)
-        buffer_addcell(b, y, x0, CELL(' ', b->cell_attrs));
-}
-
-void buffer_clearbox(CluTermBuffer *b, int y0, int x0, int y1, int x1)
-{
-    for (; y0 <= y1; ++y0)
-        buffer_clearline(b, y0, x0, x1);
-}
-
-void buffer_addlines(CluTermBuffer *b, int lines)
-{
-    b->last_row += lines;
-    buffer_clearbox(b, b->rows - lines, 0, b->rows - 1, b->cols - 1);
-    adjust(b);
-}
-
-void buffer_scrollup_relative(CluTermBuffer *b, int origin, int lines)
-{
-    if (!lines)
-        return;
-    Region *region = &b->scroll_region;
-    lines          = MIN(lines, region->end - region->start);
-    for (int i = origin - 1; i >= 0; --i)
-        SWAP(line_at(b, i), line_at(b, i + lines));
-    buffer_addlines(b, lines);
-    for (int i = b->rows - 1; i > region->end; --i)
-        SWAP(line_at(b, i), line_at(b, i - lines));
-
-    for (int y = MIN(region->start, b->rows - 1);
-         y <= MIN(region->end, b->rows - 1); ++y)
-        dirty_line(b, y);
-}
-
-void buffer_scrolldown_relative(CluTermBuffer *b, int origin, int lines)
-{
-    if (!lines)
-        return;
-    Region *region = &b->scroll_region;
-    lines          = MIN(lines, region->end - MAX(region->start, origin));
-    for (int i = region->end; i >= origin + lines; --i)
-        SWAP(line_at(b, i), line_at(b, i - lines));
-    buffer_clearbox(b, origin, 0, origin + lines - 1, b->cols - 1);
-
-    for (int y = origin; y <= MIN(region->end, b->rows - 1); ++y)
-        dirty_line(b, y);
-}
-
-static inline void buffer_insert_delete_chars(CluTermBuffer *b, int count,
-                                              bool insert)
-{
-    dirty_line(b, b->cursor.y);
-    Cell *xptr = line_at(b, b->cursor.y) + b->cursor.x;
-    int dx     = MIN(b->cols - 1 - b->cursor.x, count),
-        shift  = b->cols - 1 - b->cursor.x - dx;
-
-    insert ? memmove(xptr + dx, xptr, shift * sizeof(Cell))
-           : memmove(xptr, xptr + dx, shift * sizeof(Cell));
-
-    xptr += shift * !insert;
-    for (int i = 0; i < dx; ++i)
-        *(xptr + i) = CELL(' ', b->cell_attrs);
-}
-
-void buffer_insert_chars(CluTermBuffer *b, int count)
-{
-    buffer_insert_delete_chars(b, count, true);
-}
-
-void buffer_delete_chars(CluTermBuffer *b, int count)
-{
-    buffer_insert_delete_chars(b, count, false);
+    clear(b);
 }
 
 void buffer_resize(CluTermBuffer *b, int rows, int cols)
@@ -189,3 +99,168 @@ void buffer_resize(CluTermBuffer *b, int rows, int cols)
     dirty_buffer(b);
     adjust(b);
 }
+
+void buffer_destroy(CluTermBuffer *b)
+{
+    if (b->lines) {
+        for (int y = 0; y < lines(b); ++y)
+            free(b->lines[y]);
+        free(b->lines);
+    }
+    if (b->tab)
+        free(b->tab);
+    if (b->dirty)
+        free(b->dirty);
+    debug_1("buffer cleanup: Done!.\n");
+}
+
+void clearline(CluTermBuffer *b, int y, int x0, int x1)
+{
+    for (; x0 <= x1; ++x0)
+        putcell(b, y, x0, CELL(' ', b->cell_attrs));
+}
+
+void clearbox(CluTermBuffer *b, int y0, int x0, int y1, int x1)
+{
+    for (; y0 <= y1; ++y0)
+        clearline(b, y0, x0, x1);
+}
+
+void addlines(CluTermBuffer *b, int lines)
+{
+    b->last_row += lines;
+    clearbox(b, b->rows - lines, 0, b->rows - 1, b->cols - 1);
+    adjust(b);
+}
+
+void scrollup_rel(CluTermBuffer *b, int origin, int lines)
+{
+    if (!lines)
+        return;
+    Region *region = &b->scroll_region;
+    lines          = MIN(lines, region->end - region->start);
+    for (int i = origin - 1; i >= 0; --i)
+        SWAP(line_at(b, i), line_at(b, i + lines));
+    addlines(b, lines);
+    for (int i = b->rows - 1; i > region->end; --i)
+        SWAP(line_at(b, i), line_at(b, i - lines));
+
+    for (int y = MIN(region->start, b->rows - 1);
+         y <= MIN(region->end, b->rows - 1); ++y)
+        dirty_line(b, y);
+}
+
+void scrolldown_rel(CluTermBuffer *b, int origin, int lines)
+{
+    if (!lines)
+        return;
+    Region *region = &b->scroll_region;
+    lines          = MIN(lines, region->end - MAX(region->start, origin));
+    for (int i = region->end; i >= origin + lines; --i)
+        SWAP(line_at(b, i), line_at(b, i - lines));
+    clearbox(b, origin, 0, origin + lines - 1, b->cols - 1);
+
+    for (int y = origin; y <= MIN(region->end, b->rows - 1); ++y)
+        dirty_line(b, y);
+}
+
+#define dirty_cursor(b)                                                        \
+    do {                                                                       \
+        if (BETWEEN((b)->cursor.y, 0, (b)->rows - 1) &&                        \
+            BETWEEN((b)->cursor.x, 0, (b)->cols - 1))                          \
+            dirty_cell(b, (b)->cursor.y, (b)->cursor.x);                       \
+    } while (0)
+
+void move_cursor_to(CluTermBuffer *b, int y, int x)
+{
+    dirty_cursor(b);
+    b->cursor.y = CLAMP(y, 0, b->rows - 1);
+    b->cursor.x = CLAMP(x, 0, b->cols);
+    dirty_cursor(b);
+}
+#undef dirty_cursor
+
+void move_cursor(CluTermBuffer *b, int dy, int dx)
+{
+    move_cursor_to(b, b->cursor.y + dy, b->cursor.x + dx);
+}
+
+static inline void insert_delete_chars(CluTermBuffer *b, int count, bool insert)
+{
+    dirty_line(b, b->cursor.y);
+    Cell *xptr = line_at(b, b->cursor.y) + b->cursor.x;
+    int dx     = MIN(b->cols - 1 - b->cursor.x, count),
+        shift  = b->cols - 1 - b->cursor.x - dx;
+
+    insert ? memmove(xptr + dx, xptr, shift * sizeof(Cell))
+           : memmove(xptr, xptr + dx, shift * sizeof(Cell));
+
+    xptr += shift * !insert;
+    for (int i = 0; i < dx; ++i)
+        *(xptr + i) = CELL(' ', b->cell_attrs);
+}
+
+void insert_chars(CluTermBuffer *b, int count)
+{
+    insert_delete_chars(b, count, true);
+}
+
+void delete_chars(CluTermBuffer *b, int count)
+{
+    insert_delete_chars(b, count, false);
+}
+
+void insert_tab(CluTermBuffer *b, int count, int inc)
+{
+    dirty_line(b, b->cursor.y);
+    while (BETWEEN(b->cursor.x, 0, b->cols - 1) && count--) {
+        do {
+            b->cursor.x += inc;
+        } while (BETWEEN(b->cursor.x, 0, b->cols - 1) && !b->tab[b->cursor.x]);
+    }
+    b->cursor.x = CLAMP(b->cursor.x, 0, b->cols);
+}
+
+static inline Cell translate(Cell cell, Charset charset)
+{
+    switch (charset) {
+    case CS_USASCII: break;
+    case CS_LINEGFX: {
+        // This table is proudly stolen from st, which was proudly stolen from
+        // rxvt.
+        static const char *const vt100_0[/* 0x41..0x7e */] = {
+            "↑", "↓", "→", "←", "█", "▚", "☃",      // A - G
+            0,   0,   0,   0,   0,   0,   0,   0,   // H - O
+            0,   0,   0,   0,   0,   0,   0,   0,   // P - W
+            0,   0,   0,   0,   0,   0,   0,   " ", // X - _
+            "◆", "▒", "␉", "␌", "␍", "␊", "°", "±", // ` - g
+            "␤", "␋", "┘", "┐", "┌", "└", "┼", "⎺", // h - o
+            "⎻", "─", "⎼", "⎽", "├", "┤", "┴", "┬", // p - w
+            "│", "≤", "≥", "π", "≠", "£", "·",      // x - ~
+        };
+        if (BETWEEN(cell.value, 0x41, 0x7e) && vt100_0[cell.value - 0x41])
+            cell.value = utf8_decode(vt100_0[cell.value - 0x41]);
+    } break;
+    }
+    return cell;
+}
+
+void insert_cell(CluTermBuffer *b, Cell cell)
+{
+    if (b->cursor.x == b->cols) {
+        if (b->cursor.y == b->rows - 1)
+            scrollup(b, 1);
+        move_cursor_to(b, b->cursor.y + 1, 0);
+    }
+    putcell(b, b->cursor.y, b->cursor.x,
+            translate(cell, b->charset[b->active_charset]));
+    move_cursor(b, 0, 1);
+}
+
+void linefeed(CluTermBuffer *b)
+{
+    b->cursor.y == b->scroll_region.end ? scrollup(b, 1) : move_cursor(b, 1, 0);
+}
+
+void save_cursor(CluTermBuffer *b) { b->saved_cursor = b->cursor; }
+void restore_cursor(CluTermBuffer *b) { b->cursor = b->saved_cursor; }

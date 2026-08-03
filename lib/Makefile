@@ -18,12 +18,12 @@ $(LIB): $(O_FILES) ; @mkdir -p $(@D)
 $(O_DIR)/%.o: $(I_DIR)/%.c $(I_DIR)/%.h ; @mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c -fPIC -o $@ $<
 
-$(O_DIR)/$(NAME).o:               \
-	$(I_DIR)/$(NAME)/actions.h      \
-	$(I_DIR)/$(NAME)/actions/esc.h  \
-	$(I_DIR)/$(NAME)/actions/csi.h  \
-	$(I_DIR)/$(NAME)/actions/ctrl.h \
-	$(I_DIR)/$(NAME)/actions/osc.h  \
+$(O_DIR)/$(NAME).o:                  \
+	$(I_DIR)/$(NAME)/vt/actions.h      \
+	$(I_DIR)/$(NAME)/vt/actions/esc.h  \
+	$(I_DIR)/$(NAME)/vt/actions/csi.h  \
+	$(I_DIR)/$(NAME)/vt/actions/ctrl.h \
+	$(I_DIR)/$(NAME)/vt/actions/osc.h  \
 	$(I_DIR)/$(NAME)/vt/palette.h
 
 .PHONY: clean compile_flags

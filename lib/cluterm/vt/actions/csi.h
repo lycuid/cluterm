@@ -2,7 +2,7 @@
 #define __CLUTERM__ACTIONS__CSI_H__
 
 #include <cluterm.h>
-#include <cluterm/actions.h>
+#include <cluterm/vt/actions.h>
 #include <cluterm/vt/buffer.h>
 #include <cluterm/vt/palette.h>
 #include <config.h>
@@ -33,18 +33,18 @@ static inline void csi_ed(CluTerm *term, CSI_Payload *csi)
 
     switch (csi->param[0]) {
     case 0: { // clear from cursor to the end of the screen.
-        buffer_clearline(b, cursor->y, cursor->x, b->cols - 1);
-        buffer_clearbox(b, cursor->y + 1, 0, b->rows - 1, b->cols - 1);
+        clearline(b, cursor->y, cursor->x, b->cols - 1);
+        clearbox(b, cursor->y + 1, 0, b->rows - 1, b->cols - 1);
     } break;
     case 1: { // clear from cursor to the beginning of the screen.
-        buffer_clearline(b, cursor->y, 0, cursor->x);
-        buffer_clearbox(b, 0, 0, cursor->y - 1, b->cols - 1);
+        clearline(b, cursor->y, 0, cursor->x);
+        clearbox(b, 0, 0, cursor->y - 1, b->cols - 1);
     } break;
     case 2:
-        buffer_clear(b);
+        clear(b);
         break; // clear the entire screen.
     // clear the entire screen and reset scrollback buffer.
-    case 3: buffer_clear(b); break;
+    case 3: clear(b); break;
     default: break;
     }
 }
@@ -57,13 +57,13 @@ static inline void csi_el(CluTerm *term, CSI_Payload *csi)
 
     switch (csi->param[0]) {
     case 0: { // clear from cursor to the end of the line.
-        buffer_clearline(b, cursor->y, cursor->x, b->cols - 1);
+        clearline(b, cursor->y, cursor->x, b->cols - 1);
     } break;
     case 1: { // clear from cursor to the beginning of the line.
-        buffer_clearline(b, cursor->y, 0, cursor->x);
+        clearline(b, cursor->y, 0, cursor->x);
     } break;
     case 2: { // clear the entire line.
-        buffer_clearline(b, cursor->y, 0, b->cols - 1);
+        clearline(b, cursor->y, 0, b->cols - 1);
     } break;
     default: break;
     }
@@ -159,16 +159,17 @@ static inline void csi_sgr(CluTerm *term, CSI_Payload *csi)
 
 static inline void csi_decmode(CluTerm *term, CSI_Payload *csi, bool is_decset)
 {
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
 
     for (int i = 0; i < csi->nparam; ++i) {
+        CluTermBuffer *b = ACTIVE_BUFFER(term);
+
         switch (csi->param[i]) {
 
         // CSI_DECANM
-        case 2:
+        case 2: {
             if (is_decset)
                 memset(b->charset, CS_USASCII, sizeof(b->charset));
-            break;
+        } break;
 
         // CSI_DECOM: Set Origin mode, VT100.
         case 6: UPDATE(term->mode, MODE_ORIGIN, is_decset); break;
@@ -179,12 +180,12 @@ static inline void csi_decmode(CluTerm *term, CSI_Payload *csi, bool is_decset)
         // Alternate screen buffer with save/restore cursor and screen clear.
         case 1049: {
             if (is_decset) {
-                save_cursor(term);
+                save_cursor(b);
                 SET(term->mode, MODE_ALT_BUFFER);
-                buffer_clear(&term->buffer[1]);
+                clear(&term->buffer[1]);
             } else {
                 UNSET(term->mode, MODE_ALT_BUFFER);
-                restore_cursor(term);
+                restore_cursor(b);
                 dirty_buffer(&term->buffer[0]);
             }
         } break;
@@ -196,6 +197,9 @@ static inline void csi_decmode(CluTerm *term, CSI_Payload *csi, bool is_decset)
 }
 
 #define PARAM(n) (n < csi->nparam ? MAX(1, csi->param[n]) : 1)
+// adjust value based on the origin mode.
+#define DECOM_PARAM(n)                                                         \
+    PARAM(n) + (IS_SET(term->mode, MODE_ORIGIN) ? b->scroll_region.start : 0)
 
 EXPORT void csi_execute(CluTerm *term, CSI_Payload *csi)
 {
@@ -203,49 +207,49 @@ EXPORT void csi_execute(CluTerm *term, CSI_Payload *csi)
     Cursor *cursor   = &b->cursor;
 
     switch (csi->action) {
-    case CSI_CUU: move_cursor(term, -PARAM(0), 0); break;
-    case CSI_CUD: move_cursor(term, PARAM(0), 0); break;
-    case CSI_CUF: move_cursor(term, 0, PARAM(0)); break;
-    case CSI_CUB: move_cursor(term, 0, -PARAM(0)); break;
-    case CSI_CNL: move_cursor(term, PARAM(0), -cursor->x); break;
-    case CSI_CPL: move_cursor(term, -PARAM(0), -cursor->x); break;
+    case CSI_CUU: move_cursor(b, -PARAM(0), 0); break;
+    case CSI_CUD: move_cursor(b, PARAM(0), 0); break;
+    case CSI_CUF: move_cursor(b, 0, PARAM(0)); break;
+    case CSI_CUB: move_cursor(b, 0, -PARAM(0)); break;
+    case CSI_CNL: move_cursor(b, PARAM(0), -cursor->x); break;
+    case CSI_CPL: move_cursor(b, -PARAM(0), -cursor->x); break;
 
     case CSI_VPA: { // 1-based values (default: 1).
-        move_cursor_to(term, CLAMP(csi->param[0], 1, b->rows) - 1, cursor->x);
+        move_cursor_to(b, DECOM_PARAM(0) - 1, cursor->x);
     } break;
     case CSI_CHA: { // 1-based values (default: 1).
-        move_cursor_to(term, cursor->y, CLAMP(csi->param[0], 1, b->cols) - 1);
+        move_cursor_to(b, cursor->y, CLAMP(csi->param[0], 1, b->cols) - 1);
     } break;
 
-    case CSI_CHT: put_tab(term, csi->param[0], 1); break;
-    case CSI_CBT: put_tab(term, csi->param[0], -1); break;
+    case CSI_CHT: insert_tab(b, csi->param[0], 1); break;
+    case CSI_CBT: insert_tab(b, csi->param[0], -1); break;
     case CSI_TBC: csi_tbc(term, csi); break;
 
     // 1-based values (default: 1).
     case CSI_HVP: // fallthrough.
-    case CSI_CUP: move_cursor_to(term, PARAM(0) - 1, PARAM(1) - 1); break;
+    case CSI_CUP: move_cursor_to(b, DECOM_PARAM(0) - 1, PARAM(1) - 1); break;
 
     case CSI_ED: csi_ed(term, csi); break;
     case CSI_EL: csi_el(term, csi); break;
 
-    case CSI_IL: buffer_scrolldown_relative(b, cursor->y, PARAM(0)); break;
-    case CSI_DL: buffer_scrollup_relative(b, cursor->y, PARAM(0)); break;
-    case CSI_ICH: buffer_insert_chars(b, PARAM(0)); break;
-    case CSI_DCH: buffer_delete_chars(b, PARAM(0)); break;
+    case CSI_IL: scrolldown_rel(b, cursor->y, PARAM(0)); break;
+    case CSI_DL: scrollup_rel(b, cursor->y, PARAM(0)); break;
+    case CSI_ICH: insert_chars(b, PARAM(0)); break;
+    case CSI_DCH: delete_chars(b, PARAM(0)); break;
 
     case CSI_ECH: {
         int offset = CLAMP(cursor->x + PARAM(0), 1, b->cols) - 1;
         for (int x = cursor->x; x <= offset; ++x)
-            buffer_addcell(b, cursor->y, x, CELL(' ', b->cell_attrs));
+            putcell(b, cursor->y, x, CELL(' ', b->cell_attrs));
     } break;
 
-    case CSI_SU: buffer_scrollup(b, PARAM(0)); break;
-    case CSI_SD: buffer_scrolldown(b, PARAM(0)); break;
+    case CSI_SU: scrollup(b, PARAM(0)); break;
+    case CSI_SD: scrolldown(b, PARAM(0)); break;
 
     case CSI_SGR: csi_sgr(term, csi); break;
 
-    case CSI_SC: save_cursor(term); break;
-    case CSI_RC: restore_cursor(term); break;
+    case CSI_SC: save_cursor(b); break;
+    case CSI_RC: restore_cursor(b); break;
 
     case CSI_DECSTBM: {
         Region *region = &b->scroll_region;

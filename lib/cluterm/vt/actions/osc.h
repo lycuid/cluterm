@@ -2,7 +2,6 @@
 #define __CLUTERM__ACTIONS__OSC_H__
 
 #include <cluterm.h>
-#include <cluterm/actions.h>
 
 EXPORT void osc_execute(CluTerm *term, OSC_Payload *osc)
 {

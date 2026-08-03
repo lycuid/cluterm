@@ -1,4 +1,4 @@
-#include <cluterm/vt.h>
+#include <cluterm/vt/actions.h>
 #include <cluterm/vt/parser.h>
 #include <criterion/criterion.h>
 #include <stdio.h>

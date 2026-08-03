@@ -69,11 +69,9 @@ typedef struct CluTermBuffer {
 #define line_at(b, y) ((b)->lines[(first_row(b) + y) % lines(b)])
 #define lines(b)      ((b)->rows + (b)->history)
 
-#define buffer_clear(b) buffer_addlines(b, ((b)->cursor.x = 0) + (b)->rows)
-#define buffer_scrollup(b, count)                                              \
-    buffer_scrollup_relative(b, (b)->scroll_region.start, count)
-#define buffer_scrolldown(b, count)                                            \
-    buffer_scrolldown_relative(b, (b)->scroll_region.start, count)
+#define clear(b)             addlines(b, ((b)->cursor.x = 0) + (b)->rows)
+#define scrollup(b, count)   scrollup_rel(b, (b)->scroll_region.start, count)
+#define scrolldown(b, count) scrolldown_rel(b, (b)->scroll_region.start, count)
 
 #define dirty_cell(b, y, x)                                                    \
     do {                                                                       \
@@ -88,28 +86,46 @@ typedef struct CluTermBuffer {
 #define dirty_buffer(b)                                                        \
     memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
 
-static inline void buffer_addcell(CluTermBuffer *b, int y, int x, Cell c)
+static inline void putcell(CluTermBuffer *b, int y, int x, Cell c)
 {
     line_at(b, y)[x] = c;
     dirty_cell(b, y, x);
 }
 
 void buffer_init(CluTermBuffer *, int, int, int);
-void buffer_create_texture(CluTermBuffer *);
 void buffer_destroy(CluTermBuffer *);
+void buffer_resize(CluTermBuffer *, int, int);
 
 // clear line at 'y' from 'x0' to 'x1'.
-void buffer_clearline(CluTermBuffer *, int, int, int);
+void clearline(CluTermBuffer *, int, int, int);
 // clear box from '(y0, x0)' to '(y1, x1)'.
-void buffer_clearbox(CluTermBuffer *, int, int, int, int);
+void clearbox(CluTermBuffer *, int, int, int, int);
 // adds 'n' lines.
-void buffer_addlines(CluTermBuffer *, int);
-void buffer_scrollup_relative(CluTermBuffer *, int, int);
-void buffer_scrolldown_relative(CluTermBuffer *, int, int);
+void addlines(CluTermBuffer *, int);
+void scrollup_rel(CluTermBuffer *, int, int);
+void scrolldown_rel(CluTermBuffer *, int, int);
+
+/* cursor actions. */
+// All the below actions involve either updating cursor or operations relative
+// to the cursor.
+
+// absolute cursor move (screen coords clamped).
+void move_cursor_to(CluTermBuffer *, int, int);
+// relative cursor move.
+void move_cursor(CluTermBuffer *, int, int);
 // insert 'n' chars after cursor.
-void buffer_insert_chars(CluTermBuffer *, int);
+void insert_chars(CluTermBuffer *, int);
 // delete 'n' chars after cursor.
-void buffer_delete_chars(CluTermBuffer *, int);
-void buffer_resize(CluTermBuffer *, int, int);
+void delete_chars(CluTermBuffer *, int);
+// inserts tab at cursor.
+void insert_tab(CluTermBuffer *, int, int);
+// insert cell at the current cursor position (with word wrap).
+void insert_cell(CluTermBuffer *, Cell);
+// move cursor to (y+1, 0)
+void linefeed(CluTermBuffer *);
+// store cursor coordinates.
+void save_cursor(CluTermBuffer *);
+// restore the stored cursor coordinates.
+void restore_cursor(CluTermBuffer *);
 
 #endif

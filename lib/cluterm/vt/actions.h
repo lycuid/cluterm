@@ -1,5 +1,5 @@
-#ifndef __CLUTERM__VT_H__
-#define __CLUTERM__VT_H__
+#ifndef __CLUTERM__VT__ACTIONS_H__
+#define __CLUTERM__VT__ACTIONS_H__
 
 typedef enum CTRL_Action {
     C0_BEL = 7, // Bell.

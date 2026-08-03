@@ -1,10 +1,10 @@
 #include "cluterm.h"
-#include <cluterm/actions.h>
-#include <cluterm/actions/csi.h>
-#include <cluterm/actions/ctrl.h>
-#include <cluterm/actions/esc.h>
-#include <cluterm/actions/osc.h>
 #include <cluterm/pty.h>
+#include <cluterm/vt/actions.h>
+#include <cluterm/vt/actions/csi.h>
+#include <cluterm/vt/actions/ctrl.h>
+#include <cluterm/vt/actions/esc.h>
+#include <cluterm/vt/actions/osc.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -36,7 +36,7 @@ void cluterm_write(CluTerm *term, char *stream, uint32_t slen)
         switch (fsm_event = parser_run(vt_parser)) {
         case EVENT_NOOP: goto done;
         case EVENT_PRINT: {
-            put_cell(term, CELL(vt_parser->payload.value, b->cell_attrs));
+            insert_cell(b, CELL(vt_parser->payload.value, b->cell_attrs));
         } break;
         case EVENT_ESC: esc_execute(term, &vt_parser->payload.esc); break;
         case EVENT_CSI: csi_execute(term, &vt_parser->payload.csi); break;
