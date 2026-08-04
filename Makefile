@@ -24,8 +24,8 @@ build: ;
 
 debug-build: ;
 	$(MAKE) \
-		CFLAGS="-DDEBUG_LVL=1 -DPALETTE_VSCODE -fsanitize=address -ggdb -O0" \
-		LDFLAGS="-fsanitize=address"
+		CFLAGS="-DDEBUG_LVL=1 -DPALETTE_VSCODE -fsanitize=undefined,address -ggdb -O0" \
+		LDFLAGS="-fsanitize=undefined,address"
 
 clean: ; rm -rf $(BUILD)
 	$(MAKE) -C lib $@

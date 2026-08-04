@@ -7,9 +7,6 @@
 #include <cluterm/vt/parser.h>
 #include <stdbool.h>
 
-/* used by macro(dirty_line). */
-#include <string.h> // IWYU pragma: keep
-
 typedef uint16_t CellState;
 #define CELL_NORMAL    0
 #define CELL_BOLD      (1 << 0)
@@ -65,37 +62,19 @@ typedef struct CluTermBuffer {
     int charset[4], active_charset;
 } CluTermBuffer;
 
-#define first_row(b)  (MAX(0, (b)->last_row - (b)->rows) % lines(b))
-#define line_at(b, y) ((b)->lines[(first_row(b) + y) % lines(b)])
-#define lines(b)      ((b)->rows + (b)->history)
-
 #define clear(b)             addlines(b, ((b)->cursor.x = 0) + (b)->rows)
 #define scrollup(b, count)   scrollup_rel(b, (b)->scroll_region.start, count)
 #define scrolldown(b, count) scrolldown_rel(b, (b)->scroll_region.start, count)
 
-#define dirty_cell(b, y, x)                                                    \
-    do {                                                                       \
-        int i = y * (b)->cols + x, size = (b)->rows * (b)->cols;               \
-        if (i < size)                                                          \
-            (b)->dirty[i] = true;                                              \
-        else                                                                   \
-            debug_1("oob %d -> %d (%dx%d)\n", i, size, (b)->cols, (b)->rows);  \
-    } while (0)
-#define dirty_line(b, y)                                                       \
-    memset(&(b)->dirty[y * (b)->cols], 1, (b)->cols * sizeof(*b->dirty));
 #define dirty_buffer(b)                                                        \
     memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
-
-static inline void putcell(CluTermBuffer *b, int y, int x, Cell c)
-{
-    line_at(b, y)[x] = c;
-    dirty_cell(b, y, x);
-}
 
 void buffer_init(CluTermBuffer *, int, int, int);
 void buffer_destroy(CluTermBuffer *);
 void buffer_resize(CluTermBuffer *, int, int);
 
+Cell getcell(const CluTermBuffer *, int, int);
+void putcell(CluTermBuffer *, int, int, Cell);
 // clear line at 'y' from 'x0' to 'x1'.
 void clearline(CluTermBuffer *, int, int, int);
 // clear box from '(y0, x0)' to '(y1, x1)'.

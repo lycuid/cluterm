@@ -198,8 +198,8 @@ static inline void csi_decmode(CluTerm *term, CSI_Payload *csi, bool is_decset)
 
 #define PARAM(n) (n < csi->nparam ? MAX(1, csi->param[n]) : 1)
 // adjust value based on the origin mode.
-#define DECOM_PARAM(n)                                                         \
-    PARAM(n) + (IS_SET(term->mode, MODE_ORIGIN) ? b->scroll_region.start : 0)
+#define DECOM(n)                                                               \
+    n + (IS_SET(term->mode, MODE_ORIGIN) ? b->scroll_region.start : 0)
 
 EXPORT void csi_execute(CluTerm *term, CSI_Payload *csi)
 {
@@ -215,19 +215,19 @@ EXPORT void csi_execute(CluTerm *term, CSI_Payload *csi)
     case CSI_CPL: move_cursor(b, -PARAM(0), -cursor->x); break;
 
     case CSI_VPA: { // 1-based values (default: 1).
-        move_cursor_to(b, DECOM_PARAM(0) - 1, cursor->x);
+        move_cursor_to(b, DECOM(PARAM(0)) - 1, cursor->x);
     } break;
     case CSI_CHA: { // 1-based values (default: 1).
         move_cursor_to(b, cursor->y, CLAMP(csi->param[0], 1, b->cols) - 1);
     } break;
 
-    case CSI_CHT: insert_tab(b, csi->param[0], 1); break;
-    case CSI_CBT: insert_tab(b, csi->param[0], -1); break;
+    case CSI_CHT: insert_tab(b, PARAM(0), 1); break;
+    case CSI_CBT: insert_tab(b, PARAM(0), -1); break;
     case CSI_TBC: csi_tbc(term, csi); break;
 
     // 1-based values (default: 1).
     case CSI_HVP: // fallthrough.
-    case CSI_CUP: move_cursor_to(b, DECOM_PARAM(0) - 1, PARAM(1) - 1); break;
+    case CSI_CUP: move_cursor_to(b, DECOM(PARAM(0)) - 1, PARAM(1) - 1); break;
 
     case CSI_ED: csi_ed(term, csi); break;
     case CSI_EL: csi_el(term, csi); break;
