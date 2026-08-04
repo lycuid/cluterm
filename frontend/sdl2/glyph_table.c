@@ -50,7 +50,7 @@ static inline TTF_Font *get_font(GFX_Context *ctx, Cell *cell)
 
 static inline void glyph_create(GFX_Context *ctx, Glyph *glyph, Cell cell)
 {
-    UTF8_String utf8_string = {' '};
+    UTF8_String utf8_string = {0};
     utf8_encode(cell.value, utf8_string);
     SDL_Surface *surface = TTF_RenderUTF8_Blended(
         get_font(ctx, &cell), (char *)utf8_string, Color(cell.attrs.fg));

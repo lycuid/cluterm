@@ -23,6 +23,7 @@ void cluterm_init(CluTerm *term)
             shell = "/bin/bash";
         pty_spawn(&term->pty, shell);
     }
+    term->mode = 0x0;
 }
 
 void cluterm_write(CluTerm *term, char *stream, uint32_t slen)

@@ -126,7 +126,7 @@ static inline void underline(Rgb color, const SDL_Rect *rect)
 static inline Cell get_display_cell(const CluTermBuffer *b, int y, int x)
 {
     const Cursor *c = &b->cursor;
-    Cell cell       = line_at(b, y)[x];
+    Cell cell       = getcell(b, y, x);
     if (y == c->y && x == c->x && (c->state & CursorHide) == 0)
         SWAP(cell.attrs.fg, cell.attrs.bg);
     return cell;
