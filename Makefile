@@ -20,7 +20,7 @@ tests:
 run: ; ./$(BIN)
 
 build: ;
-	$(MAKE) CFLAGS="-DDEBUG_LVL=0 -Ofast"
+	$(MAKE) CFLAGS="-DDEBUG_LVL=0 -O3"
 
 debug-build: ;
 	$(MAKE) \

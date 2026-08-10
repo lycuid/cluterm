@@ -10,8 +10,9 @@ override CFLAGS+= $(FLAGS) $(DEFINE) -I$(I_DIR) -I$(LIB) $(shell pkg-config --cf
 override LDFLAGS+= -L$(LIB)/$(BUILD) -l$(NAME) $(shell pkg-config --libs $(PKGS))
 
 O_FILES:=$(O_DIR)/main.o              \
+         $(O_DIR)/atlas.o             \
          $(O_DIR)/glyph_table.o       \
-         $(O_DIR)/glyph_table/cache.o
+         $(O_DIR)/glyph_table/cache.o \
 
 $(BIN): $(O_FILES) ; @mkdir -p $(@D)
 	$(CC) -o $(BIN) $^ $(LDFLAGS)

@@ -9,17 +9,10 @@
 #include <config.h>
 #include <stdbool.h>
 
-#define PRINTABLE_ASCII_START 32
-#define PRINTABLE_ASCII_END   126
-
-#define IS_PRINTABLE_ASCII(value)                                              \
-    BETWEEN((value), PRINTABLE_ASCII_START, PRINTABLE_ASCII_END)
-
 #define IS_DEFAULT_CELL(cell)                                                  \
     ((cell)->attrs.fg == DefaultFG && (cell)->attrs.bg == DefaultBG &&         \
      (cell)->attrs.state == 0x0)
 
-static Glyph printable_ascii_glyph[128];
 static GlyphCache glyph_cache;
 static uint64_t CacheHit = 0, CacheMiss = 0;
 
@@ -39,7 +32,7 @@ void glyph_dealloc(Glyph *glyph)
     free(glyph);
 }
 
-static inline TTF_Font *get_font(GFX_Context *ctx, Cell *cell)
+static inline TTF_Font *get_font(const GFX_Context *ctx, Cell *cell)
 {
     return ctx->fonts[IS_SET(cell->attrs.state, CELL_BOLD | CELL_ITALIC)
                           ? FontBoldItalic
@@ -48,7 +41,7 @@ static inline TTF_Font *get_font(GFX_Context *ctx, Cell *cell)
                                                                : FontRegular];
 }
 
-static inline void glyph_create(GFX_Context *ctx, Glyph *glyph, Cell cell)
+static inline void glyph_create(const GFX_Context *ctx, Glyph *glyph, Cell cell)
 {
     UTF8_String utf8_string = {0};
     utf8_encode(cell.value, utf8_string);
@@ -64,22 +57,17 @@ static inline void glyph_create(GFX_Context *ctx, Glyph *glyph, Cell cell)
     }
 }
 
-void glyph_table_init(GFX_Context *ctx)
+void glyph_table_init(void)
 {
-    for (int i = PRINTABLE_ASCII_START; i <= PRINTABLE_ASCII_END; ++i)
-        glyph_create(ctx, &printable_ascii_glyph[i], DEFAULT_CELL(i));
     glyph_cache = (GlyphCache){.capacity      = (30 * 104) + (1 << 5),
                                .key_eq        = cell_eq,
                                .value_dealloc = glyph_dealloc};
     CacheHit = CacheMiss = 0;
 }
 
-const Glyph *glyph_table_request(GFX_Context *ctx, Cell cell)
+const Glyph *glyph_table_request_unicode(const GFX_Context *ctx, Cell cell)
 {
     CacheHit++;
-    if (IS_DEFAULT_CELL(&cell) && IS_PRINTABLE_ASCII(cell.value))
-        return &printable_ascii_glyph[cell.value];
-
     Glyph *glyph = gcache_get(&glyph_cache, cell);
     if (!glyph) {
         glyph_create(ctx, (glyph = calloc(1, sizeof(Glyph))), cell);
@@ -91,8 +79,6 @@ const Glyph *glyph_table_request(GFX_Context *ctx, Cell cell)
 
 void glyph_table_destroy(void)
 {
-    for (int i = PRINTABLE_ASCII_START; i <= PRINTABLE_ASCII_END; ++i)
-        SDL_DestroyTexture(printable_ascii_glyph[i].texture);
     gcache_clear(&glyph_cache);
     debug_1("Cache cleanup: Done!.\n");
     debug_1("Cache hit/miss: %ld/%ld.\n", CacheHit, CacheMiss);

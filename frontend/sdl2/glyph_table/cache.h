@@ -1,5 +1,5 @@
-#ifndef __WITH_SDL2__GLYPH_TABLE__CACHE_H__
-#define __WITH_SDL2__GLYPH_TABLE__CACHE_H__
+#ifndef __SDL2__GLYPH_TABLE__CACHE_H__
+#define __SDL2__GLYPH_TABLE__CACHE_H__
 
 #include "../glyph_table.h"
 #include <cluterm/vt/buffer.h>

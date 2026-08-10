@@ -10,8 +10,8 @@ typedef struct Glyph {
     int w, h;
 } Glyph;
 
-void glyph_table_init(GFX_Context *);
-const Glyph *glyph_table_request(GFX_Context *, Cell);
+void glyph_table_init(void);
+const Glyph *glyph_table_request_unicode(const GFX_Context *, Cell);
 void glyph_table_destroy(void);
 
 #endif
