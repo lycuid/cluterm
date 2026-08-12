@@ -1,16 +1,16 @@
 #include "main.h"
-#include "SDL_events.h"
 #include "atlas.h"
-#include "cluterm/vt/buffer.h"
 #include "glyph_table.h"
 #include <SDL.h>
 #include <cluterm.h>
 #include <cluterm/debug.h>
 #include <cluterm/pty.h>
+#include <cluterm/vt/buffer.h>
 #include <config.h>
 #include <fontconfig/fontconfig.h>
 #include <signal.h>
 
+static SDL_Texture *canvas = NULL; // persistent framebuffer.
 static GFX_Context ctx;
 static Atlas ascii_atlas;
 static int running = 1;
@@ -35,10 +35,17 @@ static inline int tryn(int res)
     return res;
 }
 
-static inline void load_font(FcConfig *config, const char *pattern,
-                             TTF_Font **font)
+static inline void load_font(FcConfig *config, const char *family,
+                             const char *style, int size, TTF_Font **font)
 {
-    FcPattern *pat = FcNameParse((const FcChar8 *)pattern);
+    /* FcPattern *pat = FcNameParse((const FcChar8 *)pattern); */
+    FcPattern *pat =
+        FcPatternBuild(NULL,                                //
+                       FC_FAMILY, FcTypeString, family,     // font family.
+                       FC_STYLE, FcTypeString, style,       // font style.
+                       FC_SIZE, FcTypeDouble, (double)size, // font size.
+                       NULL);
+
     FcConfigSubstitute(config, pat, FcMatchPattern);
     FcDefaultSubstitute(pat);
 
@@ -57,6 +64,27 @@ static inline void load_font(FcConfig *config, const char *pattern,
     FcPatternDestroy(font_pat);
 }
 
+static inline void create_canvas(int w, int h)
+{
+    if (canvas)
+        SDL_DestroyTexture(canvas);
+    canvas = tryp(SDL_CreateTexture(ctx.renderer, SDL_PIXELFORMAT_ABGR8888,
+                                    SDL_TEXTUREACCESS_TARGET, w, h));
+}
+
+static inline void load_fonts(void)
+{
+    FcConfig *config = FcInitLoadConfigAndFonts();
+
+    load_font(config, FontFamily, "Regular", FontSize, &ctx.fonts[FontRegular]);
+    load_font(config, FontFamily, "Bold", FontSize, &ctx.fonts[FontBold]);
+    load_font(config, FontFamily, "Italic", FontSize, &ctx.fonts[FontItalic]);
+    load_font(config, FontFamily, "BoldItalic", FontSize,
+              &ctx.fonts[FontBoldItalic]);
+
+    FcConfigDestroy(config);
+}
+
 static inline void sdl_init(void)
 {
     tryn(SDL_Init(SDL_INIT_VIDEO));
@@ -66,30 +94,19 @@ static inline void sdl_init(void)
     ctx.renderer =
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
 
-    /* load fonts */ {
-        FcConfig *config = FcInitLoadConfigAndFonts();
-
-        load_font(config, Fonts[FontRegular], &ctx.fonts[FontRegular]);
-        load_font(config, Fonts[FontBold], &ctx.fonts[FontBold]);
-        load_font(config, Fonts[FontItalic], &ctx.fonts[FontItalic]);
-        load_font(config, Fonts[FontBoldItalic], &ctx.fonts[FontBoldItalic]);
-
-        FcConfigDestroy(config);
-    }
-
+    load_fonts();
     /* cell size */ {
         char printable_ascii[128 - 32 + 1] = {0};
-        for (int i = 0, size = 128 - 32; i < size; ++i)
-            printable_ascii[i] = i + 32;
+        for (int i = 32; i < 128; ++i)
+            printable_ascii[i - 32] = i;
         TTF_SizeText(ctx.fonts[FontRegular], printable_ascii, &ctx.f_width,
                      &ctx.f_height);
         ctx.f_width = ctx.f_width / LENGTH(printable_ascii) +
                       (ctx.f_width % LENGTH(printable_ascii) != 0);
     }
 
-    SDL_SetWindowSize(ctx.window,
-                      Margin[Left] + Margin[Right] + ctx.f_width * Columns,
-                      Margin[Top] + Margin[Bottom] + ctx.f_height * Rows);
+    SDL_SetWindowSize(ctx.window, ctx.f_width * Columns, ctx.f_height * Rows);
+    create_canvas(ctx.f_width * Columns, ctx.f_height * Rows);
     SDL_StartTextInput();
 
     atlas_init(&ascii_atlas, &ctx);
@@ -215,7 +232,7 @@ static inline void batch_flush(LineBatch *batch, const CluTermBuffer *b)
     batch->len = 0;
 }
 
-static inline void generate_frame(const CluTerm *term, bool fresh)
+static inline void fill_canvas(const CluTerm *term, bool fresh)
 {
     const CluTermBuffer *b = ACTIVE_BUFFER(term);
 
@@ -333,12 +350,19 @@ static inline void handle_keydown(const CluTerm *term, SDL_Event *e)
     }
 }
 
-#define RENDER(term, fresh)                                                    \
-    do {                                                                       \
-        if ((term) != NULL)                                                    \
-            generate_frame(term, fresh);                                       \
-        SDL_RenderPresent(ctx.renderer);                                       \
-    } while (0)
+static inline void render(CluTerm *term, bool fresh)
+{
+    SDL_SetRenderTarget(ctx.renderer, canvas);
+    if (fresh) {
+        SDL_SetRenderDrawColor(ctx.renderer, UNPACK(DefaultBG), 0);
+        SDL_RenderClear(ctx.renderer);
+    }
+    if (term != NULL)
+        fill_canvas(term, fresh);
+    SDL_SetRenderTarget(ctx.renderer, NULL);
+    SDL_RenderCopy(ctx.renderer, canvas, NULL, NULL);
+    SDL_RenderPresent(ctx.renderer);
+}
 
 #define FPS(n) (1000 / n)
 
@@ -356,18 +380,19 @@ int main(void)
         uint64_t time;
     } resize = {0};
 
-    RENDER(NULL, 0);
+    render(NULL, 0);
     for (SDL_Event e; running;) {
         if ((n = pty_read(&term.pty, stream, sizeof(stream))) > 0) {
             cluterm_write(&term, stream, n);
-            RENDER(&term, 0);
+            render(&term, 0);
         }
 
         uint64_t tick = SDL_GetTicks64();
-        if (resize.pending && tick - resize.time > FPS(2)) {
+        if (resize.pending && tick - resize.time > FPS(5)) {
             cluterm_resize(&term, resize.h, resize.w);
             atlas_resize(&ascii_atlas, &ctx);
-            RENDER(&term, 1);
+            create_canvas(resize.w * ctx.f_width, resize.h * ctx.f_height);
+            render(&term, 1);
             resize.pending = 0, resize.time = tick;
         }
 
@@ -378,13 +403,12 @@ int main(void)
             case SDL_WINDOWEVENT: {
                 SDL_WindowEvent *win = &e.window;
                 switch (win->event) {
-                case SDL_WINDOWEVENT_EXPOSED: {
-                    RENDER(&term, 1);
-                } break;
+                case SDL_WINDOWEVENT_EXPOSED: render(&term, 1); break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    resize.w = win->data1 / ctx.f_width,
-                    resize.h = win->data2 / ctx.f_height, resize.pending = 1;
+                    resize.w       = MAX(win->data1 / ctx.f_width, 10),
+                    resize.h       = MAX(win->data2 / ctx.f_height, 10),
+                    resize.pending = 1;
                 } break;
                 }
             } break;
@@ -396,11 +420,13 @@ int main(void)
             default: break;
             }
         }
-        SDL_Delay(FPS(1000));
+        SDL_Delay(FPS(720));
     }
 
     cluterm_destroy(&term);
     {
+        if (canvas)
+            SDL_DestroyTexture(canvas);
         atlas_destroy(&ascii_atlas);
         glyph_table_destroy();
         for (size_t i = 0; i < LENGTH(ctx.fonts); ++i)

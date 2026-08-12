@@ -39,12 +39,7 @@
     b->last_row =                                                              \
         (((b)->last_row >= lines(b)) * lines(b)) + ((b)->last_row % lines(b));
 
-#define dirty_cell(b, y, x)                                                    \
-    do {                                                                       \
-        int i = (y) * (b)->cols + (x), size = (b)->rows * (b)->cols;           \
-        if (i < size)                                                          \
-            (b)->dirty[i] = true;                                              \
-    } while (0)
+#define dirty_cell(b, y, x) (b)->dirty[(y) * (b)->cols + (x)] = 1;
 
 #define dirty_lines(b, y, count)                                               \
     memset(&(b)->dirty[(y) * (b)->cols], 1,                                    \

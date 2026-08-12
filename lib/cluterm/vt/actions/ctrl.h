@@ -9,7 +9,7 @@ EXPORT void ctrl_execute(CluTerm *term, CTRL_Payload *ctrl)
     CluTermBuffer *b = ACTIVE_BUFFER(term);
 
     switch (ctrl->action) {
-    case C0_BEL: /* ding dong mf. */ break;
+    case C0_BEL: /* not supported. */ break;
     case C0_BS: move_cursor(b, 0, -1); break;
     case C0_HT: insert_tab(b, 1, 1); break;
     case C0_LF: // fallthrough.

@@ -24,7 +24,6 @@
 
 typedef uint32_t Rgb;
 
-enum Margin { Top, Right, Bottom, Left };
 enum FontType { FontRegular, FontBold, FontItalic, FontBoldItalic };
 
 #endif

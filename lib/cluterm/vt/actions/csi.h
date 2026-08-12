@@ -253,7 +253,11 @@ EXPORT void csi_execute(CluTerm *term, CSI_Payload *csi)
 
     case CSI_DECSTBM: {
         Region *region = &b->scroll_region;
-        region->start = PARAM(0) - 1, region->end = PARAM(1) - 1;
+        region->start = PARAM(0) - 1, region->end = b->rows - 1;
+
+        if (csi->nparam >= 2)
+            region->end = MIN(region->end, PARAM(1) - 1);
+
         if (region->start >= region->end)
             region->start = 0, region->end = b->rows - 1;
     } break;
