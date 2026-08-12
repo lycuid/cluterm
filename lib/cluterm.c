@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-void cluterm_init(CluTerm *term)
+void cluterm_init(Cluterm *term)
 {
     {
         buffer_init(&term->buffer[0], Rows, Columns, 0); // primary.
@@ -26,13 +26,13 @@ void cluterm_init(CluTerm *term)
     term->mode = 0x0;
 }
 
-void cluterm_write(CluTerm *term, char *stream, uint32_t slen)
+void cluterm_write(Cluterm *term, char *stream, uint32_t slen)
 {
     VT_Parser *vt_parser = &term->vt_parser;
     parser_feed(vt_parser, stream, slen);
 
     for (FSM_Event fsm_event;;) {
-        CluTermBuffer *b = ACTIVE_BUFFER(term);
+        ClutermBuffer *b = ACTIVE_BUFFER(term);
 
         switch (fsm_event = parser_run(vt_parser)) {
         case EVENT_NOOP: goto done;
@@ -49,9 +49,9 @@ done:
     return;
 }
 
-void cluterm_resize(CluTerm *term, int rows, int cols)
+void cluterm_resize(Cluterm *term, int rows, int cols)
 {
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
     if (b->rows != rows || b->cols != cols) {
         pty_resize(&term->pty, rows, cols);
         buffer_resize(&term->buffer[0], rows, cols);
@@ -59,7 +59,7 @@ void cluterm_resize(CluTerm *term, int rows, int cols)
     }
 }
 
-void cluterm_destroy(CluTerm *term)
+void cluterm_destroy(Cluterm *term)
 {
     pty_destroy(&term->pty);
     buffer_destroy(&term->buffer[0]);

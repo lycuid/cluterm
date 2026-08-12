@@ -47,7 +47,7 @@
 
 #define dirty_line(b, y) dirty_lines(b, y, 1)
 
-void buffer_init(CluTermBuffer *b, int rows, int cols, int history)
+void buffer_init(ClutermBuffer *b, int rows, int cols, int history)
 {
     b->rows = rows, b->cols = cols, b->history = history, b->last_row = 0;
     b->scroll_region.start = 0, b->scroll_region.end = b->rows - 1;
@@ -82,7 +82,7 @@ void buffer_init(CluTermBuffer *b, int rows, int cols, int history)
     clear(b);
 }
 
-void buffer_resize(CluTermBuffer *b, int rows, int cols)
+void buffer_resize(ClutermBuffer *b, int rows, int cols)
 {
     debug_1("buffer resized to %dx%d.\n", cols, rows);
     Line *ll = malloc(rows * sizeof(Line));
@@ -112,7 +112,7 @@ void buffer_resize(CluTermBuffer *b, int rows, int cols)
     adjust(b);
 }
 
-void buffer_destroy(CluTermBuffer *b)
+void buffer_destroy(ClutermBuffer *b)
 {
     if (b->lines) {
         for (int y = 0; y < lines(b); ++y)
@@ -126,34 +126,34 @@ void buffer_destroy(CluTermBuffer *b)
     debug_1("buffer cleanup: Done!.\n");
 }
 
-Cell getcell(const CluTermBuffer *b, int y, int x) { return line_at(b, y)[x]; }
+Cell getcell(const ClutermBuffer *b, int y, int x) { return line_at(b, y)[x]; }
 
-void putcell(CluTermBuffer *b, int y, int x, Cell c)
+void putcell(ClutermBuffer *b, int y, int x, Cell c)
 {
     line_at(b, y)[x] = c;
     dirty_cell(b, y, x);
 }
 
-void clearline(CluTermBuffer *b, int y, int x0, int x1)
+void clearline(ClutermBuffer *b, int y, int x0, int x1)
 {
     for (; x0 <= x1; ++x0)
         putcell(b, y, x0, CELL(' ', b->cell_attrs));
 }
 
-void clearbox(CluTermBuffer *b, int y0, int x0, int y1, int x1)
+void clearbox(ClutermBuffer *b, int y0, int x0, int y1, int x1)
 {
     for (; y0 <= y1; ++y0)
         clearline(b, y0, x0, x1);
 }
 
-void addlines(CluTermBuffer *b, int lines)
+void addlines(ClutermBuffer *b, int lines)
 {
     b->last_row += lines;
     clearbox(b, b->rows - lines, 0, b->rows - 1, b->cols - 1);
     adjust(b);
 }
 
-void scrollup_rel(CluTermBuffer *b, int origin, int lines)
+void scrollup_rel(ClutermBuffer *b, int origin, int lines)
 {
     Region *region = &b->scroll_region;
     if (!lines || origin >= region->end)
@@ -168,7 +168,7 @@ void scrollup_rel(CluTermBuffer *b, int origin, int lines)
     dirty_lines(b, origin, region->end - origin + 1);
 }
 
-void scrolldown_rel(CluTermBuffer *b, int origin, int lines)
+void scrolldown_rel(ClutermBuffer *b, int origin, int lines)
 {
     Region *region = &b->scroll_region;
     if (!lines || origin >= region->end)
@@ -190,7 +190,7 @@ void scrolldown_rel(CluTermBuffer *b, int origin, int lines)
             dirty_cell(b, (b)->cursor.y, (b)->cursor.x);                       \
     } while (0)
 
-void move_cursor_to(CluTermBuffer *b, int y, int x)
+void move_cursor_to(ClutermBuffer *b, int y, int x)
 {
     dirty_cursor(b);
     b->cursor.y = CLAMP(y, 0, b->rows - 1);
@@ -199,12 +199,12 @@ void move_cursor_to(CluTermBuffer *b, int y, int x)
 }
 #undef dirty_cursor
 
-void move_cursor(CluTermBuffer *b, int dy, int dx)
+void move_cursor(ClutermBuffer *b, int dy, int dx)
 {
     move_cursor_to(b, b->cursor.y + dy, b->cursor.x + dx);
 }
 
-static inline void insert_delete_chars(CluTermBuffer *b, int count, bool insert)
+static inline void insert_delete_chars(ClutermBuffer *b, int count, bool insert)
 {
     dirty_line(b, b->cursor.y);
     Cell *xptr = line_at(b, b->cursor.y) + b->cursor.x;
@@ -219,17 +219,17 @@ static inline void insert_delete_chars(CluTermBuffer *b, int count, bool insert)
         *(xptr + i) = CELL(' ', b->cell_attrs);
 }
 
-void insert_chars(CluTermBuffer *b, int count)
+void insert_chars(ClutermBuffer *b, int count)
 {
     insert_delete_chars(b, count, true);
 }
 
-void delete_chars(CluTermBuffer *b, int count)
+void delete_chars(ClutermBuffer *b, int count)
 {
     insert_delete_chars(b, count, false);
 }
 
-void insert_tab(CluTermBuffer *b, int count, int inc)
+void insert_tab(ClutermBuffer *b, int count, int inc)
 {
     dirty_line(b, b->cursor.y);
     while (BETWEEN(b->cursor.x, 0, b->cols - 1) && count--) {
@@ -264,7 +264,7 @@ static inline Cell translate(Cell cell, Charset charset)
     return cell;
 }
 
-void insert_cell(CluTermBuffer *b, Cell cell)
+void insert_cell(ClutermBuffer *b, Cell cell)
 {
     if (b->cursor.x == b->cols) {
         if (b->cursor.y == b->rows - 1)
@@ -276,10 +276,10 @@ void insert_cell(CluTermBuffer *b, Cell cell)
     move_cursor(b, 0, 1);
 }
 
-void linefeed(CluTermBuffer *b)
+void linefeed(ClutermBuffer *b)
 {
     b->cursor.y == b->scroll_region.end ? scrollup(b, 1) : move_cursor(b, 1, 0);
 }
 
-void save_cursor(CluTermBuffer *b) { b->saved_cursor = b->cursor; }
-void restore_cursor(CluTermBuffer *b) { b->cursor = b->saved_cursor; }
+void save_cursor(ClutermBuffer *b) { b->saved_cursor = b->cursor; }
+void restore_cursor(ClutermBuffer *b) { b->cursor = b->saved_cursor; }

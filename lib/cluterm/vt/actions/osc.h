@@ -3,7 +3,7 @@
 
 #include <cluterm.h>
 
-EXPORT void osc_execute(CluTerm *term, OSC_Payload *osc)
+EXPORT void osc_execute(Cluterm *term, OSC_Payload *osc)
 {
     (void)term;
     (void)osc;

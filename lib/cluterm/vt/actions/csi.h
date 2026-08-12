@@ -10,9 +10,9 @@
 #include <string.h>
 #include <unistd.h>
 
-static inline void csi_tbc(CluTerm *term, CSI_Payload *csi)
+static inline void csi_tbc(Cluterm *term, CSI_Payload *csi)
 {
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor   = &b->cursor;
 
     switch (csi->param[0]) {
@@ -26,9 +26,9 @@ static inline void csi_tbc(CluTerm *term, CSI_Payload *csi)
 }
 
 // cursor position shouldn't change.
-static inline void csi_ed(CluTerm *term, CSI_Payload *csi)
+static inline void csi_ed(Cluterm *term, CSI_Payload *csi)
 {
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor   = &b->cursor;
 
     switch (csi->param[0]) {
@@ -50,9 +50,9 @@ static inline void csi_ed(CluTerm *term, CSI_Payload *csi)
 }
 
 // cursor position shouldn't change.
-static inline void csi_el(CluTerm *term, CSI_Payload *csi)
+static inline void csi_el(Cluterm *term, CSI_Payload *csi)
 {
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor   = &b->cursor;
 
     switch (csi->param[0]) {
@@ -69,9 +69,9 @@ static inline void csi_el(CluTerm *term, CSI_Payload *csi)
     }
 }
 
-static inline void csi_sgr(CluTerm *term, CSI_Payload *csi)
+static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
 {
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
 
     CellAttributes *attrs = &b->cell_attrs;
     if (!csi->nparam)
@@ -157,11 +157,11 @@ static inline void csi_sgr(CluTerm *term, CSI_Payload *csi)
     }
 }
 
-static inline void csi_decmode(CluTerm *term, CSI_Payload *csi, bool is_decset)
+static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
 {
 
     for (int i = 0; i < csi->nparam; ++i) {
-        CluTermBuffer *b = ACTIVE_BUFFER(term);
+        ClutermBuffer *b = ACTIVE_BUFFER(term);
 
         switch (csi->param[i]) {
 
@@ -201,9 +201,9 @@ static inline void csi_decmode(CluTerm *term, CSI_Payload *csi, bool is_decset)
 #define DECOM(n)                                                               \
     n + (IS_SET(term->mode, MODE_ORIGIN) ? b->scroll_region.start : 0)
 
-EXPORT void csi_execute(CluTerm *term, CSI_Payload *csi)
+EXPORT void csi_execute(Cluterm *term, CSI_Payload *csi)
 {
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor   = &b->cursor;
 
     switch (csi->action) {

@@ -5,9 +5,9 @@
 #include <cluterm/vt/actions.h>
 #include <stdbool.h>
 
-EXPORT void esc_execute(CluTerm *term, ESC_Payload *esc)
+EXPORT void esc_execute(Cluterm *term, ESC_Payload *esc)
 {
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor   = &b->cursor;
 
     switch (esc->action) {

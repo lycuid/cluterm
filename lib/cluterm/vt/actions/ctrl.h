@@ -4,9 +4,9 @@
 #include <cluterm.h>
 #include <cluterm/vt/actions.h>
 
-EXPORT void ctrl_execute(CluTerm *term, CTRL_Payload *ctrl)
+EXPORT void ctrl_execute(Cluterm *term, CTRL_Payload *ctrl)
 {
-    CluTermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
 
     switch (ctrl->action) {
     case C0_BEL: /* not supported. */ break;

@@ -10,19 +10,19 @@ typedef uint16_t cluterm_mode_t;
 #define MODE_ALT_BUFFER      (1 << 1)
 #define MODE_BRACKETED_PASTE (1 << 2)
 
-typedef struct CluTerm {
+typedef struct Cluterm {
     pty_t pty;
     VT_Parser vt_parser;
-    CluTermBuffer buffer[2];
+    ClutermBuffer buffer[2];
     cluterm_mode_t mode;
-} CluTerm;
+} Cluterm;
 
 #define ACTIVE_BUFFER(term)                                                    \
     (&(term)->buffer[IS_SET((term)->mode, MODE_ALT_BUFFER)])
 
-void cluterm_init(CluTerm *);
-void cluterm_write(CluTerm *, char *, uint32_t);
-void cluterm_resize(CluTerm *, int, int);
-void cluterm_destroy(CluTerm *);
+void cluterm_init(Cluterm *);
+void cluterm_write(Cluterm *, char *, uint32_t);
+void cluterm_resize(Cluterm *, int, int);
+void cluterm_destroy(Cluterm *);
 
 #endif

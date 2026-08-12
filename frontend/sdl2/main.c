@@ -139,7 +139,7 @@ static inline void underline(Rgb color, const SDL_Rect *rect)
                        rect->x + rect->w, rect->y + rect->h - 2);
 }
 
-static inline Cell get_display_cell(const CluTermBuffer *b, int y, int x)
+static inline Cell get_display_cell(const ClutermBuffer *b, int y, int x)
 {
     const Cursor *c = &b->cursor;
     Cell cell       = getcell(b, y, x);
@@ -201,7 +201,7 @@ static inline void batch_add(LineBatch *batch, Cell *cell, int x)
     batch->len++;
 }
 
-static inline void batch_flush(LineBatch *batch, const CluTermBuffer *b)
+static inline void batch_flush(LineBatch *batch, const ClutermBuffer *b)
 {
     if (!batch || !batch->len)
         return;
@@ -232,9 +232,9 @@ static inline void batch_flush(LineBatch *batch, const CluTermBuffer *b)
     batch->len = 0;
 }
 
-static inline void fill_canvas(const CluTerm *term, bool fresh)
+static inline void fill_canvas(const Cluterm *term, bool fresh)
 {
-    const CluTermBuffer *b = ACTIVE_BUFFER(term);
+    const ClutermBuffer *b = ACTIVE_BUFFER(term);
 
     for (int y = 0; y < b->rows; ++y) {
         LineBatch batch = BATCH(y);
@@ -255,7 +255,7 @@ static inline void fill_canvas(const CluTerm *term, bool fresh)
     memset(b->dirty, 0, b->cols * b->rows * sizeof(*b->dirty));
 }
 
-static inline ssize_t clipboard_paste(const CluTerm *term)
+static inline ssize_t clipboard_paste(const Cluterm *term)
 {
     char *text = SDL_GetClipboardText();
     if (!text)
@@ -274,7 +274,7 @@ static inline ssize_t clipboard_paste(const CluTerm *term)
     return n;
 }
 
-static inline void handle_keydown(const CluTerm *term, SDL_Event *e)
+static inline void handle_keydown(const Cluterm *term, SDL_Event *e)
 {
     SDL_KeyboardEvent *key = &e->key;
 
@@ -350,7 +350,7 @@ static inline void handle_keydown(const CluTerm *term, SDL_Event *e)
     }
 }
 
-static inline void render(CluTerm *term, bool fresh)
+static inline void render(Cluterm *term, bool fresh)
 {
     SDL_SetRenderTarget(ctx.renderer, canvas);
     if (fresh) {
@@ -368,7 +368,7 @@ static inline void render(CluTerm *term, bool fresh)
 
 int main(void)
 {
-    CluTerm term;
+    Cluterm term;
     cluterm_init(&term);
     sdl_init();
     signal(SIGCHLD, quit); // shell exits/crashes.
