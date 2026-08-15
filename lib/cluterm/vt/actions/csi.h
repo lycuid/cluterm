@@ -84,16 +84,16 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 3: SET(attrs->state, CELL_ITALIC); break;
         case 4: SET(attrs->state, CELL_UNDERLINE); break;
         case 7: {
-            attrs->fg = DefaultBG;
-            attrs->bg = DefaultFG;
+            attrs->fg = term->bg;
+            attrs->bg = term->fg;
         } break;
 
         case 21: UNSET(attrs->state, CELL_BOLD); break;
         case 23: UNSET(attrs->state, CELL_ITALIC); break;
         case 24: UNSET(attrs->state, CELL_UNDERLINE); break;
         case 27: {
-            attrs->fg = DefaultFG;
-            attrs->bg = DefaultBG;
+            attrs->fg = term->fg;
+            attrs->bg = term->bg;
         } break;
 
         // color 0-8 foreground.
@@ -105,7 +105,7 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 35: // fallthrough.
         case 36: // fallthrough.
         case 37: attrs->fg = color16[csi->param[i] - 30]; break;
-        case 39: attrs->fg = DefaultFG; break;
+        case 39: attrs->fg = term->fg; break;
         // color 0-8 background.
         case 40: // fallthrough.
         case 41: // fallthrough.
@@ -115,7 +115,7 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 45: // fallthrough.
         case 46: // fallthrough.
         case 47: attrs->bg = color16[csi->param[i] - 40]; break;
-        case 49: attrs->bg = DefaultBG; break;
+        case 49: attrs->bg = term->bg; break;
         // color 8-16 foreground.
         case 90: // fallthrough.
         case 91: // fallthrough.

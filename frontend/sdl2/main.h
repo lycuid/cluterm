@@ -4,9 +4,6 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
-#define UNPACK(c)                                                              \
-    ((c) >> (8 * 2)) & 0xff, ((c) >> (8 * 1)) & 0xff, ((c) >> (8 * 0)) & 0xff
-
 #define die(...)                                                               \
     do {                                                                       \
         debug(__VA_ARGS__);                                                    \
@@ -19,5 +16,7 @@ typedef struct GFX_Context {
     TTF_Font *fonts[4];
     int f_width, f_height;
 } GFX_Context;
+
+extern const GFX_Context *gfx;
 
 #endif

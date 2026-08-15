@@ -9,10 +9,6 @@
 #include <config.h>
 #include <stdbool.h>
 
-#define IS_DEFAULT_CELL(cell)                                                  \
-    ((cell)->attrs.fg == DefaultFG && (cell)->attrs.bg == DefaultBG &&         \
-     (cell)->attrs.state == 0x0)
-
 static GlyphCache glyph_cache;
 static uint64_t CacheHit = 0, CacheMiss = 0;
 
@@ -32,25 +28,25 @@ void glyph_dealloc(Glyph *glyph)
     free(glyph);
 }
 
-static inline TTF_Font *get_font(const GFX_Context *ctx, Cell *cell)
+static inline TTF_Font *get_font(Cell *cell)
 {
-    return ctx->fonts[IS_SET(cell->attrs.state, CELL_BOLD | CELL_ITALIC)
+    return gfx->fonts[IS_SET(cell->attrs.state, CELL_BOLD | CELL_ITALIC)
                           ? FontBoldItalic
                       : IS_SET(cell->attrs.state, CELL_BOLD)   ? FontBold
                       : IS_SET(cell->attrs.state, CELL_ITALIC) ? FontItalic
                                                                : FontRegular];
 }
 
-static inline void glyph_create(const GFX_Context *ctx, Glyph *glyph, Cell cell)
+static inline void glyph_create(Glyph *glyph, Cell cell)
 {
     UTF8_String utf8_string = {0};
     utf8_encode(cell.value, utf8_string);
     SDL_Surface *surface = TTF_RenderUTF8_Blended(
-        get_font(ctx, &cell), (char *)utf8_string, Color(cell.attrs.fg));
+        get_font(&cell), (char *)utf8_string, Color(cell.attrs.fg));
 
     // @NOTE: This can fail if surface is NULL.
     if (surface) {
-        glyph->texture = SDL_CreateTextureFromSurface(ctx->renderer, surface);
+        glyph->texture = SDL_CreateTextureFromSurface(gfx->renderer, surface);
         glyph->w = surface->w, glyph->h = surface->h;
         SDL_FreeSurface(surface);
         CacheHit--, CacheMiss++;
@@ -65,12 +61,12 @@ void glyph_table_init(void)
     CacheHit = CacheMiss = 0;
 }
 
-const Glyph *glyph_table_request_unicode(const GFX_Context *ctx, Cell cell)
+const Glyph *glyph_table_request_unicode(Cell cell)
 {
     CacheHit++;
     Glyph *glyph = gcache_get(&glyph_cache, cell);
     if (!glyph) {
-        glyph_create(ctx, (glyph = calloc(1, sizeof(Glyph))), cell);
+        glyph_create((glyph = calloc(1, sizeof(Glyph))), cell);
         gcache_put(&glyph_cache, cell, glyph);
     }
 

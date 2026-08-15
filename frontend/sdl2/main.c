@@ -1,7 +1,8 @@
 #include "main.h"
 #include "atlas.h"
 #include "glyph_table.h"
-#include <SDL.h>
+#include "osc_handler.h"
+#include <SDL2/SDL.h>
 #include <cluterm.h>
 #include <cluterm/debug.h>
 #include <cluterm/pty.h>
@@ -10,16 +11,24 @@
 #include <fontconfig/fontconfig.h>
 #include <signal.h>
 
+typedef struct LineBatch {
+    int y, x, len;
+    bool is_ascii : 1;
+    CellAttributes attrs;
+} LineBatch;
+#define BATCH(y)                                                               \
+    (LineBatch){.y = y, .x = 0, .len = 0, .attrs = {0}, .is_ascii = 0}
+
+#define IS_ASCII(val) (val < 0x7f)
+#define FPS(n)        (1000 / n)
+
 static SDL_Texture *canvas = NULL; // persistent framebuffer.
 static GFX_Context ctx;
+const GFX_Context *gfx = &ctx;
 static Atlas ascii_atlas;
 static int running = 1;
 
-void quit(int _arg)
-{
-    (void)_arg;
-    running = 0;
-}
+void quit(__attribute__((unused)) int _arg) { running = 0; }
 
 static inline void *tryp(void *res)
 {
@@ -38,7 +47,6 @@ static inline int tryn(int res)
 static inline void load_font(FcConfig *config, const char *family,
                              const char *style, int size, TTF_Font **font)
 {
-    /* FcPattern *pat = FcNameParse((const FcChar8 *)pattern); */
     FcPattern *pat =
         FcPatternBuild(NULL,                                //
                        FC_FAMILY, FcTypeString, family,     // font family.
@@ -109,7 +117,7 @@ static inline void sdl_init(void)
     create_canvas(ctx.f_width * Columns, ctx.f_height * Rows);
     SDL_StartTextInput();
 
-    atlas_init(&ascii_atlas, &ctx);
+    atlas_init(&ascii_atlas);
     glyph_table_init();
 }
 
@@ -139,18 +147,9 @@ static inline void underline(Rgb color, const SDL_Rect *rect)
                        rect->x + rect->w, rect->y + rect->h - 2);
 }
 
-static inline Cell get_display_cell(const ClutermBuffer *b, int y, int x)
+static inline void draw_cell(Cell cell, int y, int x)
 {
-    const Cursor *c = &b->cursor;
-    Cell cell       = getcell(b, y, x);
-    if (y == c->y && x == c->x && (c->state & CursorHide) == 0)
-        SWAP(cell.attrs.fg, cell.attrs.bg);
-    return cell;
-}
-
-static inline void draw_unicode(Cell cell, int y, int x)
-{
-    const Glyph *glyph = glyph_table_request_unicode(&ctx, cell);
+    const Glyph *glyph = glyph_table_request_unicode(cell);
     SDL_Rect src       = {.x = 0, .y = 0, .w = glyph->w, .h = glyph->h},
              dst       = {.x = ctx.f_width * x,
                           .y = ctx.f_height * y,
@@ -162,17 +161,6 @@ static inline void draw_unicode(Cell cell, int y, int x)
     bounding_box(&dst);
 #endif
 }
-
-typedef struct LineBatch {
-    int y, x, len;
-    bool is_ascii : 1;
-    CellAttributes attrs;
-} LineBatch;
-
-#define BATCH(y)                                                               \
-    (LineBatch){.y = y, .x = 0, .len = 0, .attrs = {0}, .is_ascii = 0}
-
-#define IS_ASCII(val) (val < 0x7f)
 
 static inline bool cell_belongs(LineBatch *batch, Cell *cell)
 {
@@ -214,17 +202,20 @@ static inline void batch_flush(LineBatch *batch, const ClutermBuffer *b)
 
     background(batch->attrs.bg, &dst);
 
+    const Cursor *c = &b->cursor;
+    if (c->y == batch->y && BETWEEN(c->x, batch->x, batch->x + batch->len) &&
+        !IS_SET(c->state, CursorHide))
+        draw_cell(c->cell, c->y, c->x);
+
     for (int dx = 0; dx < batch->len; ++dx) {
-        Cell cell = get_display_cell(b, batch->y, batch->x + dx);
+        Cell cell = getcell(b, batch->y, batch->x + dx);
         int y = batch->y, x = batch->x + dx;
-        if (batch->is_ascii) {
-            atlas_push_glyph(&ascii_atlas, &ctx, cell, y, x);
-        } else {
-            draw_unicode(cell, y, x);
-        }
+        if (batch->is_ascii)
+            atlas_push_glyph(&ascii_atlas, cell, y, x);
+        else
+            draw_cell(cell, y, x);
     }
-    if (batch->is_ascii)
-        atlas_flush(&ascii_atlas, ctx.renderer);
+    atlas_flush(&ascii_atlas, ctx.renderer);
 
     if (IS_SET(batch->attrs.state, CELL_UNDERLINE))
         underline(batch->attrs.fg, &dst);
@@ -232,9 +223,28 @@ static inline void batch_flush(LineBatch *batch, const ClutermBuffer *b)
     batch->len = 0;
 }
 
-static inline void fill_canvas(const Cluterm *term, bool fresh)
+static inline void update_canvas(const Cluterm *term, bool fresh)
 {
     const ClutermBuffer *b = ACTIVE_BUFFER(term);
+
+#ifdef DUMP_FRAME
+    static uint64_t frame = 0;
+    debug("----------------- Frame begin: (%ld) -----------------\n", ++frame);
+    for (int y = 0; y < b->rows; ++y) {
+        for (int x = 0; x < b->cols; ++x) {
+            Cell cell = getcell(b, y, x);
+            if (b->dirty[y * b->cols + x]) {
+                UTF8_String utf8_string = {0};
+                utf8_encode(cell.value, utf8_string);
+                debug("%s", utf8_string);
+            } else {
+                debug(".");
+            }
+        }
+        debug("\n");
+    }
+    debug("----------------- Frame end -----------------\n");
+#endif
 
     for (int y = 0; y < b->rows; ++y) {
         LineBatch batch = BATCH(y);
@@ -244,7 +254,7 @@ static inline void fill_canvas(const Cluterm *term, bool fresh)
                 continue;
             }
 
-            Cell cell = get_display_cell(b, y, x);
+            Cell cell = getcell(b, y, x);
 
             if (!cell_belongs(&batch, &cell))
                 batch_flush(&batch, b);
@@ -358,42 +368,42 @@ static inline void render(Cluterm *term, bool fresh)
         SDL_RenderClear(ctx.renderer);
     }
     if (term != NULL)
-        fill_canvas(term, fresh);
+        update_canvas(term, fresh);
     SDL_SetRenderTarget(ctx.renderer, NULL);
     SDL_RenderCopy(ctx.renderer, canvas, NULL, NULL);
     SDL_RenderPresent(ctx.renderer);
 }
 
-#define FPS(n) (1000 / n)
-
 int main(void)
 {
     Cluterm term;
     cluterm_init(&term);
+    term.osc_handler = osc_handler;
+
     sdl_init();
     signal(SIGCHLD, quit); // shell exits/crashes.
 
-    ssize_t n         = 0;
-    char stream[4096] = {0};
+    ssize_t n          = 0;
+    uchar stream[4096] = {0};
     struct {
         uint w, h, pending : 1;
         uint64_t time;
-    } resize = {0};
+    } resz = {0};
 
     render(NULL, 0);
+    uint64_t tick;
     for (SDL_Event e; running;) {
         if ((n = pty_read(&term.pty, stream, sizeof(stream))) > 0) {
             cluterm_write(&term, stream, n);
             render(&term, 0);
         }
 
-        uint64_t tick = SDL_GetTicks64();
-        if (resize.pending && tick - resize.time > FPS(5)) {
-            cluterm_resize(&term, resize.h, resize.w);
-            atlas_resize(&ascii_atlas, &ctx);
-            create_canvas(resize.w * ctx.f_width, resize.h * ctx.f_height);
+        if (resz.pending && (tick = SDL_GetTicks64()) - resz.time > FPS(2)) {
+            cluterm_resize(&term, resz.h, resz.w);
+            atlas_resize(&ascii_atlas);
+            create_canvas(resz.w * ctx.f_width, resz.h * ctx.f_height);
             render(&term, 1);
-            resize.pending = 0, resize.time = tick;
+            resz.pending = 0, resz.time = tick;
         }
 
         while (SDL_PollEvent(&e)) {
@@ -406,9 +416,9 @@ int main(void)
                 case SDL_WINDOWEVENT_EXPOSED: render(&term, 1); break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    resize.w       = MAX(win->data1 / ctx.f_width, 10),
-                    resize.h       = MAX(win->data2 / ctx.f_height, 10),
-                    resize.pending = 1;
+                    resz.w       = MAX(win->data1 / ctx.f_width, 10),
+                    resz.h       = MAX(win->data2 / ctx.f_height, 10),
+                    resz.pending = 1;
                 } break;
                 }
             } break;

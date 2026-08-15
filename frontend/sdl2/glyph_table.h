@@ -1,8 +1,7 @@
 #ifndef __WITH_SDL2__GLYPH_TABLE_H__
 #define __WITH_SDL2__GLYPH_TABLE_H__
 
-#include "main.h"
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <cluterm/vt/buffer.h>
 
 typedef struct Glyph {
@@ -11,7 +10,7 @@ typedef struct Glyph {
 } Glyph;
 
 void glyph_table_init(void);
-const Glyph *glyph_table_request_unicode(const GFX_Context *, Cell);
+const Glyph *glyph_table_request_unicode(Cell);
 void glyph_table_destroy(void);
 
 #endif

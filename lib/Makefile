@@ -19,6 +19,8 @@ $(O_DIR)/%.o: $(I_DIR)/%.c $(I_DIR)/%.h ; @mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c -fPIC -o $@ $<
 
 $(O_DIR)/$(NAME).o:                  \
+	$(I_DIR)/$(NAME)/scanner.h         \
+	$(I_DIR)/$(NAME)/utils.h           \
 	$(I_DIR)/$(NAME)/vt/actions.h      \
 	$(I_DIR)/$(NAME)/vt/actions/esc.h  \
 	$(I_DIR)/$(NAME)/vt/actions/csi.h  \

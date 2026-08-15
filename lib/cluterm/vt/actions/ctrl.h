@@ -9,6 +9,7 @@ EXPORT void ctrl_execute(Cluterm *term, CTRL_Payload *ctrl)
     ClutermBuffer *b = ACTIVE_BUFFER(term);
 
     switch (ctrl->action) {
+    case C0_NOOP: break;
     case C0_BEL: /* not supported. */ break;
     case C0_BS: move_cursor(b, 0, -1); break;
     case C0_HT: insert_tab(b, 1, 1); break;

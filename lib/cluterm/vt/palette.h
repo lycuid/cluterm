@@ -5,6 +5,9 @@
 
 #define RGB(r, g, b) ((r) << (8 * 2)) | ((g) << (8 * 1)) | ((b) << (8 * 0))
 
+#define UNPACK(c)                                                              \
+    ((c) >> (8 * 2)) & 0xff, ((c) >> (8 * 1)) & 0xff, ((c) >> (8 * 0)) & 0xff
+
 static const Rgb color16[] = {
 #if defined(PALETTE_VGA)
     [0] = RGB(0, 0, 0),

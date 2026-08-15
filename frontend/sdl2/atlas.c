@@ -1,4 +1,5 @@
 #include "atlas.h"
+#include "main.h"
 
 #define PRINTABLE_ASCII_START 32
 #define PRINTABLE_ASCII_END   126
@@ -19,13 +20,12 @@ static inline int font_index(CellAttributes *attrs)
                                                          : FontRegular;
 }
 
-static inline bool get_slot(const GFX_Context *ctx, Rune value, int f_index,
-                            slot_t *slot)
+static inline bool get_slot(Rune value, int f_index, slot_t *slot)
 {
     memset(slot, 0, sizeof(slot_t));
-    slot->x = ((f_index % 2) * TOTAL_ASCII * ctx->f_width) +
-              (value - PRINTABLE_ASCII_START) * ctx->f_width;
-    slot->y = f_index * ctx->f_height;
+    slot->x = ((f_index % 2) * TOTAL_ASCII * gfx->f_width) +
+              (value - PRINTABLE_ASCII_START) * gfx->f_width;
+    slot->y = f_index * gfx->f_height;
     return true;
 }
 
@@ -55,12 +55,12 @@ static inline void map_surface(SDL_Surface *surface, void **pixels, int pitch,
                (uint8_t *)surface->pixels + y * surface->pitch, w * 4);
 }
 
-void atlas_init(Atlas *atlas, const GFX_Context *ctx)
+void atlas_init(Atlas *atlas)
 {
-    int atlas_w = ATLAS_WIDTH * ctx->f_width,
-        atlas_h = ATLAS_HEIGHT * ctx->f_height;
+    int atlas_w = ATLAS_WIDTH * gfx->f_width,
+        atlas_h = ATLAS_HEIGHT * gfx->f_height;
     atlas->texture =
-        SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGBA8888,
+        SDL_CreateTexture(gfx->renderer, SDL_PIXELFORMAT_RGBA8888,
                           SDL_TEXTUREACCESS_STREAMING, atlas_w, atlas_h);
 
     SDL_SetTextureBlendMode(atlas->texture, SDL_BLENDMODE_BLEND);
@@ -71,29 +71,29 @@ void atlas_init(Atlas *atlas, const GFX_Context *ctx)
     for (int y = 0; y < atlas_h; ++y)
         memset((uint8_t *)pixels + y * pitch, 0, pitch);
 
-    int nfonts = LENGTH(ctx->fonts);
+    int nfonts = LENGTH(gfx->fonts);
     slot_t slot;
     for (int f_index = 0; f_index < nfonts; ++f_index) {
         for (int ch = PRINTABLE_ASCII_START; ch <= PRINTABLE_ASCII_END; ch++) {
-            SDL_Surface *surface = create_surface(ch, ctx->fonts[f_index]);
+            SDL_Surface *surface = create_surface(ch, gfx->fonts[f_index]);
             if (!surface)
                 continue;
 
-            get_slot(ctx, ch, f_index, &slot);
-            map_surface(surface, &pixels, pitch, ctx->f_width, &slot);
+            get_slot(ch, f_index, &slot);
+            map_surface(surface, &pixels, pitch, gfx->f_width, &slot);
             SDL_FreeSurface(surface);
         }
     }
     SDL_UnlockTexture(atlas->texture);
-    atlas_resize(atlas, ctx);
+    atlas_resize(atlas);
     atlas->nverts = 0, atlas->nindices = 0;
 }
 
-void atlas_resize(Atlas *atlas, const GFX_Context *ctx)
+void atlas_resize(Atlas *atlas)
 {
     int w;
-    SDL_GetWindowSize(ctx->window, &w, NULL);
-    w /= ctx->f_width;
+    SDL_GetWindowSize(gfx->window, &w, NULL);
+    w /= gfx->f_width;
 
     atlas->verts   = realloc(atlas->verts, w * 4 * sizeof(SDL_Vertex));
     atlas->indices = realloc(atlas->indices, w * 6 * sizeof(int));
@@ -111,20 +111,19 @@ void atlas_destroy(Atlas *atlas)
         SDL_DestroyTexture(atlas->texture);
 }
 
-void atlas_push_glyph(Atlas *atlas, const GFX_Context *ctx, Cell cell, int y,
-                      int x)
+void atlas_push_glyph(Atlas *atlas, Cell cell, int y, int x)
 {
-    y = y * ctx->f_height, x = x * ctx->f_width;
+    y = y * gfx->f_height, x = x * gfx->f_width;
 
     slot_t slot;
-    if (!get_slot(ctx, cell.value, font_index(&cell.attrs), &slot))
+    if (!get_slot(cell.value, font_index(&cell.attrs), &slot))
         return;
 
-    float atlas_w = (ATLAS_WIDTH * ctx->f_width),
-          atlas_h = ATLAS_HEIGHT * ctx->f_height;
+    float atlas_w = (ATLAS_WIDTH * gfx->f_width),
+          atlas_h = ATLAS_HEIGHT * gfx->f_height;
 
-    float u0 = slot.x / atlas_w, u1 = (slot.x + ctx->f_width) / atlas_w,
-          v0 = slot.y / atlas_h, v1 = (slot.y + ctx->f_height) / atlas_h;
+    float u0 = slot.x / atlas_w, u1 = (slot.x + gfx->f_width) / atlas_w,
+          v0 = slot.y / atlas_h, v1 = (slot.y + gfx->f_height) / atlas_h;
 
     int base = atlas->nverts;
 
@@ -134,17 +133,17 @@ void atlas_push_glyph(Atlas *atlas, const GFX_Context *ctx, Cell cell, int y,
         .color     = {UNPACK(cell.attrs.fg), 0xff},
     };
     atlas->verts[atlas->nverts++] = (SDL_Vertex){
-        .position  = {x + ctx->f_width, y},
+        .position  = {x + gfx->f_width, y},
         .tex_coord = {u1, v0},
         .color     = {UNPACK(cell.attrs.fg), 0xff},
     };
     atlas->verts[atlas->nverts++] = (SDL_Vertex){
-        .position  = {x + ctx->f_width, y + ctx->f_height},
+        .position  = {x + gfx->f_width, y + gfx->f_height},
         .tex_coord = {u1, v1},
         .color     = {UNPACK(cell.attrs.fg), 0xff},
     };
     atlas->verts[atlas->nverts++] = (SDL_Vertex){
-        .position  = {x, y + ctx->f_height},
+        .position  = {x, y + gfx->f_height},
         .tex_coord = {u0, v1},
         .color     = {UNPACK(cell.attrs.fg), 0xff},
     };
@@ -159,6 +158,8 @@ void atlas_push_glyph(Atlas *atlas, const GFX_Context *ctx, Cell cell, int y,
 
 int atlas_flush(Atlas *atlas, SDL_Renderer *renderer)
 {
+    if (!atlas->nverts || !atlas->nindices)
+        return 0;
     return SDL_RenderGeometry(renderer, atlas->texture, atlas->verts,
                               atlas->nverts, atlas->indices, atlas->nindices);
 }

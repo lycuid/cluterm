@@ -17,26 +17,25 @@ void cluterm_init(Cluterm *term)
     parser_init(&term->vt_parser);
     {
         pty_open(&term->pty);
-        setenv("TERM", "st-256color", 1);
+        setenv("TERM", "xterm-256color", 1);
         char *shell = getenv("SHELL");
         if (!shell)
             shell = "/bin/bash";
         pty_spawn(&term->pty, shell);
     }
-    term->mode = 0x0;
+    term->mode = 0x0, term->fg = DefaultFG, term->bg = DefaultBG;
 }
 
-void cluterm_write(Cluterm *term, char *stream, uint32_t slen)
+void cluterm_write(Cluterm *term, uchar *stream, uint32_t slen)
 {
     VT_Parser *vt_parser = &term->vt_parser;
     parser_feed(vt_parser, stream, slen);
 
     for (FSM_Event fsm_event;;) {
-        ClutermBuffer *b = ACTIVE_BUFFER(term);
-
         switch (fsm_event = parser_run(vt_parser)) {
         case EVENT_NOOP: goto done;
         case EVENT_PRINT: {
+            ClutermBuffer *b = ACTIVE_BUFFER(term);
             insert_cell(b, CELL(vt_parser->payload.value, b->cell_attrs));
         } break;
         case EVENT_ESC: esc_execute(term, &vt_parser->payload.esc); break;

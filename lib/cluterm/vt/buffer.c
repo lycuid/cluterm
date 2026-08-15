@@ -60,9 +60,9 @@ void buffer_init(ClutermBuffer *b, int rows, int cols, int history)
 
         b->cursor.cell.attrs = DEFAULT_CELL_ATTRS;
 
-        /* b->cursor.cell.value = utf8_decode("▇"); */
-        /* b->cursor.cell.value = utf8_decode("_"); */
-        b->cursor.cell.value = utf8_decode("|");
+        b->cursor.cell.value = utf8_decode("▇");
+        /* b->cursor.cell.value = utf8_decode("▂"); */
+        /* b->cursor.cell.value = utf8_decode("▎"); */
         b->saved_cursor      = b->cursor;
     }
 

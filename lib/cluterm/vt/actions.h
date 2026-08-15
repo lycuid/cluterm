@@ -2,18 +2,20 @@
 #define __CLUTERM__VT__ACTIONS_H__
 
 typedef enum CTRL_Action {
-    C0_BEL = 7, // Bell.
-    C0_BS,      // Backspace.
-    C0_HT,      // Horizontal tab.
-    C0_LF,      // Line feed.
-    C0_VT,      // Vertical tab.
-    C0_FF,      // Form feed.
-    C0_CR,      // Carriage return.
-    C0_SO,      // Shift out.
-    C0_SI,      // Shift in.
+    C0_NOOP = -1, // NOOP.
+    C0_BEL  = 7,  // Bell.
+    C0_BS,        // Backspace.
+    C0_HT,        // Horizontal tab.
+    C0_LF,        // Line feed.
+    C0_VT,        // Vertical tab.
+    C0_FF,        // Form feed.
+    C0_CR,        // Carriage return.
+    C0_SO,        // Shift out.
+    C0_SI,        // Shift in.
 } CTRL_Action;
 
 typedef enum ESC_Action {
+    ESC_UNKNOWN = -1,
     ESC_IND,        // ESC D            (move cursor down, scroll if at bottom).
     ESC_RI,         // ESC M            (move cursor up, scroll if at top).
     ESC_HTS,        // ESC H            (Tab set).
@@ -23,10 +25,10 @@ typedef enum ESC_Action {
                     // VT100).
     ESC_DECSC,      // ESC 7            (Save Cursor, VT100).
     ESC_DECRC,      // ESC 8            (Save Cursor, VT100).
-    ESC_UNKNOWN,
 } ESC_Action;
 
 typedef enum CSI_Action {
+    CSI_UNKNOWN = -1,
     CSI_CUU,     // CSI Ps A           (Cursor up).
     CSI_CUD,     // CSI Ps B           (Cursor down).
     CSI_CUF,     // CSI Ps C           (Cursor forward).
@@ -55,7 +57,16 @@ typedef enum CSI_Action {
     CSI_DECSTBM, // CSI Ps ; Ps r      (Set scrolling region).
     CSI_DECSET,  // CSI Pm h           (Private mode 'set', xterm).
     CSI_DECRST,  // CSI Pm l           (Private mode 'reset', xterm).
-    CSI_UNKNOWN,
 } CSI_Action;
+
+typedef enum OSC_Action {
+    OSC_UNKNOWN = -1,
+    OSC_0,       // OSC 0      (set icon name and window title).
+    OSC_2  = 2,  // OSC 2      (Set window title).
+    OSC_7  = 7,  // OSC 7      (set current working directory).
+    OSC_10 = 10, // OSC 10     (set foreground color).
+    OSC_11,      // OSC 11     (set background color).
+    OSC_12,      // OSC 12     (set cursor color).
+} OSC_Action;
 
 #endif

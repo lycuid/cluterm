@@ -1,16 +1,11 @@
 #ifndef __CLUTERM__VT__PARSER_H__
 #define __CLUTERM__VT__PARSER_H__
 
+#include <cluterm/scanner.h>
 #include <cluterm/utf8.h>
 #include <cluterm/vt/actions.h>
-
-typedef struct Reader {
-    const char *buffer;
-    uint32_t cursor, size;
-} Reader;
-
-#define READER(str, len)                                                       \
-    (Reader) { .buffer = str, .cursor = 0, .size = len }
+#include <cluterm/vt/palette.h>
+#include <stdlib.h>
 
 typedef enum FSM_State {
     STATE_GROUND = 0,
@@ -40,23 +35,23 @@ typedef enum FSM_Event {
 
 typedef struct CTRL_Payload {
     CTRL_Action action;
-    Rune value;
 } CTRL_Payload;
 
 typedef struct ESC_Payload {
     ESC_Action action;
-    char *interm, final_byte;
+    uchar *interm, final_byte;
     int ninterm;
 } ESC_Payload;
 
 typedef struct CSI_Payload {
     CSI_Action action;
     int param[1 << 4], nparam, ninterm;
-    char *interm, final_byte;
+    uchar *interm, final_byte;
 } CSI_Payload;
 
 typedef struct OSC_Payload {
-    int _;
+    OSC_Action action;
+    Scanner scanner;
 } OSC_Payload;
 
 typedef union VT_Payload {
@@ -68,10 +63,10 @@ typedef union VT_Payload {
 } VT_Payload;
 
 typedef struct VT_Parser {
-    Reader reader;
+    Scanner scanner;
     UTF8_Decoder utf8_decoder;
-    char seq[1 << 12];
-    int nseq;
+    uchar seq[4096];
+    size_t nseq;
     VT_Payload payload;
     struct {
         FSM_State state;
@@ -81,7 +76,7 @@ typedef struct VT_Parser {
 } VT_Parser;
 
 void parser_init(VT_Parser *);
-void parser_feed(VT_Parser *, const char *, uint32_t);
+void parser_feed(VT_Parser *, const uchar *, uint32_t);
 FSM_Event parser_run(VT_Parser *);
 
 #endif

@@ -13,8 +13,10 @@ typedef uint16_t CellState;
 #define CELL_ITALIC    (1 << 1)
 #define CELL_UNDERLINE (1 << 2)
 
+#define MEMBER_COLORS Rgb fg, bg
+
 typedef struct CellAttributes {
-    Rgb fg, bg;
+    MEMBER_COLORS;
     CellState state;
 } CellAttributes;
 

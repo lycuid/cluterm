@@ -7,8 +7,6 @@
 #include <string.h>
 // clang-format off
 
-typedef unsigned char uchar;
-
 #define IS_C0(ch)   ((ch) <= 0x1f || (ch) == 0x7f)
 #define IS_C1(ch)   BETWEEN(ch, 0x80, 0x9f)
 #define IS_CTRL(ch) (IS_C0(ch) || IS_C1(ch))
@@ -19,25 +17,7 @@ typedef unsigned char uchar;
 #define IS_CSI_FINAL(ch) BETWEEN(ch, 0x40, 0x7e)
 #define IS_PRINTABLE(ch) BETWEEN(ch, 0x20, 0x7f)
 
-#define r_buffer(r)          ((r)->buffer + (r)->cursor)
-#define r_buflen(r)          ((r)->size - (r)->cursor)
-#define r_peek(r)            ((r)->cursor < (r)->size ? &(r)->buffer[(r)->cursor] : NULL)
-#define r_next(r)            ((r)->buffer[(r)->cursor++])
-#define r_advance(r)         (r_advance_by(r, 1))
-#define r_advance_by(r, inc) ((r)->cursor += inc)
-#define r_rollback(r)        (--(r)->cursor)
-#define r_consume(r, ch)     ((r)->buffer[(r)->cursor] == ch && r_advance(r) > 0)
-
-#define r_consume_param_delim(p) (r_consume((p), ';') || r_consume((p), ':'))
-
-static inline int r_consume_number(Reader *r)
-{
-    int n = 0;
-    for (const char *ch = r_peek(r); ch && BETWEEN(*ch, '0', '9');
-         ch             = r_peek(r))
-        n = n * 10 + r_next(r) - '0';
-    return n;
-}
+#define s_consume_param_delim(p) (s_consume((p), ';') || s_consume((p), ':'))
 
 static inline void collect(VT_Parser *, uchar);
 static inline void replay(VT_Parser *, FSM_State);
@@ -51,9 +31,9 @@ static inline void prepare_osc_payload(VT_Parser *, OSC_Payload *);
 
 void parser_init(VT_Parser *vtp) { transition(vtp, STATE_GROUND); }
 
-void parser_feed(VT_Parser *vtp, const char *stream, uint32_t slen)
+void parser_feed(VT_Parser *vtp, const uchar *stream, uint32_t slen)
 {
-    vtp->reader = READER(stream, slen);
+    vtp->scanner = SCANNER(stream, slen);
 }
 
 FSM_Event parser_run(VT_Parser *vtp)
@@ -62,15 +42,15 @@ FSM_Event parser_run(VT_Parser *vtp)
         transition(vtp, STATE_GROUND);
     vtp->fsm.dispatching = false;
 
-    for (Reader *r = &vtp->reader;
-         !vtp->fsm.dispatching && r_peek(r) != NULL;) {
-        uchar input = r_next(r);
+    for (Scanner *s = &vtp->scanner;
+         !vtp->fsm.dispatching && s_peek(s) != NULL;) {
+        uchar input = s_next(s);
 
         switch (vtp->fsm.state) {
         case STATE_GROUND: {
             switch (input) {
-            case 0x1b: transition(vtp, STATE_ESC); break;
-            case 0x9b: transition(vtp, STATE_CSI_PARAM); break;
+            case 0x1b: transition(vtp, STATE_ESC);        break;
+            case 0x9b: transition(vtp, STATE_CSI_PARAM);  break;
             case 0x9d: transition(vtp, STATE_OSC_STRING); break;
             default: {
                 if (IS_CTRL(input))
@@ -91,9 +71,9 @@ FSM_Event parser_run(VT_Parser *vtp)
         } break;
         case STATE_ESC: {
             switch (input) {
-            case '[': transition(vtp, STATE_CSI_PARAM); break;
+            case '[': transition(vtp, STATE_CSI_PARAM);  break;
             case ']': transition(vtp, STATE_OSC_STRING); break;
-            default: replay(vtp, STATE_ESC_INTERM); break;
+            default:  replay(vtp, STATE_ESC_INTERM);     break;
             }
         } break;
         case STATE_ESC_INTERM: {
@@ -134,9 +114,9 @@ FSM_Event parser_run(VT_Parser *vtp)
         } break;
         case STATE_OSC_STRING: {
             switch (input) {
-            case 0x9c: // fallthrough.
-            case 0x07: dispatch(vtp, EVENT_OSC); break;
-            case 0x1b: transition(vtp, STATE_OSC_ST); break;
+            case C0_BEL: // fallthrough.
+            case 0x9c:   dispatch(vtp, EVENT_OSC);      break;
+            case 0x1b:   transition(vtp, STATE_OSC_ST); break;
             default: {
                 if (IS_PRINTABLE(input))
                     collect(vtp, input);
@@ -148,7 +128,7 @@ FSM_Event parser_run(VT_Parser *vtp)
         case STATE_OSC_ST: {
             switch (input) {
             case '\\': dispatch(vtp, EVENT_OSC); break;
-            default: replay(vtp, STATE_ESC); break;
+            default:   replay(vtp, STATE_ESC);   break;
             }
         } break;
         }
@@ -164,7 +144,8 @@ static inline void collect(VT_Parser *vtp, uchar input)
     case STATE_ESC_INTERM: // fallthrough.
     case STATE_CSI_INTERM: // fallthrough.
     case STATE_OSC_STRING: {
-        vtp->seq[vtp->nseq++] = input;
+        /* if (vtp->nseq < sizeof(vtp->seq)) */
+            vtp->seq[vtp->nseq++] = input;
     } break;
     case STATE_ESC_FINAL: {
         vtp->payload.esc.final_byte = input;
@@ -180,13 +161,13 @@ static inline void collect(VT_Parser *vtp, uchar input)
 
 static inline void replay(VT_Parser *vtp, FSM_State state)
 {
-    r_rollback(&vtp->reader);
+    s_rollback(&vtp->scanner);
     transition(vtp, state);
 }
 
 static inline void transition(VT_Parser *vtp, FSM_State next_state)
 {
-#if DEBUG_LVL >= 2
+#if DEBUG_LVL >= 6
     // {{{
     debug_2("Transition { ");
 #define FROM_REPR(sym)                                                         \
@@ -283,8 +264,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
     case EVENT_NOOP: {
         debug("[NOOP]");
         if (vtp->nseq) {
-            debug(": '%s'", vtp->seq);
-            fprintf(stderr, "[NOOP]: '%s'\n", vtp->seq);
+            debug(": '%s' (%ld)", vtp->seq, vtp->nseq);
         }
     } break;
     case EVENT_PRINT: {
@@ -295,6 +275,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
     case EVENT_CTRL: {
         CTRL_Payload *ctrl = &vtp->payload.ctrl;
         switch (ctrl->action) {
+            CASE_REPR(C0_NOOP);
             CASE_REPR(C0_BEL);
             CASE_REPR(C0_BS);
             CASE_REPR(C0_HT);
@@ -369,7 +350,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
         }
     } break;
     case EVENT_OSC: {
-        debug("OSC Event.\n");
+        debug("[OSC]: '%s'", vtp->seq);
     } break;
 #undef CASE_REPR
     }
@@ -383,18 +364,18 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
 
 static inline void prepare_ctrl_payload(VT_Parser *vtp, CTRL_Payload *ctrl)
 {
-    Reader *r = &vtp->reader;
-    switch (r_rollback(r), ctrl->value = r_next(r)) {
-    case 0x07: { ctrl->action = C0_BEL; } break;
-    case 0x08: { ctrl->action = C0_BS;  } break;
-    case 0x09: { ctrl->action = C0_HT;  } break;
-    case 0x0a: { ctrl->action = C0_LF;  } break;
-    case 0x0b: { ctrl->action = C0_VT;  } break;
-    case 0x0c: { ctrl->action = C0_FF;  } break;
-    case 0x0d: { ctrl->action = C0_CR;  } break;
-    case 0x0e: { ctrl->action = C0_SO;  } break;
-    case 0x0f: { ctrl->action = C0_SI;  } break;
-    default:   { vtp->fsm.event = EVENT_NOOP; } break;
+    Scanner *s = &vtp->scanner;
+    switch (s_rollback(s), ctrl->action = s_next(s)) {
+    case C0_BEL: // fallthrough
+    case C0_BS:  // fallthrough
+    case C0_HT:  // fallthrough
+    case C0_LF:  // fallthrough
+    case C0_VT:  // fallthrough
+    case C0_FF:  // fallthrough
+    case C0_CR:  // fallthrough
+    case C0_SO:  // fallthrough
+    case C0_SI:  break;
+    default:     { ctrl->action = C0_NOOP; } break;
     }
 }
 
@@ -431,7 +412,7 @@ static inline void prepare_csi_payload(VT_Parser *vtp, CSI_Payload *csi)
 {
     memset(csi->param, csi->nparam = 0, sizeof(csi->param));
 
-    Reader param_r = READER(vtp->seq, vtp->nseq - csi->ninterm);
+    Scanner param_s = SCANNER(vtp->seq, vtp->nseq - csi->ninterm);
     switch (csi->action = CSI_UNKNOWN, csi->final_byte) {
     case 'A': { csi->action = CSI_CUU; goto ensure_single_param; }
     case 'B': { csi->action = CSI_CUD; goto ensure_single_param; }
@@ -455,7 +436,7 @@ static inline void prepare_csi_payload(VT_Parser *vtp, CSI_Payload *csi)
     case 'X': { csi->action = CSI_ECH; goto ensure_single_param; }
     // CSI Ps C (force single param, default: 0).
 ensure_single_param: {
-        csi->param[csi->nparam++] = r_consume_number(&param_r);
+        csi->param[csi->nparam++] = s_consume_number(&param_s);
     } break;
 
     case 'H': { csi->action = CSI_CUP;     goto ensure_double_param; }
@@ -463,16 +444,16 @@ ensure_single_param: {
     case 'r': { csi->action = CSI_DECSTBM; goto ensure_double_param; }
     // CSI Ps ; Ps C (force two delimited params, default: {0, 0}).
 ensure_double_param: {
-        csi->param[csi->nparam++] = r_consume_number(&param_r);
-        (void)r_consume_param_delim(&param_r);
-        csi->param[csi->nparam++] = r_consume_number(&param_r);
+        csi->param[csi->nparam++] = s_consume_number(&param_s);
+        (void)s_consume_param_delim(&param_s);
+        csi->param[csi->nparam++] = s_consume_number(&param_s);
     } break;
 
     case 'h': { csi->action = CSI_DECSET; goto check_private_mode; }
     case 'l': { csi->action = CSI_DECRST; goto check_private_mode; }
     // CSI ? Pm C (check for private marker, e.g: '?').
 check_private_mode: {
-        if (r_consume(&param_r, '?')) {
+        if (s_consume(&param_s, '?')) {
             goto ensure_multiple_param;
         } else {
             csi->action = CSI_UNKNOWN; goto done;
@@ -481,10 +462,10 @@ check_private_mode: {
 
     case 'm': { csi->action = CSI_SGR; goto ensure_multiple_param; }
     // CSI Ps ; Pm C (delimited params).
-ensure_multiple_param: {
+    ensure_multiple_param: {
         do {
-            csi->param[csi->nparam++] = r_consume_number(&param_r);
-        } while (r_consume_param_delim(&param_r));
+            csi->param[csi->nparam++] = s_consume_number(&param_s);
+        } while (s_consume_param_delim(&param_s));
     } break;
 
     case 's': { csi->action = CSI_SC;      goto done; }
@@ -493,13 +474,29 @@ ensure_multiple_param: {
     }
 
 done:
-    if (r_buflen(&param_r)) // extra unparsed seq.
+    if (s_buflen(&param_s)) // extra unparsed seq.
         csi->action = CSI_UNKNOWN;
 }
 
 static inline void prepare_osc_payload(VT_Parser *vtp, OSC_Payload *osc)
 {
-    (void)vtp;
-    (void)osc;
-    /* unhandled. */
+    osc->action  = OSC_UNKNOWN;
+    osc->scanner = SCANNER(vtp->seq, vtp->nseq);
+    const uchar *ch = s_peek(&osc->scanner);
+    if (!ch || !BETWEEN(*ch, '0', '9'))
+        return;
+
+    int action = s_consume_number(&osc->scanner);
+    switch (action) {
+    case OSC_0:  // fallthrough
+    case OSC_2:  // fallthrough
+    case OSC_7:  // fallthrough
+    case OSC_10: // fallthrough
+    case OSC_11: // fallthrough
+    case OSC_12: {
+        if (!s_consume(&osc->scanner, ';'))
+            osc->action = OSC_UNKNOWN;
+    } break;
+    default: break;
+    }
 }
