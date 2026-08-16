@@ -13,7 +13,7 @@ lib:
 	$(MAKE) -j -C $@
 
 .PHONY: run debug clean compile_flags fmt
-run: ; ./$(BIN)
+run: ; ./$(BIN) 2>&1 | tee cluterm-out.txt
 
 build: ;
 	$(MAKE) CFLAGS="-DDEBUG_LVL=0 -O3"

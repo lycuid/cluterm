@@ -175,7 +175,7 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
         case 6: UPDATE(term->mode, MODE_ORIGIN, is_decset); break;
 
         // CSI_DECTCEM: Show cursor, VT220.
-        case 25: UPDATE(b->cursor.state, CursorHide, !is_decset); break;
+        case 25: UPDATE(b->cursor.state, CURSOR_HIDDEN, !is_decset); break;
 
         // Alternate screen buffer with save/restore cursor and screen clear.
         case 1049: {

@@ -1,9 +1,9 @@
-#include "cache.h"
+#include "lru.h"
 #include <cluterm/debug.h>
 
 struct Node {
     Key key;
-    Value *value;
+    Value value;
     struct Node *next, *prev;
 };
 
@@ -22,7 +22,7 @@ static inline Node *ht_get(HashTable table, Key key, KeyEq key_eq)
     return bucket ? bucket->node : NULL;
 }
 
-// @NOTE: Assuming key doesn't exist (check with 'ht_get' before calling this).
+// @NOTE: Assuming key doesn't exist (for updating simple update the node *).
 static inline void ht_set(HashTable table, Key key, Node *node)
 {
     Bucket **head  = &table[key.value % MAP_MAX_SIZE],
@@ -46,72 +46,74 @@ static inline void ht_remove(HashTable table, Key key, KeyEq key_eq)
     }
 }
 
-static inline void node_attach(GlyphCache *gcache, Node *node)
+static inline void node_attach(LRU *lru, Node *node)
 {
     if (node) {
-        if ((node->next = gcache->head))
+        if ((node->next = lru->head))
             node->next->prev = node;
         else
-            gcache->stale = node;
-        gcache->head = node, gcache->capacity--;
+            lru->stale = node;
+        lru->head = node, lru->capacity--;
     }
 }
 
-static inline Node *node_detach(GlyphCache *gcache, Node *node)
+static inline Node *node_detach(LRU *lru, Node *node)
 {
     if (node) {
         if (node->next)
             node->next->prev = node->prev;
         else
-            gcache->stale = node->prev;
+            lru->stale = node->prev;
         if (node->prev)
             node->prev->next = node->next;
         else
-            gcache->head = node->next;
-        node->next = node->prev = NULL, gcache->capacity++;
+            lru->head = node->next;
+        node->next = node->prev = NULL, lru->capacity++;
     }
     return node;
 }
 
-static inline void node_free(GlyphCache *gcache, Node *node)
+static inline Node *node_free(LRU *lru, Node *node)
 {
-    if ((node = node_detach(gcache, node))) {
-        ht_remove(gcache->table, node->key, gcache->key_eq);
-        gcache->value_dealloc(node->value);
-        free(node);
+    if ((node = node_detach(lru, node))) {
+        ht_remove(lru->table, node->key, lru->key_eq);
+        node->value = NULL;
     }
+    return node;
 }
 
-Value *gcache_get(GlyphCache *gcache, Key key)
+Value lru_get(LRU *lru, Key key)
 {
-    Node *node = ht_get(gcache->table, key, gcache->key_eq);
-    node_attach(gcache, node_detach(gcache, node));
+    Node *node = ht_get(lru->table, key, lru->key_eq);
+    node_attach(lru, node_detach(lru, node));
     return node ? node->value : NULL;
 }
 
-void gcache_put(GlyphCache *gcache, Key key, Value *value)
+Value lru_put(LRU *lru, Key key, Value value)
 {
     Node *node =
-        node_detach(gcache, ht_get(gcache->table, key, gcache->key_eq));
+        node_detach(lru, ht_get(lru->table, key, lru->key_eq));
+    Value old_value = NULL;
     if (!node) {
-        if (!gcache->capacity)
-            node_free(gcache, gcache->stale);
-        node      = malloc(sizeof(Node));
+        node      = lru->capacity ? calloc(1, sizeof(Node))
+                                     : node_free(lru, lru->stale);
+        old_value = node->value;
+
         node->key = key, node->next = node->prev = NULL;
-        ht_set(gcache->table, key, node);
+        ht_set(lru->table, key, node);
     }
     node->value = value;
-    node_attach(gcache, node);
+    node_attach(lru, node);
+    return old_value;
 }
 
-void gcache_clear(GlyphCache *gcache)
+Value lru_remove(LRU *lru)
 {
-    while (gcache->head)
-        node_free(gcache, gcache->head);
-#if DEBUG_LVL >= 1
-    int buckets = 0;
-    for (int i = 0; i < MAP_MAX_SIZE; ++i)
-        buckets += (gcache->table[i] != NULL);
-    debug_1("possible memory leak in hash-table: %d.\n", buckets);
-#endif
+    Value value = 0;
+    Node *node;
+    if ((node = node_free(lru, lru->head))) {
+        value = node->value;
+        free(node);
+    }
+    return value;
 }

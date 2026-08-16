@@ -40,7 +40,7 @@ typedef struct Cell {
 typedef Cell *Line;
 
 typedef uint16_t CursorState;
-#define CursorHide (1 << 0)
+#define CURSOR_HIDDEN (1 << 0)
 
 typedef struct Cursor {
     int y, x;

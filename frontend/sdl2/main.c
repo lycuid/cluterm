@@ -1,6 +1,5 @@
 #include "main.h"
-#include "atlas.h"
-#include "glyph_table.h"
+#include "glyph_cache.h"
 #include "osc_handler.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
@@ -13,20 +12,23 @@
 
 typedef struct LineBatch {
     int y, x, len;
-    bool is_ascii : 1;
     CellAttributes attrs;
 } LineBatch;
+
 #define BATCH(y)                                                               \
-    (LineBatch){.y = y, .x = 0, .len = 0, .attrs = {0}, .is_ascii = 0}
+    (LineBatch) { .y = y, .x = 0, .len = 0, .attrs = {0} }
 
 #define IS_ASCII(val) (val < 0x7f)
 #define FPS(n)        (1000 / n)
 
-static SDL_Texture *canvas = NULL; // persistent framebuffer.
+static struct {
+    SDL_Texture *texture;
+    size_t w, h, dispw, disph;
+} canvas = {.texture = NULL, .w = 0, .h = 0};
+
 static GFX_Context ctx;
 const GFX_Context *gfx = &ctx;
-static Atlas ascii_atlas;
-static int running = 1;
+static int running     = 1;
 
 void quit(__attribute__((unused)) int _arg) { running = 0; }
 
@@ -44,12 +46,12 @@ static inline int tryn(int res)
     return res;
 }
 
-static inline void load_font(FcConfig *config, const char *family,
-                             const char *style, int size, TTF_Font **font)
+static inline void load_font(FcConfig *config, const char *style, int size,
+                             TTF_Font **font)
 {
     FcPattern *pat =
         FcPatternBuild(NULL,                                //
-                       FC_FAMILY, FcTypeString, family,     // font family.
+                       FC_FAMILY, FcTypeString, FontFamily, // font family.
                        FC_STYLE, FcTypeString, style,       // font style.
                        FC_SIZE, FcTypeDouble, (double)size, // font size.
                        NULL);
@@ -72,25 +74,17 @@ static inline void load_font(FcConfig *config, const char *family,
     FcPatternDestroy(font_pat);
 }
 
-static inline void create_canvas(int w, int h)
+static inline void create_canvas(size_t w, size_t h)
 {
-    if (canvas)
-        SDL_DestroyTexture(canvas);
-    canvas = tryp(SDL_CreateTexture(ctx.renderer, SDL_PIXELFORMAT_ABGR8888,
-                                    SDL_TEXTUREACCESS_TARGET, w, h));
-}
-
-static inline void load_fonts(void)
-{
-    FcConfig *config = FcInitLoadConfigAndFonts();
-
-    load_font(config, FontFamily, "Regular", FontSize, &ctx.fonts[FontRegular]);
-    load_font(config, FontFamily, "Bold", FontSize, &ctx.fonts[FontBold]);
-    load_font(config, FontFamily, "Italic", FontSize, &ctx.fonts[FontItalic]);
-    load_font(config, FontFamily, "BoldItalic", FontSize,
-              &ctx.fonts[FontBoldItalic]);
-
-    FcConfigDestroy(config);
+    canvas.dispw = w, canvas.disph = h;
+    if (canvas.dispw <= canvas.w && canvas.disph <= canvas.h)
+        return;
+    canvas.w = canvas.dispw, canvas.h = canvas.disph;
+    if (canvas.texture)
+        SDL_DestroyTexture(canvas.texture);
+    canvas.texture = tryp(SDL_CreateTexture(
+        ctx.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+        canvas.dispw, canvas.disph));
 }
 
 static inline void sdl_init(void)
@@ -102,8 +96,18 @@ static inline void sdl_init(void)
     ctx.renderer =
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
 
-    load_fonts();
-    /* cell size */ {
+    /* loading fonts. */ {
+        FcConfig *config = FcInitLoadConfigAndFonts();
+
+        load_font(config, "Regular", FontSize, &ctx.fonts[FontRegular]);
+        load_font(config, "Bold", FontSize, &ctx.fonts[FontBold]);
+        load_font(config, "Italic", FontSize, &ctx.fonts[FontItalic]);
+        load_font(config, "BoldItalic", FontSize, &ctx.fonts[FontBoldItalic]);
+
+        FcConfigDestroy(config);
+    }
+
+    /* cell size. */ {
         char printable_ascii[128 - 32 + 1] = {0};
         for (int i = 32; i < 128; ++i)
             printable_ascii[i - 32] = i;
@@ -117,21 +121,7 @@ static inline void sdl_init(void)
     create_canvas(ctx.f_width * Columns, ctx.f_height * Rows);
     SDL_StartTextInput();
 
-    atlas_init(&ascii_atlas);
-    glyph_table_init();
-}
-
-debug_var static inline void bounding_box(SDL_Rect *box)
-{
-    SDL_SetRenderDrawColor(ctx.renderer, UNPACK(0x303030), 0);
-    SDL_RenderDrawLines(
-        ctx.renderer,
-        (SDL_Point[]){{.x = box->x, .y = box->y},
-                      {.x = box->x + box->w, .y = box->y},
-                      {.x = box->x + box->w, .y = box->y + box->h},
-                      {.x = box->x, .y = box->y + box->h},
-                      {.x = box->x, .y = box->y}},
-        5);
+    gcache_init();
 }
 
 static inline void background(Rgb bg, const SDL_Rect *rect)
@@ -147,45 +137,19 @@ static inline void underline(Rgb color, const SDL_Rect *rect)
                        rect->x + rect->w, rect->y + rect->h - 2);
 }
 
-static inline void draw_cell(Cell cell, int y, int x)
-{
-    const Glyph *glyph = glyph_table_request_unicode(cell);
-    SDL_Rect src       = {.x = 0, .y = 0, .w = glyph->w, .h = glyph->h},
-             dst       = {.x = ctx.f_width * x,
-                          .y = ctx.f_height * y,
-                          .w = MAX(glyph->w, ctx.f_width),
-                          .h = MAX(glyph->h, ctx.f_height)};
-    if (glyph->texture)
-        SDL_RenderCopy(ctx.renderer, glyph->texture, &src, &dst);
-#if DEBUG_LVL >= 4
-    bounding_box(&dst);
-#endif
-}
-
 static inline bool cell_belongs(LineBatch *batch, Cell *cell)
 {
-    // making sure that the batch is either ascii or non-ascii unicode as
-    // currently ascii and unicode glyphs are rendered in seperate ways.
-    // @NOTE: remove this condition later, when there is a unified way to render
-    // any character regardless if its ascii or non-ascii unicode.
-    if (batch->len && batch->is_ascii != IS_ASCII(cell->value))
-        return false;
-
     if (cell->attrs.fg != batch->attrs.fg || cell->attrs.bg != batch->attrs.bg)
         return false;
-
-    if (IS_SET(cell->attrs.state, CELL_UNDERLINE) !=
-        IS_SET(batch->attrs.state, CELL_UNDERLINE))
+    if (cell->attrs.state != batch->attrs.state)
         return false;
-
     return true;
 }
 
 static inline void batch_add(LineBatch *batch, Cell *cell, int x)
 {
     if (!batch->len)
-        batch->x = x, batch->is_ascii = IS_ASCII(cell->value),
-        batch->attrs = cell->attrs;
+        batch->x = x, batch->attrs = cell->attrs;
     batch->len++;
 }
 
@@ -194,7 +158,6 @@ static inline void batch_flush(LineBatch *batch, const ClutermBuffer *b)
     if (!batch || !batch->len)
         return;
 
-    ascii_atlas.nverts = 0, ascii_atlas.nindices = 0;
     SDL_Rect dst = {.x = ctx.f_width * batch->x,
                     .y = ctx.f_height * batch->y,
                     .w = ctx.f_width * batch->len,
@@ -204,18 +167,14 @@ static inline void batch_flush(LineBatch *batch, const ClutermBuffer *b)
 
     const Cursor *c = &b->cursor;
     if (c->y == batch->y && BETWEEN(c->x, batch->x, batch->x + batch->len) &&
-        !IS_SET(c->state, CursorHide))
-        draw_cell(c->cell, c->y, c->x);
+        !IS_SET(c->state, CURSOR_HIDDEN))
+        gcache_push_glyph(c->cell, c->y, c->x);
 
     for (int dx = 0; dx < batch->len; ++dx) {
-        Cell cell = getcell(b, batch->y, batch->x + dx);
         int y = batch->y, x = batch->x + dx;
-        if (batch->is_ascii)
-            atlas_push_glyph(&ascii_atlas, cell, y, x);
-        else
-            draw_cell(cell, y, x);
+        gcache_push_glyph(getcell(b, y, x), y, x);
     }
-    atlas_flush(&ascii_atlas, ctx.renderer);
+    gcache_flush(ctx.renderer);
 
     if (IS_SET(batch->attrs.state, CELL_UNDERLINE))
         underline(batch->attrs.fg, &dst);
@@ -225,8 +184,8 @@ static inline void batch_flush(LineBatch *batch, const ClutermBuffer *b)
 
 static inline void update_canvas(const Cluterm *term, bool fresh)
 {
+    SDL_SetRenderTarget(ctx.renderer, canvas.texture);
     const ClutermBuffer *b = ACTIVE_BUFFER(term);
-
 #ifdef DUMP_FRAME
     static uint64_t frame = 0;
     debug("----------------- Frame begin: (%ld) -----------------\n", ++frame);
@@ -263,6 +222,7 @@ static inline void update_canvas(const Cluterm *term, bool fresh)
         batch_flush(&batch, b);
     }
     memset(b->dirty, 0, b->cols * b->rows * sizeof(*b->dirty));
+    SDL_SetRenderTarget(ctx.renderer, NULL);
 }
 
 static inline ssize_t clipboard_paste(const Cluterm *term)
@@ -362,15 +322,16 @@ static inline void handle_keydown(const Cluterm *term, SDL_Event *e)
 
 static inline void render(Cluterm *term, bool fresh)
 {
-    SDL_SetRenderTarget(ctx.renderer, canvas);
+    if (term != NULL)
+        update_canvas(term, fresh);
+
     if (fresh) {
         SDL_SetRenderDrawColor(ctx.renderer, UNPACK(DefaultBG), 0);
         SDL_RenderClear(ctx.renderer);
     }
-    if (term != NULL)
-        update_canvas(term, fresh);
-    SDL_SetRenderTarget(ctx.renderer, NULL);
-    SDL_RenderCopy(ctx.renderer, canvas, NULL, NULL);
+    SDL_Rect rect =
+        (SDL_Rect){.x = 0, .y = 0, .w = canvas.dispw, .h = canvas.disph};
+    SDL_RenderCopy(ctx.renderer, canvas.texture, &rect, &rect);
     SDL_RenderPresent(ctx.renderer);
 }
 
@@ -400,7 +361,7 @@ int main(void)
 
         if (resz.pending && (tick = SDL_GetTicks64()) - resz.time > FPS(2)) {
             cluterm_resize(&term, resz.h, resz.w);
-            atlas_resize(&ascii_atlas);
+            gcache_resize();
             create_canvas(resz.w * ctx.f_width, resz.h * ctx.f_height);
             render(&term, 1);
             resz.pending = 0, resz.time = tick;
@@ -414,6 +375,7 @@ int main(void)
                 SDL_WindowEvent *win = &e.window;
                 switch (win->event) {
                 case SDL_WINDOWEVENT_EXPOSED: render(&term, 1); break;
+                case SDL_WINDOWEVENT_CLOSE: running = 0; break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
                     resz.w       = MAX(win->data1 / ctx.f_width, 10),
@@ -435,10 +397,9 @@ int main(void)
 
     cluterm_destroy(&term);
     {
-        if (canvas)
-            SDL_DestroyTexture(canvas);
-        atlas_destroy(&ascii_atlas);
-        glyph_table_destroy();
+        if (canvas.texture)
+            SDL_DestroyTexture(canvas.texture);
+        gcache_destroy();
         for (size_t i = 0; i < LENGTH(ctx.fonts); ++i)
             if (ctx.fonts[i])
                 TTF_CloseFont(ctx.fonts[i]);

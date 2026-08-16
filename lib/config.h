@@ -12,4 +12,8 @@ static const Rgb DefaultBG = 0x090909;
 static const char FontFamily[] = "FiraCode Nerd Font";
 static const int FontSize      = 12;
 
+static const char CursorSymbol[] = "▇";
+// static const char CursorSymbol[] = "▂";
+// static const char CursorSymbol[] = "▎";
+
 #endif
