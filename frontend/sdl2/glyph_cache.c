@@ -7,7 +7,7 @@
 #define TOTAL_ASCII           96
 
 #define ATLAS_WIDTH  200
-#define ATLAS_HEIGHT 5
+#define ATLAS_HEIGHT 6
 #define CACHE_CAP    (TOTAL_ASCII * 2)
 
 typedef struct Slot {
@@ -106,12 +106,13 @@ void gcache_init(void)
 
 void gcache_resize(void)
 {
-    int w;
-    SDL_GetWindowSize(gfx->window, &w, NULL);
-    w = w / gfx->f_width + 10; // offset 10 (for eg. cursor etc).
+    int w, h;
+    SDL_GetWindowSize(gfx->window, &w, &h);
+    // offset 2 (for eg. cursor etc).
+    w = w / gfx->f_width + 2, h = h / gfx->f_height + 2;
 
-    cache.verts   = realloc(cache.verts, w * 4 * sizeof(SDL_Vertex));
-    cache.indices = realloc(cache.indices, w * 6 * sizeof(int));
+    cache.verts   = realloc(cache.verts, w * h * 4 * sizeof(SDL_Vertex));
+    cache.indices = realloc(cache.indices, w * h * 6 * sizeof(int));
 }
 
 void gcache_destroy(void)
@@ -148,13 +149,15 @@ static inline Slot *get_slot(Cell cell)
         utf8_encode(cell.value, utf8_string);
 
         SDL_Surface *surface = create_surface(cell.value, gfx->fonts[f_index]);
-        SDL_UpdateTexture(cache.atlas,
-                          &(SDL_Rect){.x = slot->x,
-                                      .y = slot->y,
-                                      .w = gfx->f_width,
-                                      .h = gfx->f_height},
-                          surface->pixels, surface->pitch);
-        SDL_FreeSurface(surface);
+        if (surface) {
+            SDL_UpdateTexture(cache.atlas,
+                              &(SDL_Rect){.x = slot->x,
+                                          .y = slot->y,
+                                          .w = gfx->f_width,
+                                          .h = gfx->f_height},
+                              surface->pixels, surface->pitch);
+            SDL_FreeSurface(surface);
+        }
     }
     return slot;
 }
@@ -200,11 +203,11 @@ void gcache_push_glyph(Cell cell, int y, int x)
     cache.indices[cache.nindices++] = base + 3;
 }
 
-int gcache_flush(SDL_Renderer *renderer)
+int gcache_flush(void)
 {
     int res = 0;
     if (cache.nverts && cache.nindices) {
-        res = SDL_RenderGeometry(renderer, cache.atlas, cache.verts,
+        res = SDL_RenderGeometry(gfx->renderer, cache.atlas, cache.verts,
                                  cache.nverts, cache.indices, cache.nindices);
         cache.nverts = 0, cache.nindices = 0;
     }

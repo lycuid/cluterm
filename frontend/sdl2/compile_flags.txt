@@ -11,6 +11,8 @@
 -I/usr/include/SDL2
 -D_GNU_SOURCE=1
 -D_REENTRANT
+-DDEBUG_LVL=5
+-DDUMP_DIRTY_FRAME
 -I/usr/include/harfbuzz
 -I/usr/include/glib-2.0
 -I/usr/lib/glib-2.0/include

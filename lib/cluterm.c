@@ -4,7 +4,6 @@
 #include <cluterm/vt/actions/csi.h>
 #include <cluterm/vt/actions/ctrl.h>
 #include <cluterm/vt/actions/esc.h>
-#include <cluterm/vt/actions/osc.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -41,7 +40,10 @@ void cluterm_write(Cluterm *term, uchar *stream, uint32_t slen)
         case EVENT_ESC: esc_execute(term, &vt_parser->payload.esc); break;
         case EVENT_CSI: csi_execute(term, &vt_parser->payload.csi); break;
         case EVENT_CTRL: ctrl_execute(term, &vt_parser->payload.ctrl); break;
-        case EVENT_OSC: osc_execute(term, &vt_parser->payload.osc); break;
+        case EVENT_OSC: {
+            if (term->osc_handler)
+                term->osc_handler(term, &vt_parser->payload.osc);
+        } break;
         }
     }
 done:

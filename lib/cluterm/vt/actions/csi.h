@@ -10,6 +10,11 @@
 #include <string.h>
 #include <unistd.h>
 
+#define PARAM(n) (n < csi->nparam ? MAX(1, csi->param[n]) : 1)
+// adjust value based on the origin mode.
+#define DECOM(n)                                                               \
+    n + (IS_SET(term->mode, MODE_ORIGIN) ? b->scroll_region.start : 0)
+
 static inline void csi_tbc(Cluterm *term, CSI_Payload *csi)
 {
     ClutermBuffer *b = ACTIVE_BUFFER(term);
@@ -157,6 +162,24 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
     }
 }
 
+static inline void csi_decscusr(Cluterm *term, CSI_Payload *csi)
+{
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
+    Cursor *c        = &b->cursor;
+    switch (PARAM(0)) {
+    case 0: {
+        c->style = DefaultCursor.style, c->shape = DefaultCursor.shape;
+    } break;
+    case 1: c->style = CursorBlink, c->shape = CursorBlock; break;
+    case 2: c->style = CursorSolid, c->shape = CursorBlock; break;
+    case 3: c->style = CursorBlink, c->shape = CursorUnderline; break;
+    case 4: c->style = CursorSolid, c->shape = CursorUnderline; break;
+    case 5: c->style = CursorBlink, c->shape = CursorBar; break;
+    case 6: c->style = CursorSolid, c->shape = CursorBar; break;
+    default: break;
+    }
+}
+
 static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
 {
 
@@ -175,7 +198,7 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
         case 6: UPDATE(term->mode, MODE_ORIGIN, is_decset); break;
 
         // CSI_DECTCEM: Show cursor, VT220.
-        case 25: UPDATE(b->cursor.state, CURSOR_HIDDEN, !is_decset); break;
+        case 25: b->cursor.visible = is_decset; break;
 
         // Alternate screen buffer with save/restore cursor and screen clear.
         case 1049: {
@@ -195,11 +218,6 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
         }
     }
 }
-
-#define PARAM(n) (n < csi->nparam ? MAX(1, csi->param[n]) : 1)
-// adjust value based on the origin mode.
-#define DECOM(n)                                                               \
-    n + (IS_SET(term->mode, MODE_ORIGIN) ? b->scroll_region.start : 0)
 
 EXPORT void csi_execute(Cluterm *term, CSI_Payload *csi)
 {
@@ -262,6 +280,7 @@ EXPORT void csi_execute(Cluterm *term, CSI_Payload *csi)
             region->start = 0, region->end = b->rows - 1;
     } break;
 
+    case CSI_DECSCUSR: csi_decscusr(term, csi); break;
     case CSI_DECSET: /* fallthrough. */
     case CSI_DECRST: csi_decmode(term, csi, csi->action == CSI_DECSET); break;
     case CSI_UNKNOWN: break;

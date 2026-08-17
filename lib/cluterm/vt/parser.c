@@ -144,7 +144,7 @@ static inline void collect(VT_Parser *vtp, uchar input)
     case STATE_ESC_INTERM: // fallthrough.
     case STATE_CSI_INTERM: // fallthrough.
     case STATE_OSC_STRING: {
-        /* if (vtp->nseq < sizeof(vtp->seq)) */
+        if (vtp->nseq < sizeof(vtp->seq))
             vtp->seq[vtp->nseq++] = input;
     } break;
     case STATE_ESC_FINAL: {
@@ -167,7 +167,7 @@ static inline void replay(VT_Parser *vtp, FSM_State state)
 
 static inline void transition(VT_Parser *vtp, FSM_State next_state)
 {
-#if DEBUG_LVL >= 6
+#if DEBUG_LVL >= 2
     // {{{
     debug_2("Transition { ");
 #define FROM_REPR(sym)                                                         \
@@ -301,7 +301,6 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
         }
         debug(": '%s'", esc->interm);
         if (esc->action == ESC_UNKNOWN) {
-            fprintf(stderr, "ESC%s%c\n", esc->interm, esc->final_byte);
             debug(" ESC%s%c.\n", esc->interm, esc->final_byte);
         }
     } break;
@@ -333,6 +332,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
             CASE_REPR(CSI_SGR);
             CASE_REPR(CSI_SC);
             CASE_REPR(CSI_RC);
+            CASE_REPR(CSI_DECSCUSR);
             CASE_REPR(CSI_DECSTBM);
             CASE_REPR(CSI_DECSET);
             CASE_REPR(CSI_DECRST);
@@ -413,6 +413,7 @@ static inline void prepare_csi_payload(VT_Parser *vtp, CSI_Payload *csi)
     memset(csi->param, csi->nparam = 0, sizeof(csi->param));
 
     Scanner param_s = SCANNER(vtp->seq, vtp->nseq - csi->ninterm);
+    Scanner interm_s = SCANNER(csi->interm, csi->ninterm);
     switch (csi->action = CSI_UNKNOWN, csi->final_byte) {
     case 'A': { csi->action = CSI_CUU; goto ensure_single_param; }
     case 'B': { csi->action = CSI_CUD; goto ensure_single_param; }
@@ -434,6 +435,12 @@ static inline void prepare_csi_payload(VT_Parser *vtp, CSI_Payload *csi)
     case '@': { csi->action = CSI_ICH; goto ensure_single_param; }
     case 'P': { csi->action = CSI_DCH; goto ensure_single_param; }
     case 'X': { csi->action = CSI_ECH; goto ensure_single_param; }
+    case 'q': {
+        if (!s_consume(&interm_s, ' '))
+            goto done;
+        csi->action = CSI_DECSCUSR;
+        goto ensure_single_param;
+    }
     // CSI Ps C (force single param, default: 0).
 ensure_single_param: {
         csi->param[csi->nparam++] = s_consume_number(&param_s);

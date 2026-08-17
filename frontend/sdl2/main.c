@@ -30,6 +30,11 @@ static GFX_Context ctx;
 const GFX_Context *gfx = &ctx;
 static int running     = 1;
 
+static struct {
+    uint64_t last;
+    bool visible;
+} cursor_blink_state = {0};
+
 void quit(__attribute__((unused)) int _arg) { running = 0; }
 
 static inline void *tryp(void *res)
@@ -130,11 +135,18 @@ static inline void background(Rgb bg, const SDL_Rect *rect)
     SDL_RenderFillRect(ctx.renderer, rect);
 }
 
-static inline void underline(Rgb color, const SDL_Rect *rect)
+static inline void underline(Rgb color, SDL_Rect rect, size_t sz)
 {
     SDL_SetRenderDrawColor(ctx.renderer, UNPACK(color), 0);
-    SDL_RenderDrawLine(ctx.renderer, rect->x, rect->y + rect->h - 2,
-                       rect->x + rect->w, rect->y + rect->h - 2);
+    rect.y += rect.h - sz, rect.h = sz;
+    SDL_RenderFillRect(ctx.renderer, &rect);
+}
+
+static inline void bar(Rgb color, SDL_Rect rect, size_t sz)
+{
+    SDL_SetRenderDrawColor(ctx.renderer, UNPACK(color), 0);
+    rect.w = sz;
+    SDL_RenderFillRect(ctx.renderer, &rect);
 }
 
 static inline bool cell_belongs(LineBatch *batch, Cell *cell)
@@ -165,28 +177,55 @@ static inline void batch_flush(LineBatch *batch, const ClutermBuffer *b)
 
     background(batch->attrs.bg, &dst);
 
-    const Cursor *c = &b->cursor;
-    if (c->y == batch->y && BETWEEN(c->x, batch->x, batch->x + batch->len) &&
-        !IS_SET(c->state, CURSOR_HIDDEN))
-        gcache_push_glyph(c->cell, c->y, c->x);
-
     for (int dx = 0; dx < batch->len; ++dx) {
         int y = batch->y, x = batch->x + dx;
         gcache_push_glyph(getcell(b, y, x), y, x);
     }
-    gcache_flush(ctx.renderer);
 
     if (IS_SET(batch->attrs.state, CELL_UNDERLINE))
-        underline(batch->attrs.fg, &dst);
+        underline(batch->attrs.fg, dst, 2);
 
     batch->len = 0;
+}
+
+static inline void draw_cursor(const ClutermBuffer *b)
+{
+    const Cursor *c = &b->cursor;
+    if (c->x >= b->cols || c->y >= b->rows)
+        return;
+
+    Cell cell    = getcell(b, c->y, c->x);
+    SDL_Rect dst = {.x = c->x * ctx.f_width,
+                    .y = c->y * ctx.f_height,
+                    .w = ctx.f_width,
+                    .h = ctx.f_height};
+
+    bool use_cursor =
+        c->visible && (c->style == CursorSolid ||
+                       (c->style == CursorBlink && cursor_blink_state.visible));
+
+    if (use_cursor && c->shape == CursorBlock)
+        cell.attrs.fg = ~c->color & 0xffffff, cell.attrs.bg = c->color;
+    background(cell.attrs.bg, &dst);
+
+    gcache_push_glyph(cell, c->y, c->x);
+
+    if (use_cursor && c->shape == CursorUnderline)
+        underline(c->color, dst, 3);
+    else if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
+        underline(cell.attrs.fg, dst, 2);
+
+    if (use_cursor && c->shape == CursorBar)
+        bar(c->color, dst, 3);
 }
 
 static inline void update_canvas(const Cluterm *term, bool fresh)
 {
     SDL_SetRenderTarget(ctx.renderer, canvas.texture);
     const ClutermBuffer *b = ACTIVE_BUFFER(term);
-#ifdef DUMP_FRAME
+
+#ifdef DUMP_DIRTY_FRAME
+    // {{{
     static uint64_t frame = 0;
     debug("----------------- Frame begin: (%ld) -----------------\n", ++frame);
     for (int y = 0; y < b->rows; ++y) {
@@ -203,6 +242,7 @@ static inline void update_canvas(const Cluterm *term, bool fresh)
         debug("\n");
     }
     debug("----------------- Frame end -----------------\n");
+    // }}}
 #endif
 
     for (int y = 0; y < b->rows; ++y) {
@@ -221,6 +261,8 @@ static inline void update_canvas(const Cluterm *term, bool fresh)
         }
         batch_flush(&batch, b);
     }
+    draw_cursor(b);
+    gcache_flush();
     memset(b->dirty, 0, b->cols * b->rows * sizeof(*b->dirty));
     SDL_SetRenderTarget(ctx.renderer, NULL);
 }
@@ -252,8 +294,6 @@ static inline void handle_keydown(const Cluterm *term, SDL_Event *e)
          shift = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT),
          alt   = IS_SET_ANY(key->keysym.mod, KMOD_ALT);
 
-#define ESC "\x1b"
-
     switch (key->keysym.sym) {
     case SDLK_a: goto mod_put;
     case SDLK_b: goto mod_put;
@@ -277,11 +317,10 @@ static inline void handle_keydown(const Cluterm *term, SDL_Event *e)
     case SDLK_t: goto mod_put;
     case SDLK_u: goto mod_put;
     case SDLK_v: {
-        if (ctrl && shift) {
+        if (ctrl && shift)
             clipboard_paste(term);
-        } else {
+        else
             goto mod_put;
-        }
     } break;
     case SDLK_w: goto mod_put;
     case SDLK_x: goto mod_put;
@@ -289,33 +328,30 @@ static inline void handle_keydown(const Cluterm *term, SDL_Event *e)
     case SDLK_z: {
     mod_put:
         if (ctrl)
-            pty_write(&term->pty, (char[]){key->keysym.sym - 96}, 1);
+            pty_write(&term->pty, (char[]){key->keysym.sym - 'a' + 1}, 1);
         else if (alt)
             pty_write(&term->pty, (char[]){0x1b, key->keysym.sym}, 2);
     } break;
 
         // clang-format off
-    case SDLK_RETURN2:   // fallthrough
-    case SDLK_RETURN:    pty_write(&term->pty, "\r", 1); break;
-
-    case SDLK_TAB:       pty_write(&term->pty, "\t", 1); break;
-    case SDLK_ESCAPE:    pty_write(&term->pty, ESC, 1); break;
-    case SDLK_BACKSPACE: pty_write(&term->pty, "\x7f", 1); break;
-    case SDLK_UP:        pty_write(&term->pty, ESC"[A", 3); break;
-    case SDLK_DOWN:      pty_write(&term->pty, ESC"[B", 3); break;
-    case SDLK_RIGHT:     pty_write(&term->pty, ESC"[C", 3); break;
-    case SDLK_LEFT:      pty_write(&term->pty, ESC"[D", 3); break;
-    case SDLK_HOME:      pty_write(&term->pty, ESC"[H", 3); break;
-    case SDLK_END:       pty_write(&term->pty, ESC"[F", 3); break;
+    case SDLK_RETURN:    // fallthrough
+    case SDLK_RETURN2:   pty_write(&term->pty, "\r", 1);     break;
+    case SDLK_TAB:       pty_write(&term->pty, "\t", 1);     break;
+    case SDLK_BACKSPACE: pty_write(&term->pty, "\b", 1);     break;
+    case SDLK_ESCAPE:    pty_write(&term->pty, "\x1b", 1);   break;
+    case SDLK_UP:        pty_write(&term->pty, "\x1b[A", 3); break;
+    case SDLK_DOWN:      pty_write(&term->pty, "\x1b[B", 3); break;
+    case SDLK_RIGHT:     pty_write(&term->pty, "\x1b[C", 3); break;
+    case SDLK_LEFT:      pty_write(&term->pty, "\x1b[D", 3); break;
+    case SDLK_HOME:      pty_write(&term->pty, "\x1b[H", 3); break;
+    case SDLK_END:       pty_write(&term->pty, "\x1b[F", 3); break;
     case SDLK_INSERT: {
-        shift ? clipboard_paste(term) : pty_write(&term->pty, ESC"[2~", 4);
+        shift ? clipboard_paste(term) : pty_write(&term->pty, "\x1b[2~", 4);
     } break;
-    case SDLK_DELETE:    pty_write(&term->pty, ESC"[3~", 4); break;
-    case SDLK_PAGEUP:    pty_write(&term->pty, ESC"[5~", 4); break;
-    case SDLK_PAGEDOWN:  pty_write(&term->pty, ESC"[6~", 4); break;
+    case SDLK_DELETE:    pty_write(&term->pty, "\x1b[3~", 4); break;
+    case SDLK_PAGEUP:    pty_write(&term->pty, "\x1b[5~", 4); break;
+    case SDLK_PAGEDOWN:  pty_write(&term->pty, "\x1b[6~", 4); break;
         // clang-format on
-
-#undef ESC
     default: break;
     }
 }
@@ -329,10 +365,20 @@ static inline void render(Cluterm *term, bool fresh)
         SDL_SetRenderDrawColor(ctx.renderer, UNPACK(DefaultBG), 0);
         SDL_RenderClear(ctx.renderer);
     }
-    SDL_Rect rect =
-        (SDL_Rect){.x = 0, .y = 0, .w = canvas.dispw, .h = canvas.disph};
+    SDL_Rect rect = {.x = 0, .y = 0, .w = canvas.dispw, .h = canvas.disph};
     SDL_RenderCopy(ctx.renderer, canvas.texture, &rect, &rect);
     SDL_RenderPresent(ctx.renderer);
+}
+
+static inline bool since(uint64_t *time, uint64_t ms)
+{
+    if (time == NULL)
+        return false;
+    uint64_t tick = SDL_GetTicks64();
+    bool result   = tick - *time > ms;
+    if (result)
+        *time = tick;
+    return result;
 }
 
 int main(void)
@@ -344,27 +390,34 @@ int main(void)
     sdl_init();
     signal(SIGCHLD, quit); // shell exits/crashes.
 
-    ssize_t n          = 0;
-    uchar stream[4096] = {0};
     struct {
+        uint64_t last;
         uint w, h, pending : 1;
-        uint64_t time;
-    } resz = {0};
+    } resz             = {0};
+    uchar stream[4096] = {0};
+    ssize_t n          = 0;
 
     render(NULL, 0);
-    uint64_t tick;
     for (SDL_Event e; running;) {
         if ((n = pty_read(&term.pty, stream, sizeof(stream))) > 0) {
             cluterm_write(&term, stream, n);
             render(&term, 0);
         }
 
-        if (resz.pending && (tick = SDL_GetTicks64()) - resz.time > FPS(2)) {
+        ClutermBuffer *b = ACTIVE_BUFFER(&term);
+        if (b->cursor.visible && b->cursor.style == CursorBlink) {
+            if (since(&cursor_blink_state.last, FPS(2))) {
+                cursor_blink_state.visible = !cursor_blink_state.visible;
+                render(&term, 0);
+            }
+        }
+
+        if (resz.pending && since(&resz.last, FPS(2))) {
             cluterm_resize(&term, resz.h, resz.w);
             gcache_resize();
             create_canvas(resz.w * ctx.f_width, resz.h * ctx.f_height);
             render(&term, 1);
-            resz.pending = 0, resz.time = tick;
+            resz.pending = 0;
         }
 
         while (SDL_PollEvent(&e)) {
@@ -387,6 +440,8 @@ int main(void)
 
             case SDL_TEXTINPUT: {
                 pty_write(&term.pty, e.text.text, strlen(e.text.text));
+                cursor_blink_state.last    = SDL_GetTicks64(),
+                cursor_blink_state.visible = 1;
             } break;
             case SDL_KEYDOWN: handle_keydown(&term, &e); break;
             default: break;
@@ -415,3 +470,4 @@ int main(void)
     }
     return 0;
 }
+// vim:fdm=marker

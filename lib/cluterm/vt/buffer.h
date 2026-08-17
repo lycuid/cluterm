@@ -39,13 +39,19 @@ typedef struct Cell {
 
 typedef Cell *Line;
 
-typedef uint16_t CursorState;
-#define CURSOR_HIDDEN (1 << 0)
+typedef enum CursorStyle { CursorSolid, CursorBlink } CursorStyle;
+typedef enum CursorShape {
+    CursorBlock,
+    CursorUnderline,
+    CursorBar
+} CursorShape;
 
 typedef struct Cursor {
     int y, x;
-    Cell cell;
-    CursorState state;
+    Rgb color;
+    bool visible : 1;
+    CursorStyle style;
+    CursorShape shape;
 } Cursor;
 
 typedef struct Region {
@@ -87,8 +93,8 @@ void scrollup_rel(ClutermBuffer *, int, int);
 void scrolldown_rel(ClutermBuffer *, int, int);
 
 /* cursor actions. */
-// All the below actions involve either updating cursor or operations relative
-// to the cursor.
+// All the below actions involve either updating cursor or operations 'relative'
+// to the cursor position.
 
 // absolute cursor move (screen coords clamped).
 void move_cursor_to(ClutermBuffer *, int, int);

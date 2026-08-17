@@ -68,8 +68,8 @@ static inline int osc_set_color(Cluterm *term, OSC_Action action, Scanner *s)
     case OSC_10: term->fg = color; break;
     case OSC_11: term->bg = color; break;
     case OSC_12: {
-        term->buffer[0].cursor.cell.attrs.fg = color;
-        term->buffer[1].cursor.cell.attrs.fg = color;
+        term->buffer[0].cursor.color = color;
+        term->buffer[1].cursor.color = color;
     } break;
     default: return 0;
     }
@@ -88,7 +88,7 @@ static inline int osc_query(Cluterm *term, OSC_Action action)
         // handler only called for queries, not for updating dynamic color.
     case OSC_10: fill("10", UNPACK(term->fg)); goto send_cmd;
     case OSC_11: fill("11", UNPACK(term->bg)); goto send_cmd;
-    case OSC_12: fill("12", UNPACK(b->cursor.cell.attrs.fg));
+    case OSC_12: fill("12", UNPACK(b->cursor.color));
 #undef fill
     send_cmd: {
         pty_write(&term->pty, osc_color, strlen(osc_color));
@@ -128,7 +128,7 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
                 result = osc_set_color(term, action, s);
             }
             if (result == -1)
-                debug_2("Invalid osc string '%s'.\n", s.buffer);
+                debug_2("Invalid osc string '%s'.\n", s->buffer);
             action++;
         } while (s_consume(s, ';') && result);
     } break;

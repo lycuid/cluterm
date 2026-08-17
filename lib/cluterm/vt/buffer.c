@@ -56,11 +56,10 @@ void buffer_init(ClutermBuffer *b, int rows, int cols, int history)
         b->tab[i] = 1;
 
     /* Cursor. */ {
-        b->cursor.cell.value =
-            utf8_decode(strlen(CursorSymbol) ? CursorSymbol : "▇");
-        b->cursor.cell.attrs = DEFAULT_CELL_ATTRS;
-        b->saved_cursor      = b->cursor;
-        b->cursor.y = b->cursor.x = b->cursor.state = 0;
+        b->cursor.y = b->cursor.x = 0, b->cursor.color = DefaultCursor.color,
+        b->cursor.visible = 1, b->cursor.style = DefaultCursor.style,
+        b->cursor.shape = DefaultCursor.shape;
+        b->saved_cursor = b->cursor;
     }
 
     /* Charset */ {

@@ -25,7 +25,6 @@ $(O_DIR)/$(NAME).o:                  \
 	$(I_DIR)/$(NAME)/vt/actions/esc.h  \
 	$(I_DIR)/$(NAME)/vt/actions/csi.h  \
 	$(I_DIR)/$(NAME)/vt/actions/ctrl.h \
-	$(I_DIR)/$(NAME)/vt/actions/osc.h  \
 	$(I_DIR)/$(NAME)/vt/palette.h
 
 .PHONY: clean compile_flags
