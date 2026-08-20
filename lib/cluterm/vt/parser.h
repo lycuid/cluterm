@@ -4,7 +4,6 @@
 #include <cluterm/scanner.h>
 #include <cluterm/utf8.h>
 #include <cluterm/vt/actions.h>
-#include <cluterm/vt/palette.h>
 #include <stdlib.h>
 
 typedef enum FSM_State {

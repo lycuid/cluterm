@@ -3,7 +3,6 @@
 
 #include <cluterm/debug.h>
 #include <cluterm/utf8.h>
-#include <cluterm/vt/palette.h>
 #include <cluterm/vt/parser.h>
 #include <stdbool.h>
 
@@ -26,7 +25,7 @@ typedef struct Cell {
 } Cell;
 
 #define DEFAULT_CELL_ATTRS                                                     \
-    (CellAttributes){.fg = DefaultFG, .bg = DefaultBG, .state = 0x0}
+    (CellAttributes){.fg = cfg->fg, .bg = cfg->bg, .state = 0x0}
 #define DEFAULT_CELL(val) CELL(val, DEFAULT_CELL_ATTRS)
 #define CELL(val, _attrs)                                                      \
     (Cell) { .value = val, .attrs = _attrs }

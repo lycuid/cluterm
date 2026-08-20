@@ -4,10 +4,10 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
-#define die(...)                                                               \
+#define die(code, ...)                                                         \
     do {                                                                       \
         debug(__VA_ARGS__);                                                    \
-        exit(1);                                                               \
+        exit(code);                                                            \
     } while (0)
 
 typedef struct GFX_Context {

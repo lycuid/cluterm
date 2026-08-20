@@ -1,28 +1,25 @@
 #include "cluterm.h"
+#include <cluterm/config.h>
 #include <cluterm/pty.h>
 #include <cluterm/vt/actions.h>
 #include <cluterm/vt/actions/csi.h>
 #include <cluterm/vt/actions/ctrl.h>
 #include <cluterm/vt/actions/esc.h>
-#include <stdlib.h>
 #include <unistd.h>
 
-void cluterm_init(Cluterm *term)
+void cluterm_init(Cluterm *term, char *const *cmd)
 {
     {
-        buffer_init(&term->buffer[0], Rows, Columns, 0); // primary.
-        buffer_init(&term->buffer[1], Rows, Columns, 0); // alt.
+        buffer_init(&term->buffer[0], cfg->rows, cfg->cols, 0); // primary.
+        buffer_init(&term->buffer[1], cfg->rows, cfg->cols, 0); // alt.
     }
     parser_init(&term->vt_parser);
     {
         pty_open(&term->pty);
-        setenv("TERM", "xterm-256color", 1);
-        char *shell = getenv("SHELL");
-        if (!shell)
-            shell = "/bin/bash";
-        pty_spawn(&term->pty, shell);
+        pty_spawn(&term->pty, cmd);
     }
-    term->mode = 0x0, term->fg = DefaultFG, term->bg = DefaultBG;
+    term->mode = 0x0, term->fg = cfg->fg, term->bg = cfg->bg,
+    term->osc_handler = NULL;
 }
 
 void cluterm_write(Cluterm *term, uchar *stream, uint32_t slen)

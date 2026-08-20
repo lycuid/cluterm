@@ -1,5 +1,5 @@
-#ifndef __CLUTERM__UTILS_H__
-#define __CLUTERM__UTILS_H__
+#ifndef __CLUTERM__UTIL_H__
+#define __CLUTERM__UTIL_H__
 
 #include <stdint.h>
 

@@ -2,10 +2,10 @@
 #define __CLUTERM__ACTIONS__CSI_H__
 
 #include <cluterm.h>
+#include <cluterm/colors.h>
+#include <cluterm/config.h>
 #include <cluterm/vt/actions.h>
 #include <cluterm/vt/buffer.h>
-#include <cluterm/vt/palette.h>
-#include <config.h>
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
@@ -72,6 +72,21 @@ static inline void csi_el(Cluterm *term, CSI_Payload *csi)
     } break;
     default: break;
     }
+}
+
+static inline Rgb color256(uint8_t n)
+{
+    static const int color256_mask[] = {0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff};
+
+    Rgb color = 0;
+    if (n <= 15)
+        color = color16[n];
+    else if (BETWEEN(n, 16, 231))
+        for (int i = 0, m = n - 16; m; m /= 6)
+            color |= color256_mask[m % 6] << (8 * i++);
+    else if (n >= 232)
+        n = (n - 232) * 10 + 8, color = (n << 16) | (n << 8) | n;
+    return color;
 }
 
 static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
@@ -167,9 +182,7 @@ static inline void csi_decscusr(Cluterm *term, CSI_Payload *csi)
     ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *c        = &b->cursor;
     switch (PARAM(0)) {
-    case 0: {
-        c->style = DefaultCursor.style, c->shape = DefaultCursor.shape;
-    } break;
+    case 0: c->style = cfg->cursor.style, c->shape = cfg->cursor.shape; break;
     case 1: c->style = CursorBlink, c->shape = CursorBlock; break;
     case 2: c->style = CursorSolid, c->shape = CursorBlock; break;
     case 3: c->style = CursorBlink, c->shape = CursorUnderline; break;

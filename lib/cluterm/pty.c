@@ -1,6 +1,6 @@
 #include "pty.h"
+#include <cluterm/config.h>
 #include <cluterm/debug.h>
-#include <config.h>
 #include <err.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -27,14 +27,14 @@ void pty_open(pty_t *pty)
     fcntl(pty->ptmx, F_SETFL, fcntl(pty->ptmx, F_GETFL) | O_NONBLOCK);
 }
 
-void pty_spawn(pty_t *pty, const char *cmd)
+void pty_spawn(pty_t *pty, char *const *cmd)
 {
     const char *pts_path = ptsname(pty->ptmx); // ioctl: TIOCGPTN
     debug_1("pts_path: '%s'.\n", pts_path);
 
     TRY((pty->shell = fork()), "starting child process for shell");
     if (pty->shell) {
-        pty_resize(pty, Rows, Columns);
+        pty_resize(pty, cfg->rows, cfg->cols);
         return;
     }
 
@@ -51,7 +51,7 @@ void pty_spawn(pty_t *pty, const char *cmd)
            "[stderr] dup: failed!.\n");
     close(pts);
     close(pty->ptmx);
-    TRY(execl(cmd, cmd, NULL), "execl()");
+    TRY(execvp(cmd[0], cmd), "execvp()");
 }
 
 void pty_resize(pty_t *pty, int rows, int cols)

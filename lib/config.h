@@ -4,6 +4,8 @@
 #include <cluterm/vt/buffer.h>
 #include <stdbool.h>
 
+static const char Title[] = "cluterm";
+
 static const int Rows      = 30;
 static const int Columns   = 100;
 static const int TabWidth  = 8;

@@ -1,12 +1,13 @@
 #include "main.h"
+#include "cli.h"
 #include "glyph_cache.h"
 #include "osc_handler.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
+#include <cluterm/config.h>
 #include <cluterm/debug.h>
 #include <cluterm/pty.h>
 #include <cluterm/vt/buffer.h>
-#include <config.h>
 #include <fontconfig/fontconfig.h>
 #include <signal.h>
 
@@ -40,26 +41,26 @@ void quit(__attribute__((unused)) int _arg) { running = 0; }
 static inline void *tryp(void *res)
 {
     if (!res)
-        die("%s\n", SDL_GetError());
+        die(1, "%s\n", SDL_GetError());
     return res;
 }
 
 static inline int tryn(int res)
 {
     if (res < 0)
-        die("%s\n", SDL_GetError());
+        die(1, "%s\n", SDL_GetError());
     return res;
 }
 
-static inline void load_font(FcConfig *config, const char *style, int size,
+static inline void load_font(FcConfig *config, const char *style,
                              TTF_Font **font)
 {
-    FcPattern *pat =
-        FcPatternBuild(NULL,                                //
-                       FC_FAMILY, FcTypeString, FontFamily, // font family.
-                       FC_STYLE, FcTypeString, style,       // font style.
-                       FC_SIZE, FcTypeDouble, (double)size, // font size.
-                       NULL);
+    FcPattern *pat = FcPatternBuild(
+        NULL,                                          //
+        FC_FAMILY, FcTypeString, cfg->font_family,     // font family.
+        FC_STYLE, FcTypeString, style,                 // font style.
+        FC_SIZE, FcTypeDouble, (double)cfg->font_size, // font size.
+        NULL);
 
     FcConfigSubstitute(config, pat, FcMatchPattern);
     FcDefaultSubstitute(pat);
@@ -97,33 +98,29 @@ static inline void sdl_init(void)
     tryn(SDL_Init(SDL_INIT_VIDEO));
     tryn(TTF_Init());
     ctx.window = tryp(SDL_CreateWindow(
-        "cluterm", 280, 100, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE));
+        cfg->title, 280, 100, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE));
     ctx.renderer =
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
 
     /* loading fonts. */ {
         FcConfig *config = FcInitLoadConfigAndFonts();
 
-        load_font(config, "Regular", FontSize, &ctx.fonts[FontRegular]);
-        load_font(config, "Bold", FontSize, &ctx.fonts[FontBold]);
-        load_font(config, "Italic", FontSize, &ctx.fonts[FontItalic]);
-        load_font(config, "BoldItalic", FontSize, &ctx.fonts[FontBoldItalic]);
+        load_font(config, "Regular", &ctx.fonts[FontRegular]);
+        load_font(config, "Bold", &ctx.fonts[FontBold]);
+        load_font(config, "Italic", &ctx.fonts[FontItalic]);
+        load_font(config, "BoldItalic", &ctx.fonts[FontBoldItalic]);
 
         FcConfigDestroy(config);
     }
 
     /* cell size. */ {
-        char printable_ascii[128 - 32 + 1] = {0};
-        for (int i = 32; i < 128; ++i)
-            printable_ascii[i - 32] = i;
-        TTF_SizeText(ctx.fonts[FontRegular], printable_ascii, &ctx.f_width,
-                     &ctx.f_height);
-        ctx.f_width = ctx.f_width / LENGTH(printable_ascii) +
-                      (ctx.f_width % LENGTH(printable_ascii) != 0);
+        TTF_SizeText(ctx.fonts[FontBold], "M", &ctx.f_width, NULL);
+        ctx.f_height = TTF_FontLineSkip(ctx.fonts[FontBold]);
     }
 
-    SDL_SetWindowSize(ctx.window, ctx.f_width * Columns, ctx.f_height * Rows);
-    create_canvas(ctx.f_width * Columns, ctx.f_height * Rows);
+    SDL_SetWindowSize(ctx.window, ctx.f_width * cfg->cols,
+                      ctx.f_height * cfg->rows);
+    create_canvas(ctx.f_width * cfg->cols, ctx.f_height * cfg->rows);
     SDL_StartTextInput();
 
     gcache_init();
@@ -221,7 +218,6 @@ static inline void draw_cursor(const ClutermBuffer *b)
 
 static inline void update_canvas(const Cluterm *term, bool fresh)
 {
-    SDL_SetRenderTarget(ctx.renderer, canvas.texture);
     const ClutermBuffer *b = ACTIVE_BUFFER(term);
 
 #ifdef DUMP_DIRTY_FRAME
@@ -264,7 +260,6 @@ static inline void update_canvas(const Cluterm *term, bool fresh)
     draw_cursor(b);
     gcache_flush();
     memset(b->dirty, 0, b->cols * b->rows * sizeof(*b->dirty));
-    SDL_SetRenderTarget(ctx.renderer, NULL);
 }
 
 static inline ssize_t clipboard_paste(const Cluterm *term)
@@ -358,11 +353,13 @@ static inline void handle_keydown(const Cluterm *term, SDL_Event *e)
 
 static inline void render(Cluterm *term, bool fresh)
 {
+    SDL_SetRenderTarget(ctx.renderer, canvas.texture);
     if (term != NULL)
         update_canvas(term, fresh);
+    SDL_SetRenderTarget(ctx.renderer, NULL);
 
     if (fresh) {
-        SDL_SetRenderDrawColor(ctx.renderer, UNPACK(DefaultBG), 0);
+        SDL_SetRenderDrawColor(ctx.renderer, UNPACK(term->bg), 0);
         SDL_RenderClear(ctx.renderer);
     }
     SDL_Rect rect = {.x = 0, .y = 0, .w = canvas.dispw, .h = canvas.disph};
@@ -381,10 +378,27 @@ static inline bool since(uint64_t *time, uint64_t ms)
     return result;
 }
 
-int main(void)
+int main(int argc, char *const *argv)
 {
-    Cluterm term;
-    cluterm_init(&term);
+    init_config();
+
+    char *const *cmd = argparse(argc, argv);
+    char *shell[2]   = {0};
+    if (!cmd || !*cmd) {
+        if (!(*shell = getenv("SHELL")))
+            *shell = "/bin/sh";
+        cmd = shell;
+    }
+
+    debug_1("cfg->title(%s).\n", cfg->title);
+    debug_1("cfg->fg(#%x).\n", cfg->fg);
+    debug_1("cfg->bg(#%x).\n", cfg->bg);
+    debug_1("cfg->tab_width(%d).\n", cfg->tab_width);
+    debug_1("cfg->font_family(%s).\n", cfg->font_family);
+    debug_1("cfg->font_size(%d).\n", cfg->font_size);
+
+    Cluterm term = {0};
+    cluterm_init(&term, cmd);
     term.osc_handler = osc_handler;
 
     sdl_init();
@@ -397,7 +411,6 @@ int main(void)
     uchar stream[4096] = {0};
     ssize_t n          = 0;
 
-    render(NULL, 0);
     for (SDL_Event e; running;) {
         if ((n = pty_read(&term.pty, stream, sizeof(stream))) > 0) {
             cluterm_write(&term, stream, n);

@@ -1,7 +1,7 @@
 #ifndef __CLUTERM__SCANNER_H__
 #define __CLUTERM__SCANNER_H__
 
-#include <cluterm/utils.h>
+#include <cluterm/util.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>

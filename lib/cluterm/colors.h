@@ -1,12 +1,23 @@
-#ifndef __CLUTERM__VT__PALETTE_H__
-#define __CLUTERM__VT__PALETTE_H__
+#ifndef __CLUTERM__COLORS_H__
+#define __CLUTERM__COLORS_H__
 
-#include <cluterm/utils.h>
+#include <cluterm/scanner.h>
+#include <cluterm/util.h>
 
 #define RGB(r, g, b) ((r) << (8 * 2)) | ((g) << (8 * 1)) | ((b) << (8 * 0))
 
 #define UNPACK(c)                                                              \
     ((c) >> (8 * 2)) & 0xff, ((c) >> (8 * 1)) & 0xff, ((c) >> (8 * 0)) & 0xff
+
+#define IS_HEX(ch)                                                             \
+    (BETWEEN(ch, '0', '9') || BETWEEN(ch, 'a', 'f') || BETWEEN(ch, 'A', 'F'))
+
+static const int hex[] = {
+    [0] = 0,    [1] = 1,    [2] = 2,    [3] = 3,    [4] = 4,    [5] = 5,
+    [6] = 6,    [7] = 7,    [8] = 8,    [9] = 9,    ['a'] = 10, ['b'] = 11,
+    ['c'] = 12, ['d'] = 13, ['e'] = 14, ['f'] = 15, ['A'] = 10, ['B'] = 11,
+    ['C'] = 12, ['D'] = 13, ['E'] = 14, ['F'] = 15,
+};
 
 static const Rgb color16[] = {
 #if defined(PALETTE_VGA)
@@ -74,19 +85,23 @@ static const Rgb color16[] = {
 #endif
 };
 
-EXPORT inline Rgb color256(uint8_t n)
+static inline uint32_t parse_rgb(Scanner *s, Rgb *color)
 {
-    static const int color256_mask[] = {0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff};
+    if (s_consume(s, '#') && s_buflen(s) >= 6) {
+        Rgb rgb = 0;
+        for (int i = 0; i < 3; ++i) {
+            if (!IS_HEX(*s_peek(s)))
+                return 0;
+            rgb |= hex[s_next(s)] << (20 - i * 8);
 
-    Rgb color = 0;
-    if (n <= 15)
-        color = color16[n];
-    else if (BETWEEN(n, 16, 231))
-        for (int i = 0, m = n - 16; m; m /= 6)
-            color |= color256_mask[m % 6] << (8 * i++);
-    else if (n >= 232)
-        n = (n - 232) * 10 + 8, color = (n << 16) | (n << 8) | n;
-    return color;
+            if (!IS_HEX(*s_peek(s)))
+                return 0;
+            rgb |= hex[s_next(s)] << (16 - i * 8);
+        }
+        *color = rgb;
+        return 1;
+    }
+    return 0;
 }
 
 #endif

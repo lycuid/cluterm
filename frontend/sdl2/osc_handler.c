@@ -1,16 +1,7 @@
 #include "osc_handler.h"
 #include "main.h"
 #include <SDL2/SDL.h>
-
-#define IS_HEX(ch)                                                             \
-    (BETWEEN(ch, '0', '9') || BETWEEN(ch, 'a', 'f') || BETWEEN(ch, 'A', 'F'))
-
-static int hex[] = {
-    [0] = 0,    [1] = 1,    [2] = 2,    [3] = 3,    [4] = 4,    [5] = 5,
-    [6] = 6,    [7] = 7,    [8] = 8,    [9] = 9,    ['a'] = 10, ['b'] = 11,
-    ['c'] = 12, ['d'] = 13, ['e'] = 14, ['f'] = 15, ['A'] = 10, ['B'] = 11,
-    ['C'] = 12, ['D'] = 13, ['E'] = 14, ['F'] = 15,
-};
+#include <cluterm/colors.h>
 
 static inline int rgb_component(Scanner *s, uint8_t *comp)
 {
@@ -46,16 +37,7 @@ static inline int parse_color(Scanner *s, Rgb *color)
     }
 
     // #nnnnnn
-    if (s_consume(s, '#') && s_buflen(s) >= 6) {
-        uint8_t r, g, b;
-        r      = hex[s_next(s)] * 16 + hex[s_next(s)];
-        g      = hex[s_next(s)] * 16 + hex[s_next(s)];
-        b      = hex[s_next(s)] * 16 + hex[s_next(s)];
-        *color = RGB(r, g, b);
-        return 1;
-    }
-
-    return 0;
+    return parse_rgb(s, color);
 }
 
 static inline int osc_set_color(Cluterm *term, OSC_Action action, Scanner *s)

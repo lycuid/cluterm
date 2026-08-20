@@ -13,7 +13,7 @@ typedef struct pty_t {
 #define pty_write(pty, ...) write((pty)->ptmx, __VA_ARGS__)
 
 void pty_open(pty_t *);
-void pty_spawn(pty_t *, const char *);
+void pty_spawn(pty_t *, char *const *);
 void pty_resize(pty_t *, int, int);
 void pty_destroy(pty_t *);
 

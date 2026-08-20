@@ -3,8 +3,8 @@
 -Wvla
 -pedantic
 -std=c99
--DNAME=cluterm
--DVERSION=0.1.0
+-DNAME="cluterm"
+-DVERSION="0.1.0"
 -D_XOPEN_SOURCE=700
 -I.
 -I../../lib

@@ -10,6 +10,7 @@ override CFLAGS+= $(FLAGS) $(DEFINE) -I$(I_DIR) -I$(LIB) $(shell pkg-config --cf
 override LDFLAGS+= -L$(LIB)/$(BUILD) -l$(NAME) $(shell pkg-config --libs $(PKGS))
 
 O_FILES:=$(O_DIR)/main.o              \
+         $(O_DIR)/cli.o               \
          $(O_DIR)/glyph_cache.o       \
          $(O_DIR)/glyph_cache/lru.o   \
          $(O_DIR)/osc_handler.o
@@ -22,4 +23,4 @@ $(O_DIR)/%.o: $(I_DIR)/%.c $(I_DIR)/%.h ; @mkdir -p $(@D)
 
 .PHONY: clean compile_flags
 clean: ; rm -rf $(BUILD)
-compile_flags: ; @echo $(CFLAGS) | xargs -n1 > compile_flags.txt
+compile_flags: ; @echo $(CFLAGS) | tr ' ' '\n' > compile_flags.txt

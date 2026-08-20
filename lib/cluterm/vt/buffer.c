@@ -23,9 +23,9 @@
 // clang-format on
 
 #include "buffer.h"
+#include <cluterm/config.h>
 #include <cluterm/debug.h>
 #include <cluterm/utf8.h>
-#include <config.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,13 +52,13 @@ void buffer_init(ClutermBuffer *b, int rows, int cols, int history)
     b->rows = rows, b->cols = cols, b->history = history, b->last_row = 0;
     b->scroll_region.start = 0, b->scroll_region.end = b->rows - 1;
     b->tab = calloc(b->cols + 1, sizeof(bool));
-    for (int i = TabWidth; i <= b->cols; i += TabWidth)
+    for (int i = cfg->tab_width; i <= b->cols; i += cfg->tab_width)
         b->tab[i] = 1;
 
     /* Cursor. */ {
-        b->cursor.y = b->cursor.x = 0, b->cursor.color = DefaultCursor.color,
-        b->cursor.visible = 1, b->cursor.style = DefaultCursor.style,
-        b->cursor.shape = DefaultCursor.shape;
+        b->cursor.y = b->cursor.x = 0, b->cursor.color = cfg->cursor.color,
+        b->cursor.visible = 1, b->cursor.style = cfg->cursor.style,
+        b->cursor.shape = cfg->cursor.shape;
         b->saved_cursor = b->cursor;
     }
 
@@ -101,7 +101,7 @@ void buffer_resize(ClutermBuffer *b, int rows, int cols)
 
     b->tab = realloc(b->tab, (b->cols + 1) * sizeof(*b->tab));
     memset(b->tab, 0, (b->cols + 1) * sizeof(*b->tab));
-    for (int i = TabWidth; i <= b->cols; i += TabWidth)
+    for (int i = cfg->tab_width; i <= b->cols; i += cfg->tab_width)
         b->tab[i] = 1;
     b->dirty = realloc(b->dirty, b->rows * b->cols * sizeof(*b->dirty));
     dirty_buffer(b);

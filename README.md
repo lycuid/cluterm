@@ -12,8 +12,9 @@ _**Note**_: update the values for _fonts_ as per needed in `lib/config.h` file.
 #### Build:
 ```sh
 make -j build
-``` 
+```
 
 #### Run:
 ```sh
 make -j run
+```

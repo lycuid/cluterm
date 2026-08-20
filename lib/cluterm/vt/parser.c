@@ -2,7 +2,7 @@
 #include "parser.h"
 #include <cluterm/debug.h>
 #include <cluterm/utf8.h>
-#include <cluterm/utils.h>
+#include <cluterm/util.h>
 #include <stdbool.h>
 #include <string.h>
 // clang-format off
@@ -469,7 +469,7 @@ check_private_mode: {
 
     case 'm': { csi->action = CSI_SGR; goto ensure_multiple_param; }
     // CSI Ps ; Pm C (delimited params).
-    ensure_multiple_param: {
+ensure_multiple_param: {
         do {
             csi->param[csi->nparam++] = s_consume_number(&param_s);
         } while (s_consume_param_delim(&param_s));

@@ -2,15 +2,7 @@
 #define __SDL2__GLYPH_CACHE_H__
 
 #include <SDL2/SDL.h>
-#include <cluterm/utils.h>
 #include <cluterm/vt/buffer.h>
-
-typedef struct GlyphCache {
-    SDL_Texture *atlas;
-    SDL_Vertex *verts;
-    int *indices;
-    int nverts, nindices;
-} GlyphCache;
 
 void gcache_init(void);
 void gcache_destroy(void);

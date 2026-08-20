@@ -1,6 +1,7 @@
 #include "glyph_cache.h"
 #include "glyph_cache/lru.h"
 #include "main.h"
+#include <cluterm/colors.h>
 
 #define PRINTABLE_ASCII_START 32
 #define PRINTABLE_ASCII_END   126
@@ -8,7 +9,7 @@
 
 #define ATLAS_WIDTH  200
 #define ATLAS_HEIGHT 6
-#define CACHE_CAP    (TOTAL_ASCII * 2)
+#define CACHE_CAP    (ATLAS_WIDTH * ATLAS_HEIGHT - 2)
 
 typedef struct Slot {
     int y, x;
@@ -16,7 +17,12 @@ typedef struct Slot {
 
 bool cell_eq(Cell, Cell);
 
-static GlyphCache cache;
+static struct GlyphAtlas {
+    SDL_Texture *texture;
+    SDL_Vertex *verts;
+    int *indices;
+    int nverts, nindices;
+} atlas = {0};
 
 static Slot ascii_slots[4 * TOTAL_ASCII] = {0};
 static LRU unicode_cache = {.capacity = CACHE_CAP, .key_eq = cell_eq};
@@ -70,15 +76,15 @@ void gcache_init(void)
 {
     int atlas_w = ATLAS_WIDTH * gfx->f_width,
         atlas_h = ATLAS_HEIGHT * gfx->f_height;
-    cache.atlas =
+    atlas.texture =
         SDL_CreateTexture(gfx->renderer, SDL_PIXELFORMAT_RGBA8888,
                           SDL_TEXTUREACCESS_STREAMING, atlas_w, atlas_h);
 
-    SDL_SetTextureBlendMode(cache.atlas, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureBlendMode(atlas.texture, SDL_BLENDMODE_BLEND);
 
     void *pixels;
     int pitch;
-    SDL_LockTexture(cache.atlas, NULL, &pixels, &pitch);
+    SDL_LockTexture(atlas.texture, NULL, &pixels, &pitch);
     for (int y = 0; y < atlas_h; ++y)
         memset((uint8_t *)pixels + y * pitch, 0, pitch);
 
@@ -99,9 +105,9 @@ void gcache_init(void)
             SDL_FreeSurface(surface);
         }
     }
-    SDL_UnlockTexture(cache.atlas);
+    SDL_UnlockTexture(atlas.texture);
     gcache_resize();
-    cache.nverts = 0, cache.nindices = 0;
+    atlas.nverts = 0, atlas.nindices = 0;
 }
 
 void gcache_resize(void)
@@ -111,18 +117,18 @@ void gcache_resize(void)
     // offset 2 (for eg. cursor etc).
     w = w / gfx->f_width + 2, h = h / gfx->f_height + 2;
 
-    cache.verts   = realloc(cache.verts, w * h * 4 * sizeof(SDL_Vertex));
-    cache.indices = realloc(cache.indices, w * h * 6 * sizeof(int));
+    atlas.verts   = realloc(atlas.verts, w * h * 4 * sizeof(SDL_Vertex));
+    atlas.indices = realloc(atlas.indices, w * h * 6 * sizeof(int));
 }
 
 void gcache_destroy(void)
 {
-    if (cache.verts)
-        free(cache.verts);
-    if (cache.indices)
-        free(cache.indices);
-    if (cache.atlas)
-        SDL_DestroyTexture(cache.atlas);
+    if (atlas.verts)
+        free(atlas.verts);
+    if (atlas.indices)
+        free(atlas.indices);
+    if (atlas.texture)
+        SDL_DestroyTexture(atlas.texture);
 }
 
 static inline Slot *get_slot(Cell cell)
@@ -150,7 +156,7 @@ static inline Slot *get_slot(Cell cell)
 
         SDL_Surface *surface = create_surface(cell.value, gfx->fonts[f_index]);
         if (surface) {
-            SDL_UpdateTexture(cache.atlas,
+            SDL_UpdateTexture(atlas.texture,
                               &(SDL_Rect){.x = slot->x,
                                           .y = slot->y,
                                           .w = gfx->f_width,
@@ -176,40 +182,40 @@ void gcache_push_glyph(Cell cell, int y, int x)
     float u0 = slot->x / atlas_w, u1 = (slot->x + gfx->f_width) / atlas_w,
           v0 = slot->y / atlas_h, v1 = (slot->y + gfx->f_height) / atlas_h;
 
-    int base = cache.nverts;
+    int base = atlas.nverts;
 
-    cache.verts[cache.nverts++] =
+    atlas.verts[atlas.nverts++] =
         (SDL_Vertex){.position  = {x, y},
                      .tex_coord = {u0, v0},
                      .color     = {UNPACK(cell.attrs.fg), 0xff}};
-    cache.verts[cache.nverts++] =
+    atlas.verts[atlas.nverts++] =
         (SDL_Vertex){.position  = {x + gfx->f_width, y},
                      .tex_coord = {u1, v0},
                      .color     = {UNPACK(cell.attrs.fg), 0xff}};
-    cache.verts[cache.nverts++] =
+    atlas.verts[atlas.nverts++] =
         (SDL_Vertex){.position  = {x + gfx->f_width, y + gfx->f_height},
                      .tex_coord = {u1, v1},
                      .color     = {UNPACK(cell.attrs.fg), 0xff}};
-    cache.verts[cache.nverts++] =
+    atlas.verts[atlas.nverts++] =
         (SDL_Vertex){.position  = {x, y + gfx->f_height},
                      .tex_coord = {u0, v1},
                      .color     = {UNPACK(cell.attrs.fg), 0xff}};
 
-    cache.indices[cache.nindices++] = base + 0;
-    cache.indices[cache.nindices++] = base + 1;
-    cache.indices[cache.nindices++] = base + 2;
-    cache.indices[cache.nindices++] = base + 0;
-    cache.indices[cache.nindices++] = base + 2;
-    cache.indices[cache.nindices++] = base + 3;
+    atlas.indices[atlas.nindices++] = base + 0;
+    atlas.indices[atlas.nindices++] = base + 1;
+    atlas.indices[atlas.nindices++] = base + 2;
+    atlas.indices[atlas.nindices++] = base + 0;
+    atlas.indices[atlas.nindices++] = base + 2;
+    atlas.indices[atlas.nindices++] = base + 3;
 }
 
 int gcache_flush(void)
 {
     int res = 0;
-    if (cache.nverts && cache.nindices) {
-        res = SDL_RenderGeometry(gfx->renderer, cache.atlas, cache.verts,
-                                 cache.nverts, cache.indices, cache.nindices);
-        cache.nverts = 0, cache.nindices = 0;
+    if (atlas.nverts && atlas.nindices) {
+        res = SDL_RenderGeometry(gfx->renderer, atlas.texture, atlas.verts,
+                                 atlas.nverts, atlas.indices, atlas.nindices);
+        atlas.nverts = 0, atlas.nindices = 0;
     }
     return res;
 }
