@@ -59,15 +59,26 @@ typedef struct Region {
 
 typedef enum Charset { CS_USASCII, CS_LINEGFX } Charset;
 
+#define MEMBERS_FRAME_BUFFER                                                   \
+    int rows, cols;                                                            \
+    Line *lines;                                                               \
+    bool *dirty;                                                               \
+    Cursor cursor
+
 typedef struct ClutermBuffer {
-    int rows, cols, history, last_row;
-    Line *lines;
-    bool *tab, *dirty;
-    Cursor cursor, saved_cursor;
+    MEMBERS_FRAME_BUFFER;
+
+    int history, last_row;
+    bool *tab;
+    Cursor saved_cursor;
     Region scroll_region;
     CellAttributes cell_attrs;
     int charset[4], active_charset;
 } ClutermBuffer;
+
+#define first_row(b)  (MAX(0, (b)->last_row - (b)->rows) % lines(b))
+#define lines(b)      ((b)->rows + (b)->history)
+#define line_at(b, y) ((b)->lines[(first_row(b) + (y)) % lines(b)])
 
 #define clear(b)             addlines(b, ((b)->cursor.x = 0) + (b)->rows)
 #define scrollup(b, count)   scrollup_rel(b, (b)->scroll_region.start, count)

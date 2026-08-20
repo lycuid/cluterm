@@ -30,10 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define first_row(b)  (MAX(0, (b)->last_row - (b)->rows) % lines(b))
-#define line_at(b, y) ((b)->lines[(first_row(b) + (y)) % lines(b)])
-#define lines(b)      ((b)->rows + (b)->history)
-
 // making sure b->last_row => [b->rows, 2*b->rows), once it exceeds b->rows.
 #define adjust(b)                                                              \
     b->last_row =                                                              \

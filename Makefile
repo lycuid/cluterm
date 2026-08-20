@@ -23,6 +23,11 @@ debug-build: ;
 		CFLAGS="-DDEBUG_LVL=1 -DPALETTE_VSCODE -fsanitize=undefined,address -ggdb -O0" \
 		LDFLAGS="-fsanitize=undefined,address"
 
+thread-debug-build: ;
+	$(MAKE) \
+		CFLAGS="-DDEBUG_LVL=1 -DPALETTE_VSCODE -fsanitize=thread -ggdb -O0" \
+		LDFLAGS="-fsanitize=thread"
+
 clean: ; rm -rf $(BUILD)
 	$(MAKE) -C lib $@
 	$(MAKE) -C $(FRONTEND)/sdl2 $@

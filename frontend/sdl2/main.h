@@ -10,6 +10,10 @@
         exit(code);                                                            \
     } while (0)
 
+typedef enum UserEvent {
+    USEREVENT_SET_TITLE,
+} UserEvent;
+
 typedef struct GFX_Context {
     SDL_Window *window;
     SDL_Renderer *renderer;

@@ -1,4 +1,5 @@
 #include "osc_handler.h"
+#include "SDL_events.h"
 #include "main.h"
 #include <SDL2/SDL.h>
 #include <cluterm/colors.h>
@@ -91,8 +92,11 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
         // safe to malloc/free, as this is probably not gonna be frequent.
         char *title = calloc(s_buflen(s) + 1, sizeof(char));
         memcpy(title, s_buffer(s), s_buflen(s));
-        SDL_SetWindowTitle(gfx->window, title);
-        free(title);
+        SDL_Event e = {.user = {.type  = SDL_USEREVENT,
+                                .data1 = title,
+                                .code  = USEREVENT_SET_TITLE}};
+        if (SDL_PushEvent(&e) < 0)
+            free(title);
     } break;
     case OSC_7: break; // Not supported!.
 

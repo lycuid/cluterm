@@ -10,31 +10,42 @@
 #include <cluterm/vt/buffer.h>
 #include <fontconfig/fontconfig.h>
 #include <signal.h>
-
-typedef struct LineBatch {
-    int y, x, len;
-    CellAttributes attrs;
-} LineBatch;
-
-#define BATCH(y)                                                               \
-    (LineBatch) { .y = y, .x = 0, .len = 0, .attrs = {0} }
+#include <stdatomic.h>
+#include <time.h>
 
 #define IS_ASCII(val) (val < 0x7f)
 #define FPS(n)        (1000 / n)
+
+#define GUARD(mu)                                                              \
+    for (int i = SDL_LockMutex(mu) == 0; i; i = (SDL_UnlockMutex(mu), 0))
+
+static struct {
+    int y, x, len;
+    CellAttributes attrs;
+} batch = {0};
 
 static struct {
     SDL_Texture *texture;
     size_t w, h, dispw, disph;
 } canvas = {.texture = NULL, .w = 0, .h = 0};
 
-static GFX_Context ctx;
-const GFX_Context *gfx = &ctx;
-static int running     = 1;
+static struct {
+    MEMBERS_FRAME_BUFFER;
+} frame = {0};
 
 static struct {
     uint64_t last;
     bool visible;
 } cursor_blink_state = {0};
+
+static atomic_bool render_request = false;
+#define request_render() atomic_store(&render_request, 1)
+#define should_render()  atomic_exchange(&render_request, 0)
+
+static GFX_Context ctx;
+const GFX_Context *gfx     = &ctx;
+static SDL_mutex *vt_mutex = NULL;
+static atomic_bool running = 1;
 
 void quit(__attribute__((unused)) int _arg) { running = 0; }
 
@@ -80,7 +91,7 @@ static inline void load_font(FcConfig *config, const char *style,
     FcPatternDestroy(font_pat);
 }
 
-static inline void create_canvas(size_t w, size_t h)
+static inline void canvas_resize(size_t w, size_t h)
 {
     canvas.dispw = w, canvas.disph = h;
     if (canvas.dispw <= canvas.w && canvas.disph <= canvas.h)
@@ -120,7 +131,7 @@ static inline void sdl_init(void)
 
     SDL_SetWindowSize(ctx.window, ctx.f_width * cfg->cols,
                       ctx.f_height * cfg->rows);
-    create_canvas(ctx.f_width * cfg->cols, ctx.f_height * cfg->rows);
+    canvas_resize(ctx.f_width * cfg->cols, ctx.f_height * cfg->rows);
     SDL_StartTextInput();
 
     gcache_init();
@@ -146,52 +157,52 @@ static inline void bar(Rgb color, SDL_Rect rect, size_t sz)
     SDL_RenderFillRect(ctx.renderer, &rect);
 }
 
-static inline bool cell_belongs(LineBatch *batch, Cell *cell)
+static inline bool cell_belongs(Cell *cell)
 {
-    if (cell->attrs.fg != batch->attrs.fg || cell->attrs.bg != batch->attrs.bg)
+    if (cell->attrs.fg != batch.attrs.fg || cell->attrs.bg != batch.attrs.bg)
         return false;
-    if (cell->attrs.state != batch->attrs.state)
+    if (cell->attrs.state != batch.attrs.state)
         return false;
     return true;
 }
 
-static inline void batch_add(LineBatch *batch, Cell *cell, int x)
+static inline void batch_add(Cell *cell, int x)
 {
-    if (!batch->len)
-        batch->x = x, batch->attrs = cell->attrs;
-    batch->len++;
+    if (!batch.len)
+        batch.x = x, batch.attrs = cell->attrs;
+    batch.len++;
 }
 
-static inline void batch_flush(LineBatch *batch, const ClutermBuffer *b)
+static inline void batch_flush(const Line line)
 {
-    if (!batch || !batch->len)
+    if (!batch.len)
         return;
 
-    SDL_Rect dst = {.x = ctx.f_width * batch->x,
-                    .y = ctx.f_height * batch->y,
-                    .w = ctx.f_width * batch->len,
+    SDL_Rect dst = {.x = ctx.f_width * batch.x,
+                    .y = ctx.f_height * batch.y,
+                    .w = ctx.f_width * batch.len,
                     .h = ctx.f_height};
 
-    background(batch->attrs.bg, &dst);
+    background(batch.attrs.bg, &dst);
 
-    for (int dx = 0; dx < batch->len; ++dx) {
-        int y = batch->y, x = batch->x + dx;
-        gcache_push_glyph(getcell(b, y, x), y, x);
+    for (int dx = 0; dx < batch.len; ++dx) {
+        int y = batch.y, x = batch.x + dx;
+        gcache_push_glyph(line[x], y, x);
     }
 
-    if (IS_SET(batch->attrs.state, CELL_UNDERLINE))
-        underline(batch->attrs.fg, dst, 2);
+    if (IS_SET(batch.attrs.state, CELL_UNDERLINE))
+        underline(batch.attrs.fg, dst, 2);
 
-    batch->len = 0;
+    batch.len = 0;
 }
 
-static inline void draw_cursor(const ClutermBuffer *b)
+static inline void draw_cursor(void)
 {
-    const Cursor *c = &b->cursor;
-    if (c->x >= b->cols || c->y >= b->rows)
+    const Cursor *c = &frame.cursor;
+    if (c->x >= frame.cols || c->y >= frame.rows)
         return;
 
-    Cell cell    = getcell(b, c->y, c->x);
+    Cell cell    = frame.lines[c->y][c->x];
     SDL_Rect dst = {.x = c->x * ctx.f_width,
                     .y = c->y * ctx.f_height,
                     .w = ctx.f_width,
@@ -216,18 +227,17 @@ static inline void draw_cursor(const ClutermBuffer *b)
         bar(c->color, dst, 3);
 }
 
-static inline void update_canvas(const Cluterm *term, bool fresh)
+static inline void update_canvas(bool fresh)
 {
-    const ClutermBuffer *b = ACTIVE_BUFFER(term);
-
 #ifdef DUMP_DIRTY_FRAME
     // {{{
-    static uint64_t frame = 0;
-    debug("----------------- Frame begin: (%ld) -----------------\n", ++frame);
-    for (int y = 0; y < b->rows; ++y) {
-        for (int x = 0; x < b->cols; ++x) {
-            Cell cell = getcell(b, y, x);
-            if (b->dirty[y * b->cols + x]) {
+    static uint64_t frameno = 0;
+    debug("----------------- Frame begin: (%ld) -----------------\n",
+          ++frameno);
+    for (int y = 0; y < frame.rows; ++y) {
+        for (int x = 0; x < frame.cols; ++x) {
+            Cell cell = frame.lines[y][x];
+            if (frame.dirty[y * frame.cols + x]) {
                 UTF8_String utf8_string = {0};
                 utf8_encode(cell.value, utf8_string);
                 debug("%s", utf8_string);
@@ -240,26 +250,24 @@ static inline void update_canvas(const Cluterm *term, bool fresh)
     debug("----------------- Frame end -----------------\n");
     // }}}
 #endif
-
-    for (int y = 0; y < b->rows; ++y) {
-        LineBatch batch = BATCH(y);
-        for (int x = 0; x < b->cols; ++x) {
-            if (!fresh && !b->dirty[y * b->cols + x]) {
-                batch_flush(&batch, b);
+    for (int y = 0; y < frame.rows; ++y) {
+        batch.y = y;
+        for (int x = 0; x < frame.cols; ++x) {
+            if (!fresh && !frame.dirty[y * frame.cols + x]) {
+                batch_flush(frame.lines[y]);
                 continue;
             }
 
-            Cell cell = getcell(b, y, x);
+            Cell cell = frame.lines[y][x];
 
-            if (!cell_belongs(&batch, &cell))
-                batch_flush(&batch, b);
-            batch_add(&batch, &cell, x);
+            if (!cell_belongs(&cell))
+                batch_flush(frame.lines[y]);
+            batch_add(&cell, x);
         }
-        batch_flush(&batch, b);
+        batch_flush(frame.lines[y]);
     }
-    draw_cursor(b);
+    draw_cursor();
     gcache_flush();
-    memset(b->dirty, 0, b->cols * b->rows * sizeof(*b->dirty));
 }
 
 static inline ssize_t clipboard_paste(const Cluterm *term)
@@ -281,10 +289,8 @@ static inline ssize_t clipboard_paste(const Cluterm *term)
     return n;
 }
 
-static inline void handle_keydown(const Cluterm *term, SDL_Event *e)
+static inline void handle_keydown(const Cluterm *term, SDL_KeyboardEvent *key)
 {
-    SDL_KeyboardEvent *key = &e->key;
-
     bool ctrl  = IS_SET_ANY(key->keysym.mod, KMOD_CTRL),
          shift = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT),
          alt   = IS_SET_ANY(key->keysym.mod, KMOD_ALT);
@@ -351,11 +357,37 @@ static inline void handle_keydown(const Cluterm *term, SDL_Event *e)
     }
 }
 
-static inline void render(Cluterm *term, bool fresh)
+static inline void handle_userevent(SDL_UserEvent *user)
 {
+    switch (user->code) {
+    case USEREVENT_SET_TITLE:
+        if (user->data1) {
+            SDL_SetWindowTitle(gfx->window, user->data1);
+            free(user->data1);
+        }
+        break;
+    }
+}
+
+static inline void take_snapshot(const Cluterm *term)
+{
+    const ClutermBuffer *b = ACTIVE_BUFFER(term);
+
+    for (int y = 0; y < b->rows; ++y)
+        memcpy(frame.lines[y], line_at(b, y), b->cols * sizeof(*b->lines[y]));
+    memcpy(frame.dirty, b->dirty, b->cols * b->rows * sizeof(*b->dirty));
+    memcpy(&frame.cursor, &b->cursor, sizeof(Cursor));
+
+    memset(b->dirty, 0, b->cols * b->rows * sizeof(*b->dirty));
+}
+
+static inline void render(const Cluterm *term, bool fresh)
+{
+    GUARD(vt_mutex) { take_snapshot(term); }
+
     SDL_SetRenderTarget(ctx.renderer, canvas.texture);
     if (term != NULL)
-        update_canvas(term, fresh);
+        update_canvas(fresh);
     SDL_SetRenderTarget(ctx.renderer, NULL);
 
     if (fresh) {
@@ -376,6 +408,38 @@ static inline bool since(uint64_t *time, uint64_t ms)
     if (result)
         *time = tick;
     return result;
+}
+
+int read_thread(void *arg)
+{
+    Cluterm *term      = (Cluterm *)arg;
+    uchar stream[4096] = {0};
+    ssize_t n          = 0;
+    struct timespec ts = {.tv_nsec = 1e6};
+    while (atomic_load_explicit(&running, memory_order_relaxed)) {
+        if ((n = pty_read(&term->pty, stream, sizeof(stream))) > 0) {
+            GUARD(vt_mutex) { cluterm_write(term, stream, n); }
+            request_render();
+        } else {
+            nanosleep(&ts, &ts);
+        }
+    }
+    return 0;
+}
+
+static inline void snap_resize(int rows, int cols)
+{
+    Line *ll = malloc(rows * sizeof(Line));
+    for (int y = 0; y < rows; ++y)
+        ll[y] = malloc(cols * sizeof(Cell));
+    if (frame.lines) {
+        for (int y = 0; y < frame.rows; ++y)
+            if (frame.lines[y])
+                free(frame.lines[y]);
+        free(frame.lines);
+    }
+    frame.rows = rows, frame.cols = cols, frame.lines = ll;
+    frame.dirty = realloc(frame.dirty, frame.rows * frame.cols * sizeof(bool));
 }
 
 int main(int argc, char *const *argv)
@@ -400,6 +464,7 @@ int main(int argc, char *const *argv)
     Cluterm term = {0};
     cluterm_init(&term, cmd);
     term.osc_handler = osc_handler;
+    snap_resize(cfg->rows, cfg->cols);
 
     sdl_init();
     signal(SIGCHLD, quit); // shell exits/crashes.
@@ -407,30 +472,28 @@ int main(int argc, char *const *argv)
     struct {
         uint64_t last;
         uint w, h, pending : 1;
-    } resz             = {0};
-    uchar stream[4096] = {0};
-    ssize_t n          = 0;
+    } resz = {0};
 
-    for (SDL_Event e; running;) {
-        if ((n = pty_read(&term.pty, stream, sizeof(stream))) > 0) {
-            cluterm_write(&term, stream, n);
-            render(&term, 0);
-        }
+    vt_mutex           = SDL_CreateMutex();
+    SDL_Thread *thread = SDL_CreateThread(read_thread, "read_thread", &term);
 
-        ClutermBuffer *b = ACTIVE_BUFFER(&term);
-        if (b->cursor.visible && b->cursor.style == CursorBlink) {
+    bool fresh = 0;
+    for (SDL_Event e; atomic_load_explicit(&running, memory_order_relaxed);) {
+
+        if (frame.cursor.visible && frame.cursor.style == CursorBlink) {
             if (since(&cursor_blink_state.last, FPS(2))) {
                 cursor_blink_state.visible = !cursor_blink_state.visible;
-                render(&term, 0);
+                request_render();
             }
         }
 
         if (resz.pending && since(&resz.last, FPS(2))) {
-            cluterm_resize(&term, resz.h, resz.w);
+            GUARD(vt_mutex) { cluterm_resize(&term, resz.h, resz.w); }
+            snap_resize(resz.h, resz.w);
             gcache_resize();
-            create_canvas(resz.w * ctx.f_width, resz.h * ctx.f_height);
-            render(&term, 1);
-            resz.pending = 0;
+            canvas_resize(resz.w * ctx.f_width, resz.h * ctx.f_height);
+            resz.pending = 0, fresh = 1;
+            request_render();
         }
 
         while (SDL_PollEvent(&e)) {
@@ -440,7 +503,7 @@ int main(int argc, char *const *argv)
             case SDL_WINDOWEVENT: {
                 SDL_WindowEvent *win = &e.window;
                 switch (win->event) {
-                case SDL_WINDOWEVENT_EXPOSED: render(&term, 1); break;
+                case SDL_WINDOWEVENT_EXPOSED: request_render(); break;
                 case SDL_WINDOWEVENT_CLOSE: running = 0; break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
@@ -456,15 +519,26 @@ int main(int argc, char *const *argv)
                 cursor_blink_state.last    = SDL_GetTicks64(),
                 cursor_blink_state.visible = 1;
             } break;
-            case SDL_KEYDOWN: handle_keydown(&term, &e); break;
+
+            case SDL_KEYDOWN: handle_keydown(&term, &e.key); break;
+            case SDL_USEREVENT: handle_userevent(&e.user); break;
             default: break;
             }
         }
-        SDL_Delay(FPS(720));
+
+        if (should_render()) {
+            render(&term, fresh);
+            fresh = 0;
+        }
+
+        SDL_Delay(FPS(1000));
     }
+
+    SDL_WaitThread(thread, NULL);
 
     cluterm_destroy(&term);
     {
+        SDL_DestroyMutex(vt_mutex);
         if (canvas.texture)
             SDL_DestroyTexture(canvas.texture);
         gcache_destroy();
