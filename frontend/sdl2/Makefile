@@ -11,6 +11,8 @@ override LDFLAGS+= -L$(LIB)/$(BUILD) -l$(NAME) $(shell pkg-config --libs $(PKGS)
 
 O_FILES:=$(O_DIR)/main.o              \
          $(O_DIR)/cli.o               \
+         $(O_DIR)/font.o              \
+         $(O_DIR)/frame.o             \
          $(O_DIR)/glyph_cache.o       \
          $(O_DIR)/glyph_cache/lru.o   \
          $(O_DIR)/osc_handler.o

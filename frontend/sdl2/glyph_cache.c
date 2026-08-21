@@ -2,6 +2,7 @@
 #include "glyph_cache/lru.h"
 #include "main.h"
 #include <cluterm/colors.h>
+#include <cluterm/config.h>
 
 #define PRINTABLE_ASCII_START 32
 #define PRINTABLE_ASCII_END   126
@@ -106,29 +107,34 @@ void gcache_init(void)
         }
     }
     SDL_UnlockTexture(atlas.texture);
-    gcache_resize();
+    gcache_resize(cfg->rows, cfg->cols);
     atlas.nverts = 0, atlas.nindices = 0;
 }
 
-void gcache_resize(void)
+void gcache_resize(int rows, int cols)
 {
-    int w, h;
-    SDL_GetWindowSize(gfx->window, &w, &h);
     // offset 2 (for eg. cursor etc).
-    w = w / gfx->f_width + 2, h = h / gfx->f_height + 2;
-
+    int w = rows + 2, h = cols + 2;
     atlas.verts   = realloc(atlas.verts, w * h * 4 * sizeof(SDL_Vertex));
     atlas.indices = realloc(atlas.indices, w * h * 6 * sizeof(int));
 }
 
 void gcache_destroy(void)
 {
-    if (atlas.verts)
+    if (atlas.verts) {
         free(atlas.verts);
-    if (atlas.indices)
+        atlas.verts = NULL;
+    }
+    if (atlas.indices) {
         free(atlas.indices);
-    if (atlas.texture)
+        atlas.indices = NULL;
+    }
+    if (atlas.texture) {
         SDL_DestroyTexture(atlas.texture);
+        atlas.texture = NULL;
+    }
+    while (unicode_cache.stale)
+        free(lru_evict(&unicode_cache));
 }
 
 static inline Slot *get_slot(Cell cell)
@@ -139,9 +145,9 @@ static inline Slot *get_slot(Cell cell)
 
     Slot *slot = lru_get(&unicode_cache, cell);
     if (!slot) {
-        Slot *stale =
-            lru_put(&unicode_cache, cell, (slot = calloc(1, sizeof(Slot))));
-        if (stale) {
+        slot        = calloc(1, sizeof(Slot));
+        Slot *stale = lru_put(&unicode_cache, cell, slot);
+        if (stale) { // eviction happened here, reuse the same coords.
             slot->x = stale->x, slot->y = stale->y;
         } else {
             size_t cache_size = CACHE_CAP - unicode_cache.capacity;
@@ -150,6 +156,7 @@ static inline Slot *get_slot(Cell cell)
             slot->y = (gfx->f_height * 2) +
                       (gfx->f_height * (cache_size / CACHE_CAP));
         }
+        free(stale);
 
         UTF8_String utf8_string = {0};
         utf8_encode(cell.value, utf8_string);

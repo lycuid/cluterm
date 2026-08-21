@@ -73,15 +73,6 @@ static inline Node *node_detach(LRU *lru, Node *node)
     return node;
 }
 
-static inline Node *node_free(LRU *lru, Node *node)
-{
-    if ((node = node_detach(lru, node))) {
-        ht_remove(lru->table, node->key, lru->key_eq);
-        node->value = NULL;
-    }
-    return node;
-}
-
 Value lru_get(LRU *lru, Key key)
 {
     Node *node = ht_get(lru->table, key, lru->key_eq);
@@ -89,17 +80,22 @@ Value lru_get(LRU *lru, Key key)
     return node ? node->value : NULL;
 }
 
+static inline Node *evict(LRU *lru)
+{
+    Node *node = lru->stale;
+    if ((node = node_detach(lru, node)))
+        ht_remove(lru->table, node->key, lru->key_eq);
+    return node;
+}
+
 Value lru_put(LRU *lru, Key key, Value value)
 {
-    Node *node =
-        node_detach(lru, ht_get(lru->table, key, lru->key_eq));
+    Node *node      = node_detach(lru, ht_get(lru->table, key, lru->key_eq));
     Value old_value = NULL;
     if (!node) {
-        node      = lru->capacity ? calloc(1, sizeof(Node))
-                                     : node_free(lru, lru->stale);
+        node      = lru->capacity ? calloc(1, sizeof(Node)) : evict(lru);
         old_value = node->value;
-
-        node->key = key, node->next = node->prev = NULL;
+        node->key = key;
         ht_set(lru->table, key, node);
     }
     node->value = value;
@@ -107,11 +103,11 @@ Value lru_put(LRU *lru, Key key, Value value)
     return old_value;
 }
 
-Value lru_remove(LRU *lru)
+Value lru_evict(LRU *lru)
 {
     Value value = 0;
     Node *node;
-    if ((node = node_free(lru, lru->head))) {
+    if ((node = evict(lru))) {
         value = node->value;
         free(node);
     }

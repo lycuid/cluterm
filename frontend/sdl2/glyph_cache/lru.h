@@ -23,6 +23,6 @@ typedef struct LRU {
 
 Value lru_get(LRU *, Key);
 Value lru_put(LRU *, Key, Value);
-Value lru_remove(LRU *);
+Value lru_evict(LRU *);
 
 #endif

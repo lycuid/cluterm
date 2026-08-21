@@ -1,8 +1,8 @@
 #ifndef __SDL2__MAIN_H__
 #define __SDL2__MAIN_H__
 
-#include <SDL.h>
-#include <SDL_ttf.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 
 #define die(code, ...)                                                         \
     do {                                                                       \
