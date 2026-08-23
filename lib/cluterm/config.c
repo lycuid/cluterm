@@ -10,8 +10,7 @@ void init_config(void)
     cfg->rows        = Rows;
     cfg->cols        = Columns;
     cfg->tab_width   = TabWidth;
-    cfg->fg          = DefaultFG;
-    cfg->bg          = DefaultBG;
+    cfg->theme       = DefaultTheme;
     cfg->font_family = FontFamily;
     cfg->font_size   = FontSize;
     cfg->cursor      = DefaultCursor;

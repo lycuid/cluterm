@@ -22,24 +22,32 @@
 #define GUARD(mu)                                                              \
     for (int i = SDL_LockMutex((mu)) == 0; i; i = (SDL_UnlockMutex((mu)), 0))
 
-static bool fresh                 = 0;
-static atomic_bool render_request = false;
-static inline void request_render(bool full)
-{
-    atomic_store(&render_request, 1);
-    fresh = full;
-}
+static atomic_bool         //
+    running           = 1, //
+    render_request    = 0, //
+    full_frame_render = 0;
 
-#define should_render() atomic_exchange(&render_request, 0)
+#define is_running() atomic_load_explicit(&running, memory_order_relaxed)
+#define quit()       atomic_store_explicit(&running, 0, memory_order_relaxed)
+
+static inline void request_render(bool fresh)
+{
+    if (fresh)
+        atomic_store_explicit(&full_frame_render, 1, memory_order_relaxed);
+    atomic_store_explicit(&render_request, 1, memory_order_release);
+}
+#define should_render()                                                        \
+    atomic_exchange_explicit(&render_request, 0, memory_order_acquire)
+#define fresh_render()                                                         \
+    atomic_exchange_explicit(&full_frame_render, 0, memory_order_relaxed)
 
 static GFX_Context ctx;
 const GFX_Context *gfx     = &ctx;
 static Frame frame         = {0};
 static SDL_mutex *vt_mutex = NULL;
-static atomic_bool running = 1;
 static int f_delta         = 0;
 
-void quit(__attribute__((unused)) int _arg) { running = 0; }
+void sigquit(__attribute__((unused)) int _) { quit(); }
 
 static inline void *tryp(void *res)
 {
@@ -202,6 +210,19 @@ static inline void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
     } break;
 
         // clang-format off
+    case SDLK_F1:  pty_write(&term->pty, "\x1bOP",    3); break;
+    case SDLK_F2:  pty_write(&term->pty, "\x1bOQ",    3); break;
+    case SDLK_F3:  pty_write(&term->pty, "\x1bOR",    3); break;
+    case SDLK_F4:  pty_write(&term->pty, "\x1bOS",    3); break;
+    case SDLK_F5:  pty_write(&term->pty, "\x1b[15~",  5); break;
+    case SDLK_F6:  pty_write(&term->pty, "\x1b[17~",  5); break;
+    case SDLK_F7:  pty_write(&term->pty, "\x1b[18~",  5); break;
+    case SDLK_F8:  pty_write(&term->pty, "\x1b[19~",  5); break;
+    case SDLK_F9:  pty_write(&term->pty, "\x1b[20~",  5); break;
+    case SDLK_F10: pty_write(&term->pty, "\x1b[21~",  5); break;
+    case SDLK_F11: pty_write(&term->pty, "\x1b[23~",  5); break;
+    case SDLK_F12: pty_write(&term->pty, "\x1b[24~",  5); break;
+
     case SDLK_RETURN:    // fallthrough
     case SDLK_RETURN2:   pty_write(&term->pty, "\r", 1);     break;
     case SDLK_TAB:       pty_write(&term->pty, "\t", 1);     break;
@@ -236,29 +257,32 @@ static inline void handle_userevent(SDL_UserEvent *user)
     }
 }
 
-static inline void render(Cluterm *term, bool fresh)
+static inline void render(Cluterm *term)
 {
+    bool fresh = fresh_render();
+
     if (term != NULL)
         GUARD(vt_mutex) { frame_capture(&frame, term); }
     frame_canvas_update(&frame, fresh);
 
     if (fresh) {
-        SDL_SetRenderDrawColor(ctx.renderer, UNPACK(term->bg), 0);
+        SDL_SetRenderDrawColor(ctx.renderer, UNPACK(cfg->theme.bg), 0);
         SDL_RenderClear(ctx.renderer);
     }
+
     SDL_Rect rect = {
         .x = 0, .y = 0, .w = frame.canvas.dispw, .h = frame.canvas.disph};
     SDL_RenderCopy(ctx.renderer, frame.canvas.texture, &rect, &rect);
     SDL_RenderPresent(ctx.renderer);
 }
 
-int read_thread(void *arg)
+int pty_reader(void *arg)
 {
     Cluterm *term      = (Cluterm *)arg;
     uchar stream[4096] = {0};
     ssize_t n          = 0;
     struct timespec ts = {.tv_nsec = 1e6};
-    while (atomic_load_explicit(&running, memory_order_relaxed)) {
+    while (is_running()) {
         if ((n = pty_read(&term->pty, stream, sizeof(stream))) > 0) {
             GUARD(vt_mutex) { cluterm_write(term, stream, n); }
             request_render(0);
@@ -281,19 +305,12 @@ int main(int argc, char *const *argv)
         cmd = shell;
     }
 
-    debug_1("cfg->title(%s).\n", cfg->title);
-    debug_1("cfg->fg(#%x).\n", cfg->fg);
-    debug_1("cfg->bg(#%x).\n", cfg->bg);
-    debug_1("cfg->tab_width(%d).\n", cfg->tab_width);
-    debug_1("cfg->font_family(%s).\n", cfg->font_family);
-    debug_1("cfg->font_size(%d).\n", cfg->font_size);
-
     Cluterm term = {0};
     cluterm_init(&term, cmd);
     term.osc_handler = osc_handler;
 
     sdl_init();
-    signal(SIGCHLD, quit); // shell exits/crashes.
+    signal(SIGCHLD, sigquit); // shell exits/crashes.
 
     struct {
         uint64_t last;
@@ -301,9 +318,9 @@ int main(int argc, char *const *argv)
     } resz = {0};
 
     vt_mutex           = SDL_CreateMutex();
-    SDL_Thread *thread = SDL_CreateThread(read_thread, "read_thread", &term);
+    SDL_Thread *thread = SDL_CreateThread(pty_reader, NAME ":ptyread", &term);
 
-    for (SDL_Event e; atomic_load_explicit(&running, memory_order_relaxed);) {
+    for (SDL_Event e; is_running();) {
 
         if (frame_tick(&frame))
             request_render(0);
@@ -318,13 +335,13 @@ int main(int argc, char *const *argv)
 
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
-            case SDL_QUIT: running = 0; break;
+            case SDL_QUIT: quit(); break;
 
             case SDL_WINDOWEVENT: {
                 SDL_WindowEvent *win = &e.window;
                 switch (win->event) {
-                case SDL_WINDOWEVENT_EXPOSED: request_render(0); break;
-                case SDL_WINDOWEVENT_CLOSE: atomic_store(&running, 0); break;
+                case SDL_WINDOWEVENT_EXPOSED: request_render(1); break;
+                case SDL_WINDOWEVENT_CLOSE: quit(); break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
                     resz.w       = MAX(win->data1 / ctx.f_width, 10),
@@ -346,10 +363,8 @@ int main(int argc, char *const *argv)
             }
         }
 
-        if (should_render()) {
-            render(&term, fresh);
-            fresh = 0;
-        }
+        if (should_render())
+            render(&term);
 
         SDL_Delay(FPS(1000));
     }
@@ -374,4 +389,3 @@ int main(int argc, char *const *argv)
     }
     return 0;
 }
-// vim:fdm=marker

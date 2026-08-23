@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 #include <cluterm.h>
 #include <cluterm/colors.h>
+#include <cluterm/config.h>
 #include <cluterm/vt/buffer.h>
 
 static struct {
@@ -24,6 +25,8 @@ static inline void canvas_resize(FrameCanvas *canvas, size_t w, size_t h)
                                         canvas->disph);
     if (!canvas->texture)
         die(1, "%s\n", SDL_GetError());
+    SDL_SetRenderDrawColor(gfx->renderer, UNPACK(cfg->theme.bg), 0);
+    SDL_RenderClear(gfx->renderer);
 }
 
 static inline void background(Rgb bg, const SDL_Rect *rect)
@@ -115,6 +118,8 @@ static inline void draw_cursor(Frame *frame)
 
     if (use_cursor && c->shape == CursorBar)
         bar(c->color, dst, 3);
+
+    gcache_flush();
 }
 
 void frame_resize(Frame *frame, int rows, int cols)
@@ -190,9 +195,9 @@ void frame_canvas_update(Frame *frame, bool fresh)
             batch_add(&cell, x);
         }
         batch_flush(buffer->lines[y]);
+        gcache_flush();
     }
     draw_cursor(frame);
-    gcache_flush();
     SDL_SetRenderTarget(gfx->renderer, NULL);
 }
 
@@ -224,3 +229,4 @@ void frame_destroy(Frame *frame)
     free(frame->buffer.dirty);
     frame->buffer.dirty = NULL;
 }
+// vim:fdm=marker

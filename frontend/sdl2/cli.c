@@ -50,7 +50,7 @@ char *const *argparse(int argc, char *const *argv)
                 break;
             ++argv;
             Scanner s = SCANNER((const uchar *)*argv, strlen(*argv));
-            if (!parse_rgb(&s, &cfg->fg))
+            if (!parse_rgb(&s, &cfg->theme.fg))
                 debug("Invalid color format: '%s'.\n", *argv);
             continue;
         }
@@ -60,7 +60,7 @@ char *const *argparse(int argc, char *const *argv)
                 break;
             ++argv;
             Scanner s = SCANNER((const uchar *)*argv, strlen(*argv));
-            if (!parse_rgb(&s, &cfg->bg))
+            if (!parse_rgb(&s, &cfg->theme.bg))
                 debug("Invalid color format: '%s'.\n", *argv);
             continue;
         }

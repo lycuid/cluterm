@@ -16,17 +16,17 @@ lib:
 run: ; ./$(BIN) 2>&1 | tee cluterm-out.txt
 
 build: ;
-	$(MAKE) CFLAGS="-DDEBUG_LVL=0 -O3"
+	$(MAKE) CFLAGS="-DDEBUG_LVL=0 -O3 $(CFLAGS)"
 
 debug-build: ;
 	$(MAKE) \
-		CFLAGS="-DDEBUG_LVL=1 -DPALETTE_VSCODE -fsanitize=undefined,address -ggdb -O0" \
-		LDFLAGS="-fsanitize=undefined,address"
+		CFLAGS="-DDEBUG_LVL=1 -DTHEME=vscode -fsanitize=undefined,address -ggdb -O0 $(CFLAGS)" \
+		LDFLAGS="-fsanitize=undefined,address $(LDFLAGS)"
 
 thread-debug-build: ;
 	$(MAKE) \
-		CFLAGS="-DDEBUG_LVL=1 -DPALETTE_VSCODE -fsanitize=thread -ggdb -O0" \
-		LDFLAGS="-fsanitize=thread"
+		CFLAGS="-DDEBUG_LVL=1 -DTHEME=vscode -fsanitize=thread -ggdb -O0 $(CFLAGS)" \
+		LDFLAGS="-fsanitize=thread $(LDFLAGS)"
 
 clean: ; rm -rf $(BUILD)
 	$(MAKE) -C lib $@

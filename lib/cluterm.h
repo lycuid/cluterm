@@ -22,8 +22,6 @@ struct Cluterm {
     ClutermBuffer buffer[2];
     cluterm_mode_t mode;
     OSC_Handler osc_handler;
-
-    MEMBER_COLORS;
 };
 
 #define ACTIVE_BUFFER(term)                                                    \

@@ -18,8 +18,7 @@ void cluterm_init(Cluterm *term, char *const *cmd)
         pty_open(&term->pty);
         pty_spawn(&term->pty, cmd);
     }
-    term->mode = 0x0, term->fg = cfg->fg, term->bg = cfg->bg,
-    term->osc_handler = NULL;
+    term->mode = 0x0, term->osc_handler = NULL;
 }
 
 void cluterm_write(Cluterm *term, uchar *stream, uint32_t slen)

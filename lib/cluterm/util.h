@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+#define STR(x)       #x
+#define STRINGIFY(x) STR(x)
+// clang-format off
+#define THEME_FILE(name) STRINGIFY(themes/name.inc)
+// clang-format on
+
 #define EXPORT __attribute__((unused)) static
 
 #define LENGTH(iterable)         (sizeof(iterable) / sizeof(iterable[0]))
@@ -23,6 +29,12 @@
     } while (0)
 
 typedef uint32_t Rgb;
+typedef Rgb Palette[16];
+
+typedef struct Theme {
+    Palette palette;
+    Rgb fg, bg;
+} Theme;
 
 enum FontType { FontRegular, FontBold, FontItalic, FontBoldItalic };
 

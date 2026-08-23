@@ -12,10 +12,8 @@ typedef uint16_t CellState;
 #define CELL_ITALIC    (1 << 1)
 #define CELL_UNDERLINE (1 << 2)
 
-#define MEMBER_COLORS Rgb fg, bg
-
 typedef struct CellAttributes {
-    MEMBER_COLORS;
+    Rgb fg, bg;
     CellState state;
 } CellAttributes;
 
@@ -25,7 +23,7 @@ typedef struct Cell {
 } Cell;
 
 #define DEFAULT_CELL_ATTRS                                                     \
-    (CellAttributes){.fg = cfg->fg, .bg = cfg->bg, .state = 0x0}
+    (CellAttributes){.fg = cfg->theme.fg, .bg = cfg->theme.bg, .state = 0x0}
 #define DEFAULT_CELL(val) CELL(val, DEFAULT_CELL_ATTRS)
 #define CELL(val, _attrs)                                                      \
     (Cell) { .value = val, .attrs = _attrs }

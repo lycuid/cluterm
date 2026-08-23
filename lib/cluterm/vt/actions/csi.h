@@ -2,10 +2,10 @@
 #define __CLUTERM__ACTIONS__CSI_H__
 
 #include <cluterm.h>
-#include <cluterm/colors.h>
 #include <cluterm/config.h>
 #include <cluterm/vt/actions.h>
 #include <cluterm/vt/buffer.h>
+#include <config.h>
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
@@ -80,7 +80,7 @@ static inline Rgb color256(uint8_t n)
 
     Rgb color = 0;
     if (n <= 15)
-        color = color16[n];
+        color = cfg->theme.palette[n];
     else if (BETWEEN(n, 16, 231))
         for (int i = 0, m = n - 16; m; m /= 6)
             color |= color256_mask[m % 6] << (8 * i++);
@@ -91,7 +91,8 @@ static inline Rgb color256(uint8_t n)
 
 static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
 {
-    ClutermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b    = ACTIVE_BUFFER(term);
+    Theme *theme = &cfg->theme;
 
     CellAttributes *attrs = &b->cell_attrs;
     if (!csi->nparam)
@@ -104,16 +105,16 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 3: SET(attrs->state, CELL_ITALIC); break;
         case 4: SET(attrs->state, CELL_UNDERLINE); break;
         case 7: {
-            attrs->fg = term->bg;
-            attrs->bg = term->fg;
+            attrs->fg = theme->bg;
+            attrs->bg = theme->fg;
         } break;
 
         case 21: UNSET(attrs->state, CELL_BOLD); break;
         case 23: UNSET(attrs->state, CELL_ITALIC); break;
         case 24: UNSET(attrs->state, CELL_UNDERLINE); break;
         case 27: {
-            attrs->fg = term->fg;
-            attrs->bg = term->bg;
+            attrs->fg = theme->fg;
+            attrs->bg = theme->bg;
         } break;
 
         // color 0-8 foreground.
@@ -124,8 +125,8 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 34: // fallthrough.
         case 35: // fallthrough.
         case 36: // fallthrough.
-        case 37: attrs->fg = color16[csi->param[i] - 30]; break;
-        case 39: attrs->fg = term->fg; break;
+        case 37: attrs->fg = theme->palette[csi->param[i] - 30]; break;
+        case 39: attrs->fg = theme->fg; break;
         // color 0-8 background.
         case 40: // fallthrough.
         case 41: // fallthrough.
@@ -134,8 +135,8 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 44: // fallthrough.
         case 45: // fallthrough.
         case 46: // fallthrough.
-        case 47: attrs->bg = color16[csi->param[i] - 40]; break;
-        case 49: attrs->bg = term->bg; break;
+        case 47: attrs->bg = theme->palette[csi->param[i] - 40]; break;
+        case 49: attrs->bg = theme->bg; break;
         // color 8-16 foreground.
         case 90: // fallthrough.
         case 91: // fallthrough.
@@ -144,7 +145,7 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 94: // fallthrough.
         case 95: // fallthrough.
         case 96: // fallthrough.
-        case 97: attrs->fg = color16[csi->param[i] - 90 + 8]; break;
+        case 97: attrs->fg = theme->palette[csi->param[i] - 90 + 8]; break;
         // color 8-16 background.
         case 100: // fallthrough.
         case 101: // fallthrough.
@@ -153,7 +154,7 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 104: // fallthrough.
         case 105: // fallthrough.
         case 106: // fallthrough.
-        case 107: attrs->bg = color16[csi->param[i] - 100 + 8]; break;
+        case 107: attrs->bg = theme->palette[csi->param[i] - 100 + 8]; break;
 
 #define GetColor(e, color)                                                     \
     {                                                                          \

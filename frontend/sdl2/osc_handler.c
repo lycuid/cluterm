@@ -3,6 +3,7 @@
 #include "main.h"
 #include <SDL2/SDL.h>
 #include <cluterm/colors.h>
+#include <cluterm/config.h>
 
 static inline int rgb_component(Scanner *s, uint8_t *comp)
 {
@@ -48,8 +49,8 @@ static inline int osc_set_color(Cluterm *term, OSC_Action action, Scanner *s)
         return -1;
 
     switch (action) {
-    case OSC_10: term->fg = color; break;
-    case OSC_11: term->bg = color; break;
+    case OSC_10: cfg->theme.fg = color; break;
+    case OSC_11: cfg->theme.bg = color; break;
     case OSC_12: {
         term->buffer[0].cursor.color = color;
         term->buffer[1].cursor.color = color;
@@ -69,8 +70,8 @@ static inline int osc_query(Cluterm *term, OSC_Action action)
     sprintf(osc_color, "\x1b]" index ";rgb:%02x/%02x/%02x\x07", __VA_ARGS__);
 
         // handler only called for queries, not for updating dynamic color.
-    case OSC_10: fill("10", UNPACK(term->fg)); goto send_cmd;
-    case OSC_11: fill("11", UNPACK(term->bg)); goto send_cmd;
+    case OSC_10: fill("10", UNPACK(cfg->theme.fg)); goto send_cmd;
+    case OSC_11: fill("11", UNPACK(cfg->theme.bg)); goto send_cmd;
     case OSC_12: fill("12", UNPACK(b->cursor.color));
 #undef fill
     send_cmd: {

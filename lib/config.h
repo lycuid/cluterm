@@ -2,21 +2,44 @@
 #define __CONFIG_H__
 
 #include <cluterm/vt/buffer.h>
-#include <stdbool.h>
 
-static const char Title[] = "cluterm";
-
-static const int Rows      = 30;
-static const int Columns   = 100;
-static const int TabWidth  = 8;
-static const Rgb DefaultFG = 0xefefef;
-static const Rgb DefaultBG = 0x090909;
-
+static const char Title[]      = "cluterm";
+static const int Rows          = 43;
+static const int Columns       = 132;
+static const int TabWidth      = 8;
 static const char FontFamily[] = "FiraCode Nerd Font";
 static const int FontSize      = 13;
 
+static const Theme DefaultTheme = {
+#ifndef THEME
+    .palette =
+        {
+            [0]  = 0x000000,
+            [1]  = 0xee0000,
+            [2]  = 0x00ee00,
+            [3]  = 0xeedd00,
+            [4]  = 0x0000ee,
+            [5]  = 0xee00ee,
+            [6]  = 0x00eeee,
+            [7]  = 0xeeeeee,
+            [8]  = 0xdddddd,
+            [9]  = 0xffdddd,
+            [10] = 0xddffdd,
+            [11] = 0xffffdd,
+            [12] = 0xddddff,
+            [13] = 0xffddff,
+            [14] = 0xddffff,
+            [15] = 0xffffff,
+        },
+    .fg = 0xeeeeee,
+    .bg = 0x000000,
+#else
+#include THEME_FILE(THEME)
+#endif
+};
+
 static const Cursor DefaultCursor = {
-    .color = DefaultFG,
+    .color = DefaultTheme.fg,
     .style = CursorSolid, // CursorSolid | CursorBlink
     .shape = CursorBlock, // CursorBlock | CursorUnderline | CursorBar
 };

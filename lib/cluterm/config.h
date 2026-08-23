@@ -8,7 +8,8 @@ typedef struct Config {
     const char *title;
 
     int rows, cols, tab_width;
-    Rgb fg, bg;
+
+    Theme theme;
 
     const char *font_family;
     int font_size;

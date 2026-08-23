@@ -111,12 +111,12 @@ void gcache_init(void)
     atlas.nverts = 0, atlas.nindices = 0;
 }
 
-void gcache_resize(int rows, int cols)
+void gcache_resize(__attribute((unused)) int rows, int cols)
 {
     // offset 2 (for eg. cursor etc).
-    int w = rows + 2, h = cols + 2;
-    atlas.verts   = realloc(atlas.verts, w * h * 4 * sizeof(SDL_Vertex));
-    atlas.indices = realloc(atlas.indices, w * h * 6 * sizeof(int));
+    int w         = cols + 2;
+    atlas.verts   = realloc(atlas.verts, w * 4 * sizeof(SDL_Vertex));
+    atlas.indices = realloc(atlas.indices, w * 6 * sizeof(int));
 }
 
 void gcache_destroy(void)
