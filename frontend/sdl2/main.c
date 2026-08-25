@@ -47,6 +47,12 @@ static Frame frame         = {0};
 static SDL_mutex *vt_mutex = NULL;
 static int f_delta         = 0;
 
+#ifdef DEBUG_ATLAS
+SDL_Window *debug_window;
+SDL_Renderer *debug_renderer;
+SDL_Texture *debug_texture;
+#endif
+
 void sigquit(__attribute__((unused)) int _) { quit(); }
 
 static inline void *tryp(void *res)
@@ -99,11 +105,21 @@ static inline void sdl_init(void)
     ctx.renderer =
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
 
+#ifdef DEBUG_ATLAS
+    debug_window =
+        tryp(SDL_CreateWindow(cfg->title, 0, 0, 0, 0, SDL_WINDOW_BORDERLESS));
+    debug_renderer =
+        tryp(SDL_CreateRenderer(debug_window, -1, SDL_RENDERER_ACCELERATED));
+#endif
+
     reload_fonts();
     frame_resize(&frame, cfg->rows, cfg->cols);
     gcache_init();
 
     int w = ctx.f_width * cfg->cols, h = ctx.f_height * cfg->rows;
+#ifdef DEBUG_ATLAS
+    SDL_SetWindowSize(debug_window, 200 * ctx.f_width, 6 * ctx.f_height);
+#endif
     SDL_SetWindowSize(ctx.window, w, h);
     SDL_StartTextInput();
 }
@@ -175,8 +191,10 @@ static inline void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
     case SDLK_0: // fallthrough
     case SDLK_KP_0:
         if (ctrl) {
-            f_delta = 0;
-            goto gfx_rebuild;
+            if (f_delta != 0) {
+                f_delta = 0;
+                goto gfx_rebuild;
+            }
         }
         break;
     case SDLK_EQUALS: // fallthrough
@@ -353,8 +371,7 @@ int main(int argc, char *const *argv)
 
             case SDL_TEXTINPUT: {
                 pty_write(&term.pty, e.text.text, strlen(e.text.text));
-                frame.cursor_blink_state.last    = SDL_GetTicks64(),
-                frame.cursor_blink_state.visible = 1;
+                frame_activity(&frame);
             } break;
 
             case SDL_KEYDOWN: handle_keydown(&term, &e.key); break;
@@ -366,6 +383,13 @@ int main(int argc, char *const *argv)
         if (should_render())
             render(&term);
 
+#ifdef DEBUG_ATLAS
+        SDL_SetRenderDrawColor(debug_renderer, UNPACK(0x0), 0);
+        SDL_RenderClear(debug_renderer);
+        SDL_RenderCopy(debug_renderer, debug_texture, NULL, NULL);
+        SDL_RenderPresent(debug_renderer);
+#endif
+
         SDL_Delay(FPS(1000));
     }
 
@@ -373,6 +397,12 @@ int main(int argc, char *const *argv)
 
     cluterm_destroy(&term);
     {
+#ifdef DEBUG_ATLAS
+        if (debug_renderer)
+            SDL_DestroyRenderer(debug_renderer);
+        if (debug_window)
+            SDL_DestroyWindow(debug_window);
+#endif
         SDL_DestroyMutex(vt_mutex);
         frame_destroy(&frame);
         gcache_destroy();

@@ -39,6 +39,7 @@ void frame_resize(Frame *, int, int);
 void frame_capture(Frame *, const Cluterm *);
 void frame_canvas_update(Frame *, bool);
 bool frame_tick(Frame *);
+void frame_activity(Frame *);
 void frame_cursor_activity(Frame *);
 void frame_destroy(Frame *);
 

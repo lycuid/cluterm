@@ -23,4 +23,10 @@ typedef struct GFX_Context {
 
 extern const GFX_Context *gfx;
 
+#ifdef DEBUG_ATLAS
+extern SDL_Window *debug_window;
+extern SDL_Renderer *debug_renderer;
+extern SDL_Texture *debug_texture;
+#endif
+
 #endif

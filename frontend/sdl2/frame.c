@@ -162,6 +162,7 @@ void frame_canvas_update(Frame *frame, bool fresh)
 #ifdef DUMP_DIRTY_FRAME
     // {{{
     static uint64_t frameno = 0;
+    debug("\x1b[2J");
     debug("----------------- Frame begin: (%ld) -----------------\n",
           ++frameno);
     for (int y = 0; y < buffer->rows; ++y) {
@@ -211,6 +212,12 @@ bool frame_tick(Frame *f)
     f->cursor_blink_state.visible = !f->cursor_blink_state.visible;
 
     return 1;
+}
+
+void frame_activity(Frame *frame)
+{
+    frame->cursor_blink_state.last    = SDL_GetTicks64(),
+    frame->cursor_blink_state.visible = 1;
 }
 
 void frame_destroy(Frame *frame)

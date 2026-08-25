@@ -83,9 +83,23 @@ void gcache_init(void)
 
     SDL_SetTextureBlendMode(atlas.texture, SDL_BLENDMODE_BLEND);
 
+#ifdef DEBUG_ATLAS
+    debug_texture =
+        SDL_CreateTexture(debug_renderer, SDL_PIXELFORMAT_RGBA8888,
+                          SDL_TEXTUREACCESS_STREAMING, atlas_w, atlas_h);
+    SDL_SetTextureBlendMode(debug_texture, SDL_BLENDMODE_BLEND);
+#endif
+
     void *pixels;
     int pitch;
     SDL_LockTexture(atlas.texture, NULL, &pixels, &pitch);
+
+#ifdef DEBUG_ATLAS
+    void *debug_pixels;
+    int debug_pitch;
+    SDL_LockTexture(debug_texture, NULL, &debug_pixels, &debug_pitch);
+#endif
+
     for (int y = 0; y < atlas_h; ++y)
         memset((uint8_t *)pixels + y * pitch, 0, pitch);
 
@@ -103,20 +117,18 @@ void gcache_init(void)
                 continue;
 
             map_surface(surface, &pixels, pitch, slot);
+#ifdef DEBUG_ATLAS
+            map_surface(surface, &debug_pixels, debug_pitch, slot);
+#endif
             SDL_FreeSurface(surface);
         }
     }
     SDL_UnlockTexture(atlas.texture);
+#ifdef DEBUG_ATLAS
+    SDL_UnlockTexture(debug_texture);
+#endif
     gcache_resize(cfg->rows, cfg->cols);
     atlas.nverts = 0, atlas.nindices = 0;
-}
-
-void gcache_resize(__attribute((unused)) int rows, int cols)
-{
-    // offset 2 (for eg. cursor etc).
-    int w         = cols + 2;
-    atlas.verts   = realloc(atlas.verts, w * 4 * sizeof(SDL_Vertex));
-    atlas.indices = realloc(atlas.indices, w * 6 * sizeof(int));
 }
 
 void gcache_destroy(void)
@@ -133,8 +145,22 @@ void gcache_destroy(void)
         SDL_DestroyTexture(atlas.texture);
         atlas.texture = NULL;
     }
+#ifdef DEBUG_ATLAS
+    if (debug_texture) {
+        SDL_DestroyTexture(debug_texture);
+        debug_texture = NULL;
+    }
+#endif
     while (unicode_cache.stale)
         free(lru_evict(&unicode_cache));
+}
+
+void gcache_resize(__attribute__((unused)) int rows, int cols)
+{
+    // offset 2 (for eg. cursor etc).
+    int w         = cols + 2;
+    atlas.verts   = realloc(atlas.verts, w * 4 * sizeof(SDL_Vertex));
+    atlas.indices = realloc(atlas.indices, w * 6 * sizeof(int));
 }
 
 static inline Slot *get_slot(Cell cell)
@@ -152,9 +178,9 @@ static inline Slot *get_slot(Cell cell)
         } else {
             size_t cache_size = CACHE_CAP - unicode_cache.capacity;
 
-            slot->x = gfx->f_width * (cache_size % CACHE_CAP);
+            slot->x = gfx->f_width * (cache_size % ATLAS_WIDTH);
             slot->y = (gfx->f_height * 2) +
-                      (gfx->f_height * (cache_size / CACHE_CAP));
+                      (gfx->f_height * (cache_size / ATLAS_WIDTH));
         }
         free(stale);
 
@@ -169,6 +195,14 @@ static inline Slot *get_slot(Cell cell)
                                           .w = gfx->f_width,
                                           .h = gfx->f_height},
                               surface->pixels, surface->pitch);
+#ifdef DEBUG_ATLAS
+            SDL_UpdateTexture(debug_texture,
+                              &(SDL_Rect){.x = slot->x,
+                                          .y = slot->y,
+                                          .w = gfx->f_width,
+                                          .h = gfx->f_height},
+                              surface->pixels, surface->pitch);
+#endif
             SDL_FreeSurface(surface);
         }
     }
