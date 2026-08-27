@@ -118,7 +118,8 @@ static inline void sdl_init(void)
 
     int w = ctx.f_width * cfg->cols, h = ctx.f_height * cfg->rows;
 #ifdef DEBUG_ATLAS
-    SDL_SetWindowSize(debug_window, 200 * ctx.f_width, 6 * ctx.f_height);
+    SDL_SetWindowSize(debug_window, 200 * ctx.f_width * 1.2f,
+                      8 * ctx.f_height * 1.2f);
 #endif
     SDL_SetWindowSize(ctx.window, w, h);
     SDL_StartTextInput();

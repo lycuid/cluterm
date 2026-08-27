@@ -42,6 +42,17 @@ static inline void underline(Rgb color, SDL_Rect rect, size_t sz)
     SDL_RenderFillRect(gfx->renderer, &rect);
 }
 
+debug_var static inline void bounding_box(int y, int x)
+{
+    SDL_SetRenderDrawColor(gfx->renderer, UNPACK(0x434343), 0);
+    SDL_RenderDrawRect(gfx->renderer, &(SDL_Rect){
+                                          .y = y * gfx->f_height,
+                                          .x = x * gfx->f_width,
+                                          .w = gfx->f_width,
+                                          .h = gfx->f_height,
+                                      });
+}
+
 static inline void bar(Rgb color, SDL_Rect rect, size_t sz)
 {
     SDL_SetRenderDrawColor(gfx->renderer, UNPACK(color), 0);
@@ -79,7 +90,11 @@ static inline void batch_flush(const Line line)
 
     for (int dx = 0; dx < batch.len; ++dx) {
         int y = batch.y, x = batch.x + dx;
-        gcache_push_glyph(line[x], y, x);
+        if (line[x].value != ' ')
+            gcache_emit(line[x], y, x);
+#if DEBUG_LVL >= 4
+        bounding_box(y, x);
+#endif
     }
 
     if (IS_SET(batch.attrs.state, CELL_UNDERLINE))
@@ -103,13 +118,13 @@ static inline void draw_cursor(Frame *frame)
     bool use_cursor =
         c->visible &&
         (c->style == CursorSolid ||
-         (c->style == CursorBlink && frame->cursor_blink_state.visible));
+         (c->style == CursorBlink && frame->_cursor_blink_state.visible));
 
     if (use_cursor && c->shape == CursorBlock)
         cell.attrs.fg = ~c->color & 0xffffff, cell.attrs.bg = c->color;
     background(cell.attrs.bg, &dst);
 
-    gcache_push_glyph(cell, c->y, c->x);
+    gcache_emit(cell, c->y, c->x);
 
     if (use_cursor && c->shape == CursorUnderline)
         underline(c->color, dst, 3);
@@ -207,17 +222,17 @@ bool frame_tick(Frame *f)
     if (!f->buffer.cursor.visible || f->buffer.cursor.style != CursorBlink)
         return 0;
 
-    if (!since(&f->cursor_blink_state.last, FPS(2)))
+    if (!since(&f->_cursor_blink_state.last, FPS(2)))
         return 0;
-    f->cursor_blink_state.visible = !f->cursor_blink_state.visible;
+    f->_cursor_blink_state.visible = !f->_cursor_blink_state.visible;
 
     return 1;
 }
 
 void frame_activity(Frame *frame)
 {
-    frame->cursor_blink_state.last    = SDL_GetTicks64(),
-    frame->cursor_blink_state.visible = 1;
+    frame->_cursor_blink_state.last    = SDL_GetTicks64(),
+    frame->_cursor_blink_state.visible = 1;
 }
 
 void frame_destroy(Frame *frame)

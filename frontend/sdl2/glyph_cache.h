@@ -7,7 +7,7 @@
 void gcache_init(void);
 void gcache_destroy(void);
 void gcache_resize(int, int);
-void gcache_push_glyph(Cell, int, int);
+void gcache_emit(Cell, int, int);
 int gcache_flush(void);
 
 #endif

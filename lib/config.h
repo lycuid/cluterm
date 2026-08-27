@@ -4,11 +4,11 @@
 #include <cluterm/vt/buffer.h>
 
 static const char Title[]      = "cluterm";
-static const int Rows          = 43;
-static const int Columns       = 132;
+static const int Rows          = 36;
+static const int Columns       = 120;
 static const int TabWidth      = 8;
-static const char FontFamily[] = "FiraCode Nerd Font";
-static const int FontSize      = 13;
+static const char FontFamily[] = "JetBrainsMono Nerd Font";
+static const int FontSize      = 14;
 
 static const Theme DefaultTheme = {
 #ifndef THEME

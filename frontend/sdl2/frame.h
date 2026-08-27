@@ -11,17 +11,18 @@ typedef struct FrameCanvas {
     size_t w, h, dispw, disph;
 } FrameCanvas;
 
+typedef struct FrameBuffer {
+    MEMBERS_FRAME_BUFFER;
+} FrameBuffer;
+
 typedef struct Frame {
-    struct FrameBuffer {
-        MEMBERS_FRAME_BUFFER;
-    } buffer;
+    FrameBuffer buffer;
+    FrameCanvas canvas;
 
     struct {
         bool visible;
         uint64_t last;
-    } cursor_blink_state;
-
-    FrameCanvas canvas;
+    } _cursor_blink_state;
 } Frame;
 
 static inline bool since(uint64_t *time, uint64_t ms)
@@ -40,7 +41,6 @@ void frame_capture(Frame *, const Cluterm *);
 void frame_canvas_update(Frame *, bool);
 bool frame_tick(Frame *);
 void frame_activity(Frame *);
-void frame_cursor_activity(Frame *);
 void frame_destroy(Frame *);
 
 #endif
