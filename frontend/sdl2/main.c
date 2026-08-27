@@ -76,22 +76,8 @@ static inline void destroy_fonts(void)
             TTF_CloseFont(ctx.fonts[i]);
 }
 
-static inline void reload_fonts(void)
+static inline void calculate_font_metrics(void)
 {
-    destroy_fonts();
-
-    FcConfig *config = FcInitLoadConfigAndFonts();
-
-    int size           = cfg->font_size + f_delta;
-    const char *family = cfg->font_family;
-
-    load_font(config, family, size, "Regular", &ctx.fonts[FontRegular]);
-    load_font(config, family, size, "Bold", &ctx.fonts[FontBold]);
-    load_font(config, family, size, "Italic", &ctx.fonts[FontItalic]);
-    load_font(config, family, size, "BoldItalic", &ctx.fonts[FontBoldItalic]);
-
-    FcConfigDestroy(config);
-
     TTF_SizeText(ctx.fonts[FontBold], "M", &ctx.f_width, NULL);
     ctx.f_height = TTF_FontLineSkip(ctx.fonts[FontBold]);
 }
@@ -112,7 +98,24 @@ static inline void sdl_init(void)
         tryp(SDL_CreateRenderer(debug_window, -1, SDL_RENDERER_ACCELERATED));
 #endif
 
-    reload_fonts();
+    {
+        FcConfig *config = FcInitLoadConfigAndFonts();
+
+        int size           = cfg->font_size + f_delta;
+        const char *family = cfg->font_family;
+
+        load_font(config, family, size, "Regular", &ctx.fonts[FontRegular]);
+        load_font(config, family, size, "Bold", &ctx.fonts[FontBold]);
+        load_font(config, family, size, "Italic", &ctx.fonts[FontItalic]);
+        load_font(config, family, size, "BoldItalic",
+                  &ctx.fonts[FontBoldItalic]);
+
+        FcConfigDestroy(config);
+    }
+
+    SDL_GetDisplayDPI(0, 0, &ctx.hdpi, &ctx.vdpi);
+
+    calculate_font_metrics();
     frame_resize(&frame, cfg->rows, cfg->cols);
     gcache_init();
 
@@ -213,7 +216,13 @@ static inline void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
         }
         break;
     gfx_rebuild: {
-        reload_fonts();
+        int size  = cfg->font_size + f_delta;
+        uint hdpi = lroundf(ctx.hdpi), vdpi = lroundf(ctx.vdpi);
+        TTF_SetFontSizeDPI(ctx.fonts[FontRegular], size, hdpi, vdpi);
+        TTF_SetFontSizeDPI(ctx.fonts[FontBold], size, hdpi, vdpi);
+        TTF_SetFontSizeDPI(ctx.fonts[FontItalic], size, hdpi, vdpi);
+        TTF_SetFontSizeDPI(ctx.fonts[FontBoldItalic], size, hdpi, vdpi);
+        calculate_font_metrics();
 
         int w, h;
         SDL_GetWindowSize(ctx.window, &w, &h);

@@ -7,7 +7,7 @@ BIN:=$(BUILD)/bin/$(NAME)
 
 PKGS:=sdl2 SDL2_ttf fontconfig
 override CFLAGS+= $(FLAGS) $(DEFINE) -I$(I_DIR) -I$(LIB) $(shell pkg-config --cflags $(PKGS))
-override LDFLAGS+= -L$(LIB)/$(BUILD) -l$(NAME) $(shell pkg-config --libs $(PKGS))
+override LDFLAGS+= -L$(LIB)/$(BUILD) -l$(NAME) $(shell pkg-config --libs $(PKGS)) -lm
 
 O_FILES:=$(O_DIR)/main.o              \
          $(O_DIR)/cli.o               \
@@ -18,7 +18,7 @@ O_FILES:=$(O_DIR)/main.o              \
          $(O_DIR)/osc_handler.o
 
 $(BIN): $(O_FILES) ; @mkdir -p $(@D)
-	$(CC) -o $(BIN) $^ $(LDFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 $(O_DIR)/%.o: $(I_DIR)/%.c $(I_DIR)/%.h ; @mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c -o $@ $<

@@ -19,6 +19,7 @@ typedef struct GFX_Context {
     SDL_Renderer *renderer;
     TTF_Font *fonts[4];
     int f_width, f_height;
+    float hdpi, vdpi;
 } GFX_Context;
 
 extern const GFX_Context *gfx;

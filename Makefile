@@ -3,6 +3,20 @@ include config.mk
 FRONTEND:=frontend
 BIN:=$(BUILD)/bin/$(NAME)
 
+build: ;
+	$(MAKE) $(FRONTEND)/sdl2 \
+		CFLAGS="-DDEBUG_LVL=0 -O3 $(CFLAGS)"
+
+debug-build: ;
+	$(MAKE) $(FRONTEND)/sdl2 \
+		CFLAGS="-DDEBUG_LVL=1 -DTHEME=vscode -fsanitize=undefined,address -ggdb -O0 $(CFLAGS)" \
+		LDFLAGS="-fsanitize=undefined,address $(LDFLAGS)"
+
+thread-debug-build: ;
+	$(MAKE) $(FRONTEND)/sdl2 \
+		CFLAGS="-DDEBUG_LVL=1 -DTHEME=vscode -fsanitize=thread -ggdb -O0 $(CFLAGS)" \
+		LDFLAGS="-fsanitize=thread $(LDFLAGS)"
+
 .PHONY: $(FRONTEND)/sdl2
 $(FRONTEND)/sdl2: lib ; mkdir -p $(shell dirname $(BIN))
 	$(MAKE) -j -C $@
@@ -14,19 +28,6 @@ lib:
 
 .PHONY: run debug clean compile_flags fmt
 run: ; ./$(BIN) 2>&1 | tee cluterm-out.txt
-
-build: ;
-	$(MAKE) CFLAGS="-DDEBUG_LVL=0 -O3 $(CFLAGS)"
-
-debug-build: ;
-	$(MAKE) \
-		CFLAGS="-DDEBUG_LVL=1 -DTHEME=vscode -fsanitize=undefined,address -ggdb -O0 $(CFLAGS)" \
-		LDFLAGS="-fsanitize=undefined,address $(LDFLAGS)"
-
-thread-debug-build: ;
-	$(MAKE) \
-		CFLAGS="-DDEBUG_LVL=1 -DTHEME=vscode -fsanitize=thread -ggdb -O0 $(CFLAGS)" \
-		LDFLAGS="-fsanitize=thread $(LDFLAGS)"
 
 clean: ; rm -rf $(BUILD)
 	$(MAKE) -C lib $@

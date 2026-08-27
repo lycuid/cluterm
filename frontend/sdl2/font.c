@@ -9,6 +9,7 @@ void load_font(FcConfig *config, const char *family, int size,
                        FC_FAMILY, FcTypeString, family,     // font family.
                        FC_STYLE, FcTypeString, style,       // font style.
                        FC_SIZE, FcTypeDouble, (double)size, // font size.
+                       FC_DPI, FcTypeDouble, (double)dpi(), // font dpi.
                        NULL);
 
     FcConfigSubstitute(config, pat, FcMatchPattern);
@@ -23,7 +24,8 @@ void load_font(FcConfig *config, const char *family, int size,
         FcPatternGetInteger(font_pat, FC_SIZE, 0, &font_size);
         if (FcPatternGetString(font_pat, FC_FILE, 0, &font_file) ==
             FcResultMatch)
-            *font = TTF_OpenFont((const char *)font_file, font_size * 1.3);
+            *font = TTF_OpenFontDPI((const char *)font_file, font_size, dpi(),
+                                    dpi());
         debug_1("font file: %s (%d).\n", font_file, font_size);
     }
     FcPatternDestroy(font_pat);
