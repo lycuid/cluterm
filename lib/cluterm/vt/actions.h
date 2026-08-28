@@ -62,12 +62,14 @@ typedef enum CSI_Action {
 
 typedef enum OSC_Action {
     OSC_UNKNOWN = -1,
-    OSC_0,       // OSC 0      (set icon name and window title).
-    OSC_2  = 2,  // OSC 2      (Set window title).
-    OSC_7  = 7,  // OSC 7      (set current working directory).
-    OSC_10 = 10, // OSC 10     (set foreground color).
-    OSC_11,      // OSC 11     (set background color).
-    OSC_12,      // OSC 12     (set cursor color).
+    OSC_0,         // OSC 0      (set icon name and window title).
+    OSC_2  = 2,    // OSC 2      (Set window title).
+    OSC_4  = 4,    // OSC 4      (change palette color).
+    OSC_7  = 7,    // OSC 7      (set current working directory).
+    OSC_10 = 10,   // OSC 10     (set foreground color).
+    OSC_11,        // OSC 11     (set background color).
+    OSC_12,        // OSC 12     (set cursor color).
+    OSC_104 = 104, // OSC 14     (reset palette color).
 } OSC_Action;
 
 #endif

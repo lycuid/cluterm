@@ -12,30 +12,26 @@
 #define IS_HEX(ch)                                                             \
     (BETWEEN(ch, '0', '9') || BETWEEN(ch, 'a', 'f') || BETWEEN(ch, 'A', 'F'))
 
+typedef struct Color {
+    bool is_rgb;
+    union {
+        Rgb rgb;
+        uint8_t index;
+    } c;
+} Color;
+
+#define ColorRgb(_rgb) ((Color){.is_rgb = 1, .c.rgb = (_rgb)})
+#define ColorIdx(_i)   ((Color){.is_rgb = 0, .c.index = (_i)})
+
 static const int hex[] = {
-    [0] = 0,    [1] = 1,    [2] = 2,    [3] = 3,    [4] = 4,    [5] = 5,
-    [6] = 6,    [7] = 7,    [8] = 8,    [9] = 9,    ['a'] = 10, ['b'] = 11,
+    ['0'] = 0,  ['1'] = 1,  ['2'] = 2,  ['3'] = 3,  ['4'] = 4,  ['5'] = 5,
+    ['6'] = 6,  ['7'] = 7,  ['8'] = 8,  ['9'] = 9,  ['a'] = 10, ['b'] = 11,
     ['c'] = 12, ['d'] = 13, ['e'] = 14, ['f'] = 15, ['A'] = 10, ['B'] = 11,
     ['C'] = 12, ['D'] = 13, ['E'] = 14, ['F'] = 15,
 };
 
-static inline uint32_t parse_rgb(Scanner *s, Rgb *color)
-{
-    if (s_consume(s, '#') && s_buflen(s) >= 6) {
-        Rgb rgb = 0;
-        for (int i = 0; i < 3; ++i) {
-            if (!IS_HEX(*s_peek(s)))
-                return 0;
-            rgb |= hex[s_next(s)] << (20 - i * 8);
-
-            if (!IS_HEX(*s_peek(s)))
-                return 0;
-            rgb |= hex[s_next(s)] << (16 - i * 8);
-        }
-        *color = rgb;
-        return 1;
-    }
-    return 0;
-}
+Rgb color256(uint8_t);
+Rgb resolve_color(const Color *const);
+bool parse_rgb(Scanner *s, Rgb *color);
 
 #endif

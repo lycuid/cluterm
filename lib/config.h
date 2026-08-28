@@ -8,7 +8,7 @@ static const int Rows          = 36;
 static const int Columns       = 120;
 static const int TabWidth      = 8;
 static const char FontFamily[] = "JetBrainsMono Nerd Font";
-static const int FontSize      = 14;
+static const int FontSize      = 12;
 
 static const Theme DefaultTheme = {
 #ifndef THEME

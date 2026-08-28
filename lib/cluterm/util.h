@@ -29,7 +29,7 @@
     } while (0)
 
 typedef uint32_t Rgb;
-typedef Rgb Palette[16];
+typedef Rgb Palette[256];
 
 typedef struct Theme {
     Palette palette;

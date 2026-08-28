@@ -493,17 +493,16 @@ static inline void prepare_osc_payload(VT_Parser *vtp, OSC_Payload *osc)
     if (!ch || !BETWEEN(*ch, '0', '9'))
         return;
 
-    int action = s_consume_number(&osc->scanner);
-    switch (action) {
+    osc->action = s_consume_number(&osc->scanner);
+    switch (osc->action) {
     case OSC_0:  // fallthrough
     case OSC_2:  // fallthrough
+    case OSC_4:  // fallthrough
     case OSC_7:  // fallthrough
     case OSC_10: // fallthrough
     case OSC_11: // fallthrough
-    case OSC_12: {
-        if (!s_consume(&osc->scanner, ';'))
-            osc->action = OSC_UNKNOWN;
-    } break;
+    case OSC_12: // fallthrough
+    case OSC_104: // fallthrough
     default: break;
     }
 }

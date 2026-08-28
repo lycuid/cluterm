@@ -9,7 +9,8 @@
 
 static struct {
     int y, x, len;
-    CellAttributes attrs;
+    Rgb fg, bg;
+    CellState state;
 } batch = {0};
 
 static inline void canvas_resize(FrameCanvas *canvas, size_t w, size_t h)
@@ -62,17 +63,20 @@ static inline void bar(Rgb color, SDL_Rect rect, size_t sz)
 
 static inline bool cell_belongs(Cell *cell)
 {
-    if (cell->attrs.fg != batch.attrs.fg || cell->attrs.bg != batch.attrs.bg)
-        return false;
-    if (cell->attrs.state != batch.attrs.state)
-        return false;
-    return true;
+    Rgb fg = resolve_color(&cell->attrs.fg),
+        bg = resolve_color(&cell->attrs.bg);
+
+    return fg == batch.fg && bg == batch.bg && cell->attrs.state == batch.state;
 }
 
 static inline void batch_add(Cell *cell, int x)
 {
-    if (!batch.len)
-        batch.x = x, batch.attrs = cell->attrs;
+    if (!batch.len) {
+        batch.x     = x;
+        batch.state = cell->attrs.state;
+        batch.fg    = resolve_color(&cell->attrs.fg);
+        batch.bg    = resolve_color(&cell->attrs.bg);
+    }
     batch.len++;
 }
 
@@ -86,7 +90,7 @@ static inline void batch_flush(const Line line)
                     .w = gfx->f_width * batch.len,
                     .h = gfx->f_height};
 
-    background(batch.attrs.bg, &dst);
+    background(batch.bg, &dst);
 
     for (int dx = 0; dx < batch.len; ++dx) {
         int y = batch.y, x = batch.x + dx;
@@ -97,8 +101,8 @@ static inline void batch_flush(const Line line)
 #endif
     }
 
-    if (IS_SET(batch.attrs.state, CELL_UNDERLINE))
-        underline(batch.attrs.fg, dst, 2);
+    if (IS_SET(batch.state, CELL_UNDERLINE))
+        underline(batch.fg, dst, 2);
 
     batch.len = 0;
 }
@@ -120,16 +124,19 @@ static inline void draw_cursor(Frame *frame)
         (c->style == CursorSolid ||
          (c->style == CursorBlink && frame->_cursor_blink_state.visible));
 
-    if (use_cursor && c->shape == CursorBlock)
-        cell.attrs.fg = ~c->color & 0xffffff, cell.attrs.bg = c->color;
-    background(cell.attrs.bg, &dst);
+    if (use_cursor && c->shape == CursorBlock) {
+        cell.attrs.fg = ColorRgb(~c->color & 0xffffff);
+        cell.attrs.bg = ColorRgb(c->color);
+    }
+
+    background(resolve_color(&cell.attrs.bg), &dst);
 
     gcache_emit(cell, c->y, c->x);
 
     if (use_cursor && c->shape == CursorUnderline)
         underline(c->color, dst, 3);
     else if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
-        underline(cell.attrs.fg, dst, 2);
+        underline(resolve_color(&cell.attrs.fg), dst, 2);
 
     if (use_cursor && c->shape == CursorBar)
         bar(c->color, dst, 3);

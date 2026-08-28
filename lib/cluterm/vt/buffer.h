@@ -1,6 +1,7 @@
 #ifndef __CLUTERM__VT__BUFFER_H__
 #define __CLUTERM__VT__BUFFER_H__
 
+#include <cluterm/colors.h>
 #include <cluterm/debug.h>
 #include <cluterm/utf8.h>
 #include <cluterm/vt/parser.h>
@@ -13,7 +14,7 @@ typedef uint16_t CellState;
 #define CELL_UNDERLINE (1 << 2)
 
 typedef struct CellAttributes {
-    Rgb fg, bg;
+    Color fg, bg;
     CellState state;
 } CellAttributes;
 
@@ -23,16 +24,12 @@ typedef struct Cell {
 } Cell;
 
 #define DEFAULT_CELL_ATTRS                                                     \
-    (CellAttributes){.fg = cfg->theme.fg, .bg = cfg->theme.bg, .state = 0x0}
+    (CellAttributes){.fg    = ColorRgb(cfg->theme.fg),                         \
+                     .bg    = ColorRgb(cfg->theme.bg),                         \
+                     .state = 0x0}
 #define DEFAULT_CELL(val) CELL(val, DEFAULT_CELL_ATTRS)
 #define CELL(val, _attrs)                                                      \
     (Cell) { .value = val, .attrs = _attrs }
-#define Color(rgb)                                                             \
-    (SDL_Color)                                                                \
-    {                                                                          \
-        .r = ((rgb) >> (8 * 2)) & 0xff, .g = ((rgb) >> (8 * 1)) & 0xff,        \
-        .b = ((rgb) >> (8 * 0)) & 0xff, .a = 0x0,                              \
-    }
 
 typedef Cell *Line;
 

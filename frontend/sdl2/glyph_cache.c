@@ -11,6 +11,12 @@
 #define ATLAS_COLS 200
 #define ATLAS_ROWS 8
 #define CACHE_CAP  (ATLAS_COLS * 3)
+#define sdl_color(rgb)                                                         \
+    (SDL_Color)                                                                \
+    {                                                                          \
+        .r = ((rgb) >> (8 * 2)) & 0xff, .g = ((rgb) >> (8 * 1)) & 0xff,        \
+        .b = ((rgb) >> (8 * 0)) & 0xff, .a = 0x0,                              \
+    }
 
 typedef struct AtlasSlot {
     int y, x, w, h;
@@ -54,7 +60,7 @@ static inline SDL_Surface *create_surface(Rune ch, TTF_Font *font)
         return NULL;
 
     SDL_Surface *text =
-        TTF_RenderUTF8_Blended(font, (char *)utf8_string, Color(0xffffff));
+        TTF_RenderUTF8_Blended(font, (char *)utf8_string, sdl_color(0xffffff));
     if (!text)
         return NULL;
 
@@ -237,22 +243,27 @@ void gcache_emit(Cell cell, int y, int x)
 
     int base_index = atlas.nverts;
 
-    atlas.verts[atlas.nverts++] =
-        (SDL_Vertex){.position  = {x, y},
-                     .tex_coord = {u0, v0},
-                     .color     = {UNPACK(cell.attrs.fg), 0xff}};
-    atlas.verts[atlas.nverts++] =
-        (SDL_Vertex){.position  = {x + slot->w, y},
-                     .tex_coord = {u1, v0},
-                     .color     = {UNPACK(cell.attrs.fg), 0xff}};
-    atlas.verts[atlas.nverts++] =
-        (SDL_Vertex){.position  = {x + slot->w, y + gfx->f_height},
-                     .tex_coord = {u1, v1},
-                     .color     = {UNPACK(cell.attrs.fg), 0xff}};
-    atlas.verts[atlas.nverts++] =
-        (SDL_Vertex){.position  = {x, y + gfx->f_height},
-                     .tex_coord = {u0, v1},
-                     .color     = {UNPACK(cell.attrs.fg), 0xff}};
+    Rgb fg = resolve_color(&cell.attrs.fg);
+    atlas.verts[atlas.nverts++] = (SDL_Vertex){
+        .position  = {x, y},
+        .tex_coord = {u0, v0},
+        .color     = {UNPACK(fg), 0xff},
+    };
+    atlas.verts[atlas.nverts++] = (SDL_Vertex){
+        .position  = {x + slot->w, y},
+        .tex_coord = {u1, v0},
+        .color     = {UNPACK(fg), 0xff},
+    };
+    atlas.verts[atlas.nverts++] = (SDL_Vertex){
+        .position  = {x + slot->w, y + gfx->f_height},
+        .tex_coord = {u1, v1},
+        .color     = {UNPACK(fg), 0xff},
+    };
+    atlas.verts[atlas.nverts++] = (SDL_Vertex){
+        .position  = {x, y + gfx->f_height},
+        .tex_coord = {u0, v1},
+        .color     = {UNPACK(fg), 0xff},
+    };
 
     atlas.indices[atlas.nindices++] = base_index + 0;
     atlas.indices[atlas.nindices++] = base_index + 1;

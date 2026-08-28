@@ -2,7 +2,6 @@
 #include "SDL_keycode.h"
 #include "SDL_video.h"
 #include "cli.h"
-#include "font.h"
 #include "frame.h"
 #include "glyph_cache.h"
 #include "osc_handler.h"
@@ -76,6 +75,36 @@ static inline void destroy_fonts(void)
             TTF_CloseFont(ctx.fonts[i]);
 }
 
+void load_font(FcConfig *config, const char *family, int size,
+               const char *style, TTF_Font **font)
+{
+    FcPattern *pat =
+        FcPatternBuild(NULL,                                   //
+                       FC_FAMILY, FcTypeString, family,        // font family.
+                       FC_STYLE, FcTypeString, style,          // font style.
+                       FC_SIZE, FcTypeDouble, (double)size,    // font size.
+                       FC_DPI, FcTypeDouble, (double)ctx.hdpi, // font dpi.
+                       NULL);
+
+    FcConfigSubstitute(config, pat, FcMatchPattern);
+    FcDefaultSubstitute(pat);
+
+    FcResult res;
+    FcPattern *font_pat = FcFontMatch(config, pat, &res);
+    FcPatternDestroy(pat);
+    if (font_pat) {
+        FcChar8 *font_file = NULL;
+        int font_size      = 11;
+        FcPatternGetInteger(font_pat, FC_SIZE, 0, &font_size);
+        if (FcPatternGetString(font_pat, FC_FILE, 0, &font_file) ==
+            FcResultMatch)
+            *font = TTF_OpenFontDPI((const char *)font_file, font_size,
+                                    ctx.hdpi, ctx.vdpi);
+        debug_1("font file: %s (%d).\n", font_file, font_size);
+    }
+    FcPatternDestroy(font_pat);
+}
+
 static inline void calculate_font_metrics(void)
 {
     TTF_SizeText(ctx.fonts[FontBold], "M", &ctx.f_width, NULL);
@@ -98,6 +127,7 @@ static inline void sdl_init(void)
         tryp(SDL_CreateRenderer(debug_window, -1, SDL_RENDERER_ACCELERATED));
 #endif
 
+    SDL_GetDisplayDPI(0, 0, &ctx.hdpi, &ctx.vdpi);
     {
         FcConfig *config = FcInitLoadConfigAndFonts();
 
@@ -112,8 +142,6 @@ static inline void sdl_init(void)
 
         FcConfigDestroy(config);
     }
-
-    SDL_GetDisplayDPI(0, 0, &ctx.hdpi, &ctx.vdpi);
 
     calculate_font_metrics();
     frame_resize(&frame, cfg->rows, cfg->cols);
