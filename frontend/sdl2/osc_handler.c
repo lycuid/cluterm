@@ -2,7 +2,6 @@
 #include "main.h"
 #include <SDL2/SDL.h>
 #include <cluterm/colors.h>
-#include <cluterm/config.h>
 #include <config.h>
 
 static inline bool rgb_component(Scanner *s, uint8_t *comp)
@@ -52,15 +51,15 @@ static inline bool osc_set_color(Cluterm *term, OSC_Action action, int index,
 
     switch (action) {
     case OSC_4:
-        cfg->theme.palette[index] = color;
+        term->theme.palette[index] = color;
         gfx_request_render(1);
         break;
     case OSC_10:
-        cfg->theme.fg = color;
+        term->theme.fg = color;
         gfx_request_render(1);
         break;
     case OSC_11:
-        cfg->theme.bg = color;
+        term->theme.bg = color;
         gfx_request_render(1);
         break;
     case OSC_12: {
@@ -78,23 +77,27 @@ static inline bool osc_query(Cluterm *term, OSC_Action action, int index)
     char osc_color[36]     = {0};
     const ClutermBuffer *b = ACTIVE_BUFFER(term);
 
+#define RRGGBB(i)                                                              \
+    ((i) >> 16) & 0xff, ((i) >> 16) & 0xff, ((i) >> 8) & 0xff,                 \
+        ((i) >> 8) & 0xff, (i) & 0xff, (i) & 0xff
+
     switch (action) {
     case OSC_4:
-        sprintf(osc_color, "\x1b]4;%d;rgb:%02x/%02x/%02x\x07", index,
-                UNPACK(cfg->theme.palette[index]));
+        sprintf(osc_color, "\x1b]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
+                index, RRGGBB(term->theme.palette[index]));
         goto send_cmd;
     case OSC_10:
-        sprintf(osc_color, "\x1b]10;rgb:%02x/%02x/%02x\x07",
-                UNPACK(cfg->theme.fg));
+        sprintf(osc_color, "\x1b]10;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
+                RRGGBB(term->theme.fg));
         goto send_cmd;
     case OSC_11:
-        sprintf(osc_color, "\x1b]11;rgb:%02x/%02x/%02x\x07",
-                UNPACK(cfg->theme.bg));
+        sprintf(osc_color, "\x1b]11;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
+                RRGGBB(term->theme.bg));
         goto send_cmd;
     case OSC_12:
-        sprintf(osc_color, "\x1b]12;rgb:%02x/%02x/%02x\x07",
-                UNPACK(b->cursor.color));
-#undef fill
+        sprintf(osc_color, "\x1b]12;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
+                RRGGBB(b->cursor.color));
+#undef RRGGBB
     send_cmd: {
         pty_write(&term->pty, osc_color, strlen(osc_color));
     } break;
@@ -107,6 +110,7 @@ static inline bool osc_query(Cluterm *term, OSC_Action action, int index)
 void osc_handler(Cluterm *term, OSC_Payload *osc)
 {
     Scanner *s = &osc->scanner;
+    debug_2("OSC %d%s.\n", osc->action, s_buffer(s));
 
     switch (osc->action) {
     case OSC_0: // fallthrough
@@ -161,15 +165,15 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
 
     case OSC_104: {
         if (!s_consume(s, ';')) {
-            for (size_t i = 0; i < 256; ++i)
-                cfg->theme.palette[i] = color256(i);
+            memcpy(&term->theme, &term->config.theme, sizeof(Theme));
             break;
         }
+
         do {
             int index = s_consume_number(s);
             if (!BETWEEN(index, 0, 255))
                 break;
-            cfg->theme.palette[index] = color256(index);
+            term->theme.palette[index] = term->config.theme.palette[index];
         } while (s_consume(s, ';'));
 
         if (s_buflen(s))
@@ -177,18 +181,18 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
     } break;
 
     case OSC_110: {
-        cfg->theme.fg = DefaultTheme.fg;
+        term->theme.fg = DefaultTheme.fg;
         gfx_request_render(1);
     } break;
 
     case OSC_111: {
-        cfg->theme.bg = DefaultTheme.bg;
+        term->theme.bg = DefaultTheme.bg;
         gfx_request_render(1);
     } break;
 
     case OSC_112: {
         ClutermBuffer *b = ACTIVE_BUFFER(term);
-        b->cursor.color  = DefaultCursor.color;
+        b->cursor.color  = DefaultCursorColor;
         gfx_request_render(1);
     } break;
 

@@ -1,5 +1,4 @@
 #include "buffer.h"
-#include <cluterm/config.h>
 #include <cluterm/debug.h>
 #include <cluterm/utf8.h>
 #include <stdbool.h>
@@ -19,18 +18,19 @@
 
 #define dirty_line(b, y) dirty_lines(b, y, 1)
 
-void buffer_init(ClutermBuffer *b, int rows, int cols, int history)
+void buffer_init(ClutermBuffer *b, Config *cfg)
 {
-    b->rows = rows, b->cols = cols, b->history = history, b->last_row = 0;
-    b->scroll_region.start = 0, b->scroll_region.end = b->rows - 1;
-    b->tab = calloc(b->cols + 1, sizeof(bool));
+    b->rows = cfg->rows, b->cols = cfg->cols, b->history = cfg->history,
+    b->last_row = 0, b->scroll_region.start = 0,
+    b->scroll_region.end = b->rows - 1;
+    b->tab               = calloc(b->cols + 1, sizeof(bool));
     for (int i = cfg->tab_width; i <= b->cols; i += cfg->tab_width)
         b->tab[i] = 1;
 
     /* Cursor. */ {
-        b->cursor.y = b->cursor.x = 0, b->cursor.color = cfg->cursor.color,
-        b->cursor.visible = 1, b->cursor.style = cfg->cursor.style,
-        b->cursor.shape = cfg->cursor.shape;
+        b->cursor.y = b->cursor.x = 0, b->cursor.color = cfg->cursor_color,
+        b->cursor.visible = 1, b->cursor.style = cfg->cursor_style,
+        b->cursor.shape = cfg->cursor_shape;
         b->saved_cursor = b->cursor;
     }
 
@@ -46,11 +46,11 @@ void buffer_init(ClutermBuffer *b, int rows, int cols, int history)
         for (int x = 0; x < b->cols; ++x)
             b->lines[y][x] = DEFAULT_CELL(' ');
     }
-    b->dirty = malloc(rows * cols * sizeof(bool));
+    b->dirty = malloc(cfg->rows * cfg->cols * sizeof(bool));
     clear(b);
 }
 
-void buffer_resize(ClutermBuffer *b, int rows, int cols)
+void buffer_resize(ClutermBuffer *b, Config *cfg, int rows, int cols)
 {
     debug_1("buffer resized to %dx%d.\n", cols, rows);
     Line *ll = malloc(rows * sizeof(Line));

@@ -39,8 +39,7 @@ static const int hex[] = {
     ['C'] = 12, ['D'] = 13, ['E'] = 14, ['F'] = 15,
 };
 
-Rgb color256(uint8_t);
-Rgb resolve_color(const Color *const);
+Rgb resolve_color(const Color *, const Theme *);
 bool parse_rgb(Scanner *s, Rgb *color);
 
 #endif

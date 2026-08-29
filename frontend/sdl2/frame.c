@@ -3,9 +3,7 @@
 #include "main.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
-#include <cluterm/config.h>
 #include <cluterm/vt/buffer.h>
-#include <cluterm/vt/cell.h>
 
 static struct {
     int y, x, len;
@@ -26,8 +24,6 @@ static inline void canvas_resize(FrameCanvas *canvas, size_t w, size_t h)
                                         canvas->disph);
     if (!canvas->texture)
         die(1, "%s\n", SDL_GetError());
-    SDL_SetRenderDrawColor(gfx->renderer, UNPACK(cfg->theme.bg), 0);
-    SDL_RenderClear(gfx->renderer);
 }
 
 static inline void background(Rgb bg, const SDL_Rect *rect)
@@ -61,20 +57,34 @@ static inline void bar(Rgb color, SDL_Rect rect, size_t sz)
     SDL_RenderFillRect(gfx->renderer, &rect);
 }
 
-static inline bool cell_belongs(Cell *cell)
+static inline Rgb cell_fg(const Cell *cell, const Theme *theme)
 {
-    Rgb fg = cell_fg(cell), bg = cell_bg(cell);
+    if (IS_SET(cell->attrs.state, CELL_INVERSE))
+        return resolve_color(&cell->attrs.bg, theme);
+    return resolve_color(&cell->attrs.fg, theme);
+}
+
+static inline Rgb cell_bg(const Cell *cell, const Theme *theme)
+{
+    if (IS_SET(cell->attrs.state, CELL_INVERSE))
+        return resolve_color(&cell->attrs.fg, theme);
+    return resolve_color(&cell->attrs.bg, theme);
+}
+
+static inline bool cell_belongs(const Cell *cell, const Theme *theme)
+{
+    Rgb fg = cell_fg(cell, theme), bg = cell_bg(cell, theme);
 
     return fg == batch.fg && bg == batch.bg && cell->attrs.state == batch.state;
 }
 
-static inline void batch_add(Cell *cell, int x)
+static inline void batch_add(const Cell *cell, const Theme *theme, int x)
 {
     if (!batch.len) {
         batch.x     = x;
         batch.state = cell->attrs.state;
-        batch.fg    = cell_fg(cell);
-        batch.bg    = cell_bg(cell);
+        batch.fg    = cell_fg(cell, theme);
+        batch.bg    = cell_bg(cell, theme);
     }
     batch.len++;
 }
@@ -94,7 +104,7 @@ static inline void batch_flush(const Line line)
     for (int dx = 0; dx < batch.len; ++dx) {
         int y = batch.y, x = batch.x + dx;
         if (line[x].value != ' ')
-            gcache_emit(line[x], y, x);
+            gcache_emit(line[x], batch.fg, y, x);
 #if DEBUG_LVL >= 4
         bounding_box(y, x);
 #endif
@@ -106,7 +116,7 @@ static inline void batch_flush(const Line line)
     batch.len = 0;
 }
 
-static inline void draw_cursor(Frame *frame)
+static inline void draw_cursor(const Frame *frame)
 {
     const Cursor *c = &frame->buffer.cursor;
     if (c->x >= frame->buffer.cols || c->y >= frame->buffer.rows)
@@ -128,14 +138,15 @@ static inline void draw_cursor(Frame *frame)
         cell.attrs.bg = ColorRgb(c->color);
     }
 
-    background(cell_bg(&cell), &dst);
+    Rgb fg = cell_fg(&cell, &frame->theme), bg = cell_bg(&cell, &frame->theme);
 
-    gcache_emit(cell, c->y, c->x);
+    background(bg, &dst);
+    gcache_emit(cell, fg, c->y, c->x);
 
     if (use_cursor && c->shape == CursorUnderline)
         underline(c->color, dst, 3);
     else if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
-        underline(cell_fg(&cell), dst, 2);
+        underline(fg, dst, 2);
 
     if (use_cursor && c->shape == CursorBar)
         bar(c->color, dst, 3);
@@ -173,12 +184,8 @@ void frame_capture(Frame *frame, const Cluterm *term)
 
     memmove(fb->dirty, cb->dirty, cb->cols * cb->rows * sizeof(*cb->dirty));
     memset(cb->dirty, 0, cb->rows * cb->cols * sizeof(*cb->dirty));
-}
 
-void frame_canvas_update(Frame *frame, bool fresh)
-{
-    SDL_SetRenderTarget(gfx->renderer, frame->canvas.texture);
-    struct FrameBuffer *buffer = &frame->buffer;
+    memcpy(&frame->theme, &term->theme, sizeof(Theme));
 
 #ifdef DUMP_DIRTY_FRAME
     // {{{
@@ -186,10 +193,10 @@ void frame_canvas_update(Frame *frame, bool fresh)
     debug("\x1b[2J");
     debug("----------------- Frame begin: (%ld) -----------------\n",
           ++frameno);
-    for (int y = 0; y < buffer->rows; ++y) {
-        for (int x = 0; x < buffer->cols; ++x) {
-            Cell cell = buffer->lines[y][x];
-            if (buffer->dirty[y * buffer->cols + x]) {
+    for (int y = 0; y < frame->buffer.rows; ++y) {
+        for (int x = 0; x < frame->buffer.cols; ++x) {
+            Cell cell = frame->buffer.lines[y][x];
+            if (frame->buffer.dirty[y * frame->buffer.cols + x]) {
                 UTF8_String utf8_string = {0};
                 utf8_encode(cell.value, utf8_string);
                 debug("%s", utf8_string);
@@ -202,6 +209,13 @@ void frame_canvas_update(Frame *frame, bool fresh)
     debug("----------------- Frame end -----------------\n");
     // }}}
 #endif
+}
+
+void frame_canvas_update(Frame *frame, bool fresh)
+{
+    SDL_SetRenderTarget(gfx->renderer, frame->canvas.texture);
+    struct FrameBuffer *buffer = &frame->buffer;
+
     for (int y = 0; y < buffer->rows; ++y) {
         batch.y = y;
         for (int x = 0; x < buffer->cols; ++x) {
@@ -212,9 +226,9 @@ void frame_canvas_update(Frame *frame, bool fresh)
 
             Cell cell = buffer->lines[y][x];
 
-            if (!cell_belongs(&cell))
+            if (!cell_belongs(&cell, &frame->theme))
                 batch_flush(buffer->lines[y]);
-            batch_add(&cell, x);
+            batch_add(&cell, &frame->theme, x);
         }
         batch_flush(buffer->lines[y]);
         gcache_flush();

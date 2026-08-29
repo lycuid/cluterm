@@ -1,7 +1,6 @@
 #include "cli.h"
 #include "main.h"
 #include <cluterm/colors.h>
-#include <cluterm/config.h>
 #include <cluterm/debug.h>
 #include <stdio.h>
 #include <string.h>
@@ -20,7 +19,7 @@ static const char usage[] =
     "  -fs size        Set font size.\n"
     "  -e  command...  Execute command and pass remaining arguments.\n";
 
-char *const *argparse(int argc, char *const *argv)
+char *const *argparse(int argc, char *const *argv, Config *cfg)
 {
 
     for (--argc, ++argv; argc > 0; --argc, ++argv) {

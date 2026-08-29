@@ -2,7 +2,7 @@
 #define __CLUTERM__ACTIONS__CSI_H__
 
 #include <cluterm.h>
-#include <cluterm/config.h>
+#include <cluterm/pty.h>
 #include <cluterm/vt/actions.h>
 #include <cluterm/vt/buffer.h>
 #include <config.h>
@@ -161,7 +161,10 @@ static inline void csi_decscusr(Cluterm *term, CSI_Payload *csi)
     ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *c        = &b->cursor;
     switch (PARAM(0)) {
-    case 0: c->style = cfg->cursor.style, c->shape = cfg->cursor.shape; break;
+    case 0:
+        c->style = term->config.cursor_style,
+        c->shape = term->config.cursor_shape;
+        break;
     case 1: c->style = CursorBlink, c->shape = CursorBlock; break;
     case 2: c->style = CursorSolid, c->shape = CursorBlock; break;
     case 3: c->style = CursorBlink, c->shape = CursorUnderline; break;
@@ -275,6 +278,7 @@ EXPORT void csi_execute(Cluterm *term, CSI_Payload *csi)
     case CSI_DECSCUSR: csi_decscusr(term, csi); break;
     case CSI_DECSET: /* fallthrough. */
     case CSI_DECRST: csi_decmode(term, csi, csi->action == CSI_DECSET); break;
+    case CSI_DA1: pty_write(&term->pty, "\x1b[?62c", 6); break;
     case CSI_UNKNOWN: break;
     }
 }

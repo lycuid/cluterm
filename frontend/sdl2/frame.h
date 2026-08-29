@@ -12,12 +12,13 @@ typedef struct FrameCanvas {
 } FrameCanvas;
 
 typedef struct FrameBuffer {
-    MEMBERS_FRAME_BUFFER;
+    MEMBERS_FRAME_BUFFER
 } FrameBuffer;
 
 typedef struct Frame {
     FrameBuffer buffer;
     FrameCanvas canvas;
+    Theme theme;
 
     struct {
         bool visible;

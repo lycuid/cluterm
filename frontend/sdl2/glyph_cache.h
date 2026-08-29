@@ -4,10 +4,10 @@
 #include <SDL2/SDL.h>
 #include <cluterm/vt/buffer.h>
 
-void gcache_init(void);
+void gcache_init(int, int);
 void gcache_destroy(void);
 void gcache_resize(int, int);
-void gcache_emit(Cell, int, int);
+void gcache_emit(Cell, Rgb, int, int);
 int gcache_flush(void);
 
 #endif

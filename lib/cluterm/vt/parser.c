@@ -31,7 +31,7 @@ static inline void prepare_osc_payload(VT_Parser *, OSC_Payload *);
 
 void parser_init(VT_Parser *vtp) { transition(vtp, STATE_GROUND); }
 
-void parser_feed(VT_Parser *vtp, const uchar *stream, uint32_t slen)
+void parser_feed(VT_Parser *vtp, const uchar *stream, size_t slen)
 {
     vtp->scanner = SCANNER(stream, slen);
 }
@@ -336,6 +336,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
             CASE_REPR(CSI_DECSTBM);
             CASE_REPR(CSI_DECSET);
             CASE_REPR(CSI_DECRST);
+            CASE_REPR(CSI_DA1);
             CASE_REPR(CSI_UNKNOWN);
         }
         if (csi->nparam)
@@ -435,6 +436,7 @@ static inline void prepare_csi_payload(VT_Parser *vtp, CSI_Payload *csi)
     case '@': { csi->action = CSI_ICH; goto ensure_single_param; }
     case 'P': { csi->action = CSI_DCH; goto ensure_single_param; }
     case 'X': { csi->action = CSI_ECH; goto ensure_single_param; }
+    case 'c': { csi->action = CSI_DA1; goto ensure_single_param; }
     case 'q': {
         if (!s_consume(&interm_s, ' '))
             goto done;
@@ -494,19 +496,4 @@ static inline void prepare_osc_payload(VT_Parser *vtp, OSC_Payload *osc)
     if (!ch || !BETWEEN(*ch, '0', '9'))
         return;
     osc->action = s_consume_number(&osc->scanner);
-
-    switch (osc->action) {
-    case OSC_0:   break;
-    case OSC_2:   break;
-    case OSC_4:   break;
-    case OSC_7:   break;
-    case OSC_10:  break;
-    case OSC_11:  break;
-    case OSC_12:  break;
-    case OSC_104: break;
-    case OSC_110: break;
-    case OSC_111: break;
-    case OSC_112: break;
-    default: osc->action = OSC_UNKNOWN;
-    }
 }

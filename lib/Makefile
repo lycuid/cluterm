@@ -6,11 +6,9 @@ LIB:=$(BUILD)/lib$(NAME).a
 
 O_FILES:=$(O_DIR)/$(NAME).o            \
          $(O_DIR)/$(NAME)/colors.o     \
-         $(O_DIR)/$(NAME)/config.o     \
          $(O_DIR)/$(NAME)/pty.o        \
          $(O_DIR)/$(NAME)/utf8.o       \
          $(O_DIR)/$(NAME)/vt/buffer.o  \
-         $(O_DIR)/$(NAME)/vt/cell.o    \
          $(O_DIR)/$(NAME)/vt/parser.o
 
 override CFLAGS+= $(FLAGS) $(DEFINE) -fPIC -I$(I_DIR)

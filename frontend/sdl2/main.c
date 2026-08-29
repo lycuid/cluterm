@@ -7,7 +7,6 @@
 #include "osc_handler.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
-#include <cluterm/config.h>
 #include <cluterm/debug.h>
 #include <cluterm/pty.h>
 #include <cluterm/vt/buffer.h>
@@ -111,12 +110,13 @@ static inline void calculate_font_metrics(void)
     ctx.f_height = TTF_FontLineSkip(ctx.fonts[FontBold]);
 }
 
-static inline void sdl_init(void)
+static inline void sdl_init(Cluterm *term)
 {
     tryn(SDL_Init(SDL_INIT_VIDEO));
     tryn(TTF_Init());
-    ctx.window = tryp(SDL_CreateWindow(
-        cfg->title, 280, 100, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE));
+    ctx.window =
+        tryp(SDL_CreateWindow(term->config.title, 280, 100, 0, 0,
+                              SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE));
     ctx.renderer =
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
 
@@ -131,8 +131,8 @@ static inline void sdl_init(void)
     {
         FcConfig *config = FcInitLoadConfigAndFonts();
 
-        int size           = cfg->font_size + f_delta;
-        const char *family = cfg->font_family;
+        int size           = term->config.font_size + f_delta;
+        const char *family = term->config.font_family;
 
         load_font(config, family, size, "Regular", &ctx.fonts[FontRegular]);
         load_font(config, family, size, "Bold", &ctx.fonts[FontBold]);
@@ -144,10 +144,11 @@ static inline void sdl_init(void)
     }
 
     calculate_font_metrics();
-    frame_resize(&frame, cfg->rows, cfg->cols);
-    gcache_init();
+    frame_resize(&frame, term->config.rows, term->config.cols);
+    gcache_init(term->config.rows, term->config.cols);
 
-    int w = ctx.f_width * cfg->cols, h = ctx.f_height * cfg->rows;
+    int w = ctx.f_width * term->config.cols,
+        h = ctx.f_height * term->config.rows;
 #ifdef DEBUG_ATLAS
     SDL_SetWindowSize(debug_window, 200 * ctx.f_width * 1.2f,
                       8 * ctx.f_height * 1.2f);
@@ -239,12 +240,12 @@ static inline void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
     case SDLK_MINUS: // fallthrough
     case SDLK_KP_MINUS:
         if (ctrl) {
-            f_delta = MAX(1 - cfg->font_size, f_delta - 1);
+            f_delta = MAX(1 - term->config.font_size, f_delta - 1);
             goto gfx_rebuild;
         }
         break;
     gfx_rebuild: {
-        int size  = cfg->font_size + f_delta;
+        int size  = term->config.font_size + f_delta;
         uint hdpi = lroundf(ctx.hdpi), vdpi = lroundf(ctx.vdpi);
         TTF_SetFontSizeDPI(ctx.fonts[FontRegular], size, hdpi, vdpi);
         TTF_SetFontSizeDPI(ctx.fonts[FontBold], size, hdpi, vdpi);
@@ -254,13 +255,13 @@ static inline void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
 
         int w, h;
         SDL_GetWindowSize(ctx.window, &w, &h);
-        cfg->cols = w / ctx.f_width, cfg->rows = h / ctx.f_height;
+        int cols = w / ctx.f_width, rows = h / ctx.f_height;
 
-        GUARD(vt_mutex) { cluterm_resize(term, cfg->rows, cfg->cols); }
-        frame_resize(&frame, cfg->rows, cfg->cols);
+        GUARD(vt_mutex) { cluterm_resize(term, rows, cols); }
+        frame_resize(&frame, rows, cols);
 
         gcache_destroy();
-        gcache_init();
+        gcache_init(term->config.rows, term->config.cols);
 
         gfx_request_render(1);
     } break;
@@ -284,10 +285,33 @@ static inline void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
     case SDLK_TAB:       pty_write(&term->pty, "\t", 1);     break;
     case SDLK_BACKSPACE: pty_write(&term->pty, "\b", 1);     break;
     case SDLK_ESCAPE:    pty_write(&term->pty, "\x1b", 1);   break;
-    case SDLK_UP:        pty_write(&term->pty, "\x1b[A", 3); break;
-    case SDLK_DOWN:      pty_write(&term->pty, "\x1b[B", 3); break;
-    case SDLK_RIGHT:     pty_write(&term->pty, "\x1b[C", 3); break;
-    case SDLK_LEFT:      pty_write(&term->pty, "\x1b[D", 3); break;
+
+#define pty_write_arrow(final)                                                 \
+    do {                                                                       \
+        if (ctrl && shift && alt)                                              \
+            pty_write(&term->pty, "\x1b[1;8" final, 6);                        \
+        else if (alt && ctrl)                                                  \
+            pty_write(&term->pty, "\x1b[1;7" final, 6);                        \
+        else if (ctrl && shift)                                                \
+            pty_write(&term->pty, "\x1b[1;6" final, 6);                        \
+        else if (shift && alt)                                                 \
+            pty_write(&term->pty, "\x1b[1;4" final, 6);                        \
+        else if (ctrl)                                                         \
+            pty_write(&term->pty, "\x1b[1;5" final, 6);                        \
+        else if (shift)                                                        \
+            pty_write(&term->pty, "\x1b[1;2" final, 6);                        \
+        else if (alt)                                                          \
+            pty_write(&term->pty, "\x1b[1;3" final, 6);                        \
+        else                                                                   \
+            pty_write(&term->pty, "\x1b[" final, 3);                           \
+    } while (0)
+
+    case SDLK_UP:        pty_write_arrow("A"); break;
+    case SDLK_DOWN:      pty_write_arrow("B"); break;
+    case SDLK_RIGHT:     pty_write_arrow("C"); break;
+    case SDLK_LEFT:      pty_write_arrow("D"); break;
+#undef pty_write_arrow
+
     case SDLK_HOME:      pty_write(&term->pty, "\x1b[H", 3); break;
     case SDLK_END:       pty_write(&term->pty, "\x1b[F", 3); break;
     case SDLK_INSERT: {
@@ -310,7 +334,7 @@ static inline void render(Cluterm *term)
     frame_canvas_update(&frame, fresh);
 
     if (fresh) {
-        SDL_SetRenderDrawColor(ctx.renderer, UNPACK(cfg->theme.bg), 0);
+        SDL_SetRenderDrawColor(ctx.renderer, UNPACK(term->theme.bg), 0);
         SDL_RenderClear(ctx.renderer);
     }
 
@@ -328,7 +352,7 @@ int pty_reader(void *arg)
     struct timespec ts = {.tv_nsec = 1e6};
     while (is_running()) {
         if ((n = pty_read(&term->pty, stream, sizeof(stream))) > 0) {
-            GUARD(vt_mutex) { cluterm_write(term, stream, n); }
+            GUARD(vt_mutex) { cluterm_write(term, stream, (size_t)n); }
             gfx_request_render(0);
         } else {
             nanosleep(&ts, &ts);
@@ -339,21 +363,20 @@ int pty_reader(void *arg)
 
 int main(int argc, char *const *argv)
 {
-    init_config();
+    Cluterm term = {0};
+    cluterm_init(&term);
+    term.osc_handler = osc_handler;
 
-    char *const *cmd = argparse(argc, argv);
+    char *const *cmd = argparse(argc, argv, &term.config);
     char *shell[2]   = {0};
     if (!cmd || !*cmd) {
         if (!(*shell = getenv("SHELL")))
             *shell = "/bin/sh";
         cmd = shell;
     }
+    cluterm_start(&term, cmd);
 
-    Cluterm term = {0};
-    cluterm_init(&term, cmd);
-    term.osc_handler = osc_handler;
-
-    sdl_init();
+    sdl_init(&term);
     signal(SIGCHLD, sigquit); // shell exits/crashes.
 
     struct {

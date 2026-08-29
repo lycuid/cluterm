@@ -2,7 +2,6 @@
 #include "glyph_cache/lru.h"
 #include "main.h"
 #include <cluterm/colors.h>
-#include <cluterm/config.h>
 
 #define PRINTABLE_ASCII_START 32
 #define PRINTABLE_ASCII_END   126
@@ -76,7 +75,7 @@ static inline AtlasSlot *ascii_slot(char ch, int f_index)
     return &ascii_slots[index];
 }
 
-void gcache_init(void)
+void gcache_init(int rows, int cols)
 {
     atlas_cell_width  = 1.2f * gfx->f_width,
     atlas_cell_height = 1.2f * gfx->f_height;
@@ -124,7 +123,7 @@ void gcache_init(void)
             SDL_FreeSurface(surface);
         }
     }
-    gcache_resize(cfg->rows, cfg->cols);
+    gcache_resize(rows, cols);
     atlas.nverts = 0, atlas.nindices = 0;
 }
 
@@ -227,7 +226,7 @@ static inline AtlasSlot *get_slot(Cell cell)
     return slot;
 }
 
-void gcache_emit(Cell cell, int y, int x)
+void gcache_emit(Cell cell, Rgb fg, int y, int x)
 {
     AtlasSlot *slot = get_slot(cell);
     if (!slot)
@@ -242,8 +241,6 @@ void gcache_emit(Cell cell, int y, int x)
           v1 = (slot->y + MIN(gfx->f_height, slot->h)) / atlas_h;
 
     int base_index = atlas.nverts;
-
-    Rgb fg = cell_fg(&cell);
 
     atlas.verts[atlas.nverts++] = (SDL_Vertex){
         .position  = {x, y},

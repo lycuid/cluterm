@@ -75,7 +75,7 @@ typedef struct VT_Parser {
 } VT_Parser;
 
 void parser_init(VT_Parser *);
-void parser_feed(VT_Parser *, const uchar *, uint32_t);
+void parser_feed(VT_Parser *, const uchar *, size_t);
 FSM_Event parser_run(VT_Parser *);
 
 #endif

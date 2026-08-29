@@ -58,6 +58,7 @@ typedef enum CSI_Action {
     CSI_DECSTBM,  // CSI Ps ; Ps r      (Set scrolling region).
     CSI_DECSET,   // CSI Pm h           (Private mode 'set', xterm).
     CSI_DECRST,   // CSI Pm l           (Private mode 'reset', xterm).
+    CSI_DA1,      // CSI c              (Private mode 'reset', xterm).
 } CSI_Action;
 
 typedef enum OSC_Action {

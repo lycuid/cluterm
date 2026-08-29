@@ -22,13 +22,16 @@ struct Cluterm {
     ClutermBuffer buffer[2];
     cluterm_mode_t mode;
     OSC_Handler osc_handler;
+    Theme theme;
+    Config config;
 };
 
 #define ACTIVE_BUFFER(term)                                                    \
     (&(term)->buffer[IS_SET((term)->mode, MODE_ALT_BUFFER)])
 
-void cluterm_init(Cluterm *, char *const *);
-void cluterm_write(Cluterm *, uchar *, uint32_t);
+void cluterm_init(Cluterm *);
+void cluterm_start(Cluterm *, char *const *);
+void cluterm_write(Cluterm *, uchar *, size_t);
 void cluterm_resize(Cluterm *, int, int);
 void cluterm_destroy(Cluterm *);
 

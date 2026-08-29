@@ -36,6 +36,28 @@ typedef struct Theme {
     Rgb fg, bg;
 } Theme;
 
+typedef enum CursorStyle { CursorSolid, CursorBlink } CursorStyle;
+typedef enum CursorShape {
+    CursorBlock,
+    CursorUnderline,
+    CursorBar
+} CursorShape;
+
+typedef struct Config {
+    const char *title;
+
+    int rows, cols, history, tab_width;
+
+    const char *font_family;
+    int font_size;
+
+    Theme theme;
+
+    Rgb cursor_color;
+    CursorStyle cursor_style;
+    CursorShape cursor_shape;
+} Config;
+
 enum FontType { FontRegular, FontBold, FontItalic, FontBoldItalic };
 
 #endif

@@ -4,17 +4,33 @@
 #include <cluterm/colors.h>
 #include <cluterm/debug.h>
 #include <cluterm/utf8.h>
-#include <cluterm/vt/cell.h>
 #include <cluterm/vt/parser.h>
 #include <stdbool.h>
 
-typedef enum CursorStyle { CursorSolid, CursorBlink } CursorStyle;
-typedef enum CursorShape {
-    CursorBlock,
-    CursorUnderline,
-    CursorBar
-} CursorShape;
+typedef uint16_t CellState;
+#define CELL_NORMAL    0
+#define CELL_BOLD      (1 << 0)
+#define CELL_ITALIC    (1 << 1)
+#define CELL_UNDERLINE (1 << 2)
+#define CELL_INVERSE   (1 << 3)
 
+typedef struct CellAttributes {
+    Color fg, bg;
+    CellState state;
+} CellAttributes;
+
+typedef struct Cell {
+    Rune value;
+    CellAttributes attrs;
+} Cell;
+
+#define DEFAULT_CELL_ATTRS                                                     \
+    (CellAttributes) { .fg = ColorFg(), .bg = ColorBg(), .state = CELL_NORMAL }
+#define DEFAULT_CELL(val) CELL(val, DEFAULT_CELL_ATTRS)
+#define CELL(val, _attrs)                                                      \
+    (Cell) { .value = val, .attrs = _attrs }
+
+typedef Cell *Line;
 typedef struct Cursor {
     int y, x;
     Rgb color;
@@ -33,10 +49,10 @@ typedef enum Charset { CS_USASCII, CS_LINEGFX } Charset;
     int rows, cols;                                                            \
     Line *lines;                                                               \
     bool *dirty;                                                               \
-    Cursor cursor
+    Cursor cursor;
 
 typedef struct ClutermBuffer {
-    MEMBERS_FRAME_BUFFER;
+    MEMBERS_FRAME_BUFFER
 
     int history, last_row;
     bool *tab;
@@ -57,9 +73,9 @@ typedef struct ClutermBuffer {
 #define dirty_buffer(b)                                                        \
     memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
 
-void buffer_init(ClutermBuffer *, int, int, int);
+void buffer_init(ClutermBuffer *, Config *);
 void buffer_destroy(ClutermBuffer *);
-void buffer_resize(ClutermBuffer *, int, int);
+void buffer_resize(ClutermBuffer *, Config *, int, int);
 
 Cell getcell(const ClutermBuffer *, int, int);
 void putcell(ClutermBuffer *, int, int, Cell);

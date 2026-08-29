@@ -34,10 +34,12 @@ static const Theme DefaultTheme = {
     .bg = 0x000000,
 };
 
-static const Cursor DefaultCursor = {
-    .color = DefaultTheme.fg,
-    .style = CursorSolid, // CursorSolid | CursorBlink
-    .shape = CursorBlock, // CursorBlock | CursorUnderline | CursorBar
-};
+static const Rgb DefaultCursorColor = DefaultTheme.fg;
+
+// CursorBlock | CursorUnderline | CursorBar
+static const CursorShape DefaultCursorShape = CursorBlock;
+
+// CursorSolid | CursorBlink
+static const CursorStyle DefaultCursorStyle = CursorSolid;
 
 #endif

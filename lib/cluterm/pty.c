@@ -1,5 +1,4 @@
 #include "pty.h"
-#include <cluterm/config.h>
 #include <cluterm/debug.h>
 #include <err.h>
 #include <errno.h>
@@ -34,7 +33,6 @@ void pty_spawn(pty_t *pty, char *const *cmd)
 
     TRY((pty->shell = fork()), "[fork]: starting child process for shell");
     if (pty->shell) {
-        pty_resize(pty, cfg->rows, cfg->cols);
         return;
     }
 
@@ -49,8 +47,6 @@ void pty_spawn(pty_t *pty, char *const *cmd)
     TRY(dup2(pts, STDERR_FILENO), "dup2(stderr).\n");
     close(pts);
     close(pty->ptmx);
-
-    unsetenv("TMUX");
     setenv("TERM", "xterm-256color", 1);
     TRY(execvp(cmd[0], cmd), "execvp()");
 }
