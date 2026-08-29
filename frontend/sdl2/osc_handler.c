@@ -1,9 +1,9 @@
 #include "osc_handler.h"
-#include "SDL_events.h"
 #include "main.h"
 #include <SDL2/SDL.h>
 #include <cluterm/colors.h>
 #include <cluterm/config.h>
+#include <config.h>
 
 static inline bool rgb_component(Scanner *s, uint8_t *comp)
 {
@@ -51,12 +51,22 @@ static inline bool osc_set_color(Cluterm *term, OSC_Action action, int index,
         return 0;
 
     switch (action) {
-    case OSC_4: cfg->theme.palette[index] = color; break;
-    case OSC_10: cfg->theme.fg = color; break;
-    case OSC_11: cfg->theme.bg = color; break;
+    case OSC_4:
+        cfg->theme.palette[index] = color;
+        gfx_request_render(1);
+        break;
+    case OSC_10:
+        cfg->theme.fg = color;
+        gfx_request_render(1);
+        break;
+    case OSC_11:
+        cfg->theme.bg = color;
+        gfx_request_render(1);
+        break;
     case OSC_12: {
         term->buffer[0].cursor.color = color;
         term->buffer[1].cursor.color = color;
+        gfx_request_render(1);
     } break;
     default: debug_2("osc action unsupported: '%d'.\n", action);
     }
@@ -106,11 +116,8 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
         // safe to malloc/free, as this is probably not gonna be frequent.
         char *title = calloc(s_buflen(s) + 1, sizeof(char));
         memcpy(title, s_buffer(s), s_buflen(s));
-        SDL_Event e = {.user = {.type  = SDL_USEREVENT,
-                                .data1 = title,
-                                .code  = USEREVENT_SET_TITLE}};
-        if (SDL_PushEvent(&e) < 0)
-            free(title);
+        SDL_SetWindowTitle(gfx->window, title);
+        free(title);
     } break;
 
     case OSC_4: {
@@ -168,6 +175,23 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
         if (s_buflen(s))
             debug_2("Invalid osc string '%s'.\n", s->buffer);
     } break;
+
+    case OSC_110: {
+        cfg->theme.fg = DefaultTheme.fg;
+        gfx_request_render(1);
+    } break;
+
+    case OSC_111: {
+        cfg->theme.bg = DefaultTheme.bg;
+        gfx_request_render(1);
+    } break;
+
+    case OSC_112: {
+        ClutermBuffer *b = ACTIVE_BUFFER(term);
+        b->cursor.color  = DefaultCursor.color;
+        gfx_request_render(1);
+    } break;
+
     case OSC_UNKNOWN: break;
     }
 }

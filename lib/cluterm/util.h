@@ -16,7 +16,7 @@
 #define UNSET(state, mask)       ((state) &= ~(mask))
 #define IS_SET(state, mask)      (((state) & (mask)) == (mask))
 #define IS_SET_ANY(state, mask)  (((state) & (mask)) != 0)
-#define UPDATE(state, mask, set) (set ? SET(state, mask) : UNSET(state, mask));
+#define UPDATE(state, mask, set) (set ? SET(state, mask) : UNSET(state, mask))
 
 #define MIN(x, y)        ((x) < (y) ? (x) : (y))
 #define MAX(x, y)        ((x) > (y) ? (x) : (y))

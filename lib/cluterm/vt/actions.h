@@ -69,7 +69,10 @@ typedef enum OSC_Action {
     OSC_10 = 10,   // OSC 10     (set foreground color).
     OSC_11,        // OSC 11     (set background color).
     OSC_12,        // OSC 12     (set cursor color).
-    OSC_104 = 104, // OSC 14     (reset palette color).
+    OSC_104 = 104, // OSC 104    (reset palette color).
+    OSC_110 = 110, // OSC 110    (reset foreground color).
+    OSC_111,       // OSC 111    (reset background color).
+    OSC_112,       // OSC 112    (reset cursor color).
 } OSC_Action;
 
 #endif

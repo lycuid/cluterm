@@ -243,7 +243,8 @@ void gcache_emit(Cell cell, int y, int x)
 
     int base_index = atlas.nverts;
 
-    Rgb fg = resolve_color(&cell.attrs.fg);
+    Rgb fg = cell_fg(&cell);
+
     atlas.verts[atlas.nverts++] = (SDL_Vertex){
         .position  = {x, y},
         .tex_coord = {u0, v0},

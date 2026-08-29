@@ -32,7 +32,7 @@ void pty_spawn(pty_t *pty, char *const *cmd)
     const char *pts_path = ptsname(pty->ptmx); // ioctl: TIOCGPTN
     debug_1("pts_path: '%s'.\n", pts_path);
 
-    TRY((pty->shell = fork()), "starting child process for shell");
+    TRY((pty->shell = fork()), "[fork]: starting child process for shell");
     if (pty->shell) {
         pty_resize(pty, cfg->rows, cfg->cols);
         return;
@@ -42,15 +42,16 @@ void pty_spawn(pty_t *pty, char *const *cmd)
     TRY((pts = open(pts_path, O_RDWR, 0)), "pts open");
 
     debug_1("child executed!.\n");
-    TRY(setsid(), "setsid()");
-    TRY(ioctl(pts, TIOCSCTTY, 0), "ioctl: TIOCSCTTY failed.");
-    ASSERT(dup2(pts, STDIN_FILENO) != STDIN_FILENO, "[stdin] dup: failed!.\n");
-    ASSERT(dup2(pts, STDOUT_FILENO) != STDOUT_FILENO,
-           "[stdout] dup: failed!.\n");
-    ASSERT(dup2(pts, STDERR_FILENO) != STDERR_FILENO,
-           "[stderr] dup: failed!.\n");
+    TRY(setsid(), "setsid().\n");
+    TRY(ioctl(pts, TIOCSCTTY, 0), "ioctl(TIOCSCTTY).\n");
+    TRY(dup2(pts, STDIN_FILENO), "dup2(stdin).\n");
+    TRY(dup2(pts, STDOUT_FILENO), "dup2(stdout).\n");
+    TRY(dup2(pts, STDERR_FILENO), "dup2(stderr).\n");
     close(pts);
     close(pty->ptmx);
+
+    unsetenv("TMUX");
+    setenv("TERM", "xterm-256color", 1);
     TRY(execvp(cmd[0], cmd), "execvp()");
 }
 

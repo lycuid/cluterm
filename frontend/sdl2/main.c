@@ -29,7 +29,7 @@ static atomic_bool         //
 #define is_running() atomic_load_explicit(&running, memory_order_relaxed)
 #define quit()       atomic_store_explicit(&running, 0, memory_order_relaxed)
 
-static inline void request_render(bool fresh)
+void gfx_request_render(bool fresh)
 {
     if (fresh)
         atomic_store_explicit(&full_frame_render, 1, memory_order_relaxed);
@@ -262,7 +262,7 @@ static inline void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
         gcache_destroy();
         gcache_init();
 
-        request_render(1);
+        gfx_request_render(1);
     } break;
 
         // clang-format off
@@ -301,18 +301,6 @@ static inline void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
     }
 }
 
-static inline void handle_userevent(SDL_UserEvent *user)
-{
-    switch (user->code) {
-    case USEREVENT_SET_TITLE:
-        if (user->data1) {
-            SDL_SetWindowTitle(gfx->window, user->data1);
-            free(user->data1);
-        }
-        break;
-    }
-}
-
 static inline void render(Cluterm *term)
 {
     bool fresh = fresh_render();
@@ -341,7 +329,7 @@ int pty_reader(void *arg)
     while (is_running()) {
         if ((n = pty_read(&term->pty, stream, sizeof(stream))) > 0) {
             GUARD(vt_mutex) { cluterm_write(term, stream, n); }
-            request_render(0);
+            gfx_request_render(0);
         } else {
             nanosleep(&ts, &ts);
         }
@@ -379,14 +367,14 @@ int main(int argc, char *const *argv)
     for (SDL_Event e; is_running();) {
 
         if (frame_tick(&frame))
-            request_render(0);
+            gfx_request_render(0);
 
         if (resz.pending && since(&resz.last, FPS(2))) {
             resz.pending = 0;
             GUARD(vt_mutex) { cluterm_resize(&term, resz.h, resz.w); }
             frame_resize(&frame, resz.h, resz.w);
             gcache_resize(resz.h, resz.w);
-            request_render(1);
+            gfx_request_render(1);
         }
 
         while (SDL_PollEvent(&e)) {
@@ -396,7 +384,7 @@ int main(int argc, char *const *argv)
             case SDL_WINDOWEVENT: {
                 SDL_WindowEvent *win = &e.window;
                 switch (win->event) {
-                case SDL_WINDOWEVENT_EXPOSED: request_render(1); break;
+                case SDL_WINDOWEVENT_EXPOSED: gfx_request_render(1); break;
                 case SDL_WINDOWEVENT_CLOSE: quit(); break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
@@ -413,7 +401,6 @@ int main(int argc, char *const *argv)
             } break;
 
             case SDL_KEYDOWN: handle_keydown(&term, &e.key); break;
-            case SDL_USEREVENT: handle_userevent(&e.user); break;
             default: break;
             }
         }

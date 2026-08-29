@@ -3,9 +3,9 @@
 #include "main.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
-#include <cluterm/colors.h>
 #include <cluterm/config.h>
 #include <cluterm/vt/buffer.h>
+#include <cluterm/vt/cell.h>
 
 static struct {
     int y, x, len;
@@ -63,8 +63,7 @@ static inline void bar(Rgb color, SDL_Rect rect, size_t sz)
 
 static inline bool cell_belongs(Cell *cell)
 {
-    Rgb fg = resolve_color(&cell->attrs.fg),
-        bg = resolve_color(&cell->attrs.bg);
+    Rgb fg = cell_fg(cell), bg = cell_bg(cell);
 
     return fg == batch.fg && bg == batch.bg && cell->attrs.state == batch.state;
 }
@@ -74,8 +73,8 @@ static inline void batch_add(Cell *cell, int x)
     if (!batch.len) {
         batch.x     = x;
         batch.state = cell->attrs.state;
-        batch.fg    = resolve_color(&cell->attrs.fg);
-        batch.bg    = resolve_color(&cell->attrs.bg);
+        batch.fg    = cell_fg(cell);
+        batch.bg    = cell_bg(cell);
     }
     batch.len++;
 }
@@ -129,14 +128,14 @@ static inline void draw_cursor(Frame *frame)
         cell.attrs.bg = ColorRgb(c->color);
     }
 
-    background(resolve_color(&cell.attrs.bg), &dst);
+    background(cell_bg(&cell), &dst);
 
     gcache_emit(cell, c->y, c->x);
 
     if (use_cursor && c->shape == CursorUnderline)
         underline(c->color, dst, 3);
     else if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
-        underline(resolve_color(&cell.attrs.fg), dst, 2);
+        underline(cell_fg(&cell), dst, 2);
 
     if (use_cursor && c->shape == CursorBar)
         bar(c->color, dst, 3);

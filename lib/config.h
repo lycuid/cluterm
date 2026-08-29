@@ -11,7 +11,6 @@ static const char FontFamily[] = "JetBrainsMono Nerd Font";
 static const int FontSize      = 12;
 
 static const Theme DefaultTheme = {
-#ifndef THEME
     .palette =
         {
             [0]  = 0x000000,
@@ -33,9 +32,6 @@ static const Theme DefaultTheme = {
         },
     .fg = 0xeeeeee,
     .bg = 0x000000,
-#else
-#include THEME_FILE(THEME)
-#endif
 };
 
 static const Cursor DefaultCursor = {

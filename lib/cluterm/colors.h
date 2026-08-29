@@ -12,16 +12,25 @@
 #define IS_HEX(ch)                                                             \
     (BETWEEN(ch, '0', '9') || BETWEEN(ch, 'a', 'f') || BETWEEN(ch, 'A', 'F'))
 
+typedef enum ColorKind {
+    ColorRGB,
+    ColorPalette,
+    ColorDefaultFg,
+    ColorDefaultBg,
+} ColorKind;
+
 typedef struct Color {
-    bool is_rgb;
+    ColorKind kind;
     union {
         Rgb rgb;
         uint8_t index;
     } c;
 } Color;
 
-#define ColorRgb(_rgb) ((Color){.is_rgb = 1, .c.rgb = (_rgb)})
-#define ColorIdx(_i)   ((Color){.is_rgb = 0, .c.index = (_i)})
+#define ColorRgb(val) ((Color){.kind = ColorRGB, .c.rgb = (val)})
+#define ColorIdx(i)   ((Color){.kind = ColorPalette, .c.index = (i)})
+#define ColorFg()     ((Color){.kind = ColorDefaultFg})
+#define ColorBg()     ((Color){.kind = ColorDefaultBg})
 
 static const int hex[] = {
     ['0'] = 0,  ['1'] = 1,  ['2'] = 2,  ['3'] = 3,  ['4'] = 4,  ['5'] = 5,

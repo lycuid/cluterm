@@ -77,7 +77,6 @@ static inline void csi_el(Cluterm *term, CSI_Payload *csi)
 static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
 {
     ClutermBuffer *b = ACTIVE_BUFFER(term);
-    Theme *theme     = &cfg->theme;
 
     CellAttributes *attrs = &b->cell_attrs;
     if (!csi->nparam)
@@ -89,20 +88,14 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 1: SET(attrs->state, CELL_BOLD); break;
         case 3: SET(attrs->state, CELL_ITALIC); break;
         case 4: SET(attrs->state, CELL_UNDERLINE); break;
-        case 7: {
-            attrs->fg = ColorRgb(theme->bg);
-            attrs->bg = ColorRgb(theme->fg);
-        } break;
+        case 7: SET(attrs->state, CELL_INVERSE); break;
 
         case 21: UNSET(attrs->state, CELL_BOLD); break;
         case 23: UNSET(attrs->state, CELL_ITALIC); break;
         case 24: UNSET(attrs->state, CELL_UNDERLINE); break;
-        case 27: {
-            attrs->fg = ColorRgb(theme->fg);
-            attrs->bg = ColorRgb(theme->bg);
-        } break;
+        case 27: UNSET(attrs->state, CELL_INVERSE); break;
 
-        // color 0-8 foreground.
+        // color 0-7 foreground.
         case 30: // fallthrough.
         case 31: // fallthrough.
         case 32: // fallthrough.
@@ -111,8 +104,8 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 35: // fallthrough.
         case 36: // fallthrough.
         case 37: attrs->fg = ColorIdx(csi->param[i] - 30); break;
-        case 39: attrs->fg = ColorRgb(theme->fg); break;
-        // color 0-8 background.
+        case 39: attrs->fg = ColorFg(); break;
+        // color 0-7 background.
         case 40: // fallthrough.
         case 41: // fallthrough.
         case 42: // fallthrough.
@@ -121,8 +114,8 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 45: // fallthrough.
         case 46: // fallthrough.
         case 47: attrs->bg = ColorIdx(csi->param[i] - 40); break;
-        case 49: attrs->bg = ColorRgb(theme->bg); break;
-        // color 8-16 foreground.
+        case 49: attrs->bg = ColorBg(); break;
+        // color 8-15 foreground.
         case 90: // fallthrough.
         case 91: // fallthrough.
         case 92: // fallthrough.
@@ -131,7 +124,7 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
         case 95: // fallthrough.
         case 96: // fallthrough.
         case 97: attrs->fg = ColorIdx(csi->param[i] - 90 + 8); break;
-        // color 8-16 background.
+        // color 8-15 background.
         case 100: // fallthrough.
         case 101: // fallthrough.
         case 102: // fallthrough.

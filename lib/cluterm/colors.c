@@ -19,7 +19,13 @@ Rgb color256(uint8_t n)
 
 Rgb resolve_color(const Color *const color)
 {
-    return color->is_rgb ? color->c.rgb : cfg->theme.palette[color->c.index];
+    switch (color->kind) {
+    case ColorRGB: return color->c.rgb;
+    case ColorPalette: return cfg->theme.palette[color->c.index];
+    case ColorDefaultFg: return cfg->theme.fg;
+    case ColorDefaultBg: return cfg->theme.bg;
+    }
+    return color->c.rgb;
 }
 
 bool parse_rgb(Scanner *s, Rgb *color)

@@ -4,34 +4,9 @@
 #include <cluterm/colors.h>
 #include <cluterm/debug.h>
 #include <cluterm/utf8.h>
+#include <cluterm/vt/cell.h>
 #include <cluterm/vt/parser.h>
 #include <stdbool.h>
-
-typedef uint16_t CellState;
-#define CELL_NORMAL    0
-#define CELL_BOLD      (1 << 0)
-#define CELL_ITALIC    (1 << 1)
-#define CELL_UNDERLINE (1 << 2)
-
-typedef struct CellAttributes {
-    Color fg, bg;
-    CellState state;
-} CellAttributes;
-
-typedef struct Cell {
-    Rune value;
-    CellAttributes attrs;
-} Cell;
-
-#define DEFAULT_CELL_ATTRS                                                     \
-    (CellAttributes){.fg    = ColorRgb(cfg->theme.fg),                         \
-                     .bg    = ColorRgb(cfg->theme.bg),                         \
-                     .state = 0x0}
-#define DEFAULT_CELL(val) CELL(val, DEFAULT_CELL_ATTRS)
-#define CELL(val, _attrs)                                                      \
-    (Cell) { .value = val, .attrs = _attrs }
-
-typedef Cell *Line;
 
 typedef enum CursorStyle { CursorSolid, CursorBlink } CursorStyle;
 typedef enum CursorShape {

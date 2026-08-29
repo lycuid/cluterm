@@ -3,16 +3,13 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#include <stdbool.h>
 
 #define die(code, ...)                                                         \
     do {                                                                       \
         debug(__VA_ARGS__);                                                    \
         exit(code);                                                            \
     } while (0)
-
-typedef enum UserEvent {
-    USEREVENT_SET_TITLE,
-} UserEvent;
 
 typedef struct GFX_Context {
     SDL_Window *window;
@@ -29,5 +26,7 @@ extern SDL_Window *debug_window;
 extern SDL_Renderer *debug_renderer;
 extern SDL_Texture *debug_texture;
 #endif
+
+void gfx_request_render(bool);
 
 #endif

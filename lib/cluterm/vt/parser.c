@@ -489,20 +489,24 @@ static inline void prepare_osc_payload(VT_Parser *vtp, OSC_Payload *osc)
 {
     osc->action  = OSC_UNKNOWN;
     osc->scanner = SCANNER(vtp->seq, vtp->nseq);
+
     const uchar *ch = s_peek(&osc->scanner);
     if (!ch || !BETWEEN(*ch, '0', '9'))
         return;
-
     osc->action = s_consume_number(&osc->scanner);
+
     switch (osc->action) {
-    case OSC_0:  // fallthrough
-    case OSC_2:  // fallthrough
-    case OSC_4:  // fallthrough
-    case OSC_7:  // fallthrough
-    case OSC_10: // fallthrough
-    case OSC_11: // fallthrough
-    case OSC_12: // fallthrough
-    case OSC_104: // fallthrough
-    default: break;
+    case OSC_0:   break;
+    case OSC_2:   break;
+    case OSC_4:   break;
+    case OSC_7:   break;
+    case OSC_10:  break;
+    case OSC_11:  break;
+    case OSC_12:  break;
+    case OSC_104: break;
+    case OSC_110: break;
+    case OSC_111: break;
+    case OSC_112: break;
+    default: osc->action = OSC_UNKNOWN;
     }
 }
