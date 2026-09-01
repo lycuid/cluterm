@@ -14,7 +14,8 @@ O_FILES:=$(O_DIR)/main.o              \
          $(O_DIR)/frame.o             \
          $(O_DIR)/glyph_cache.o       \
          $(O_DIR)/glyph_cache/lru.o   \
-         $(O_DIR)/osc_handler.o
+         $(O_DIR)/handlers/mouse.o    \
+         $(O_DIR)/handlers/osc.o
 
 $(BIN): $(O_FILES) ; @mkdir -p $(@D)
 	$(CC) -o $@ $^ $(LDFLAGS)

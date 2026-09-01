@@ -1,4 +1,4 @@
-#include "osc_handler.h"
+#include "osc.h"
 #include "main.h"
 #include <SDL2/SDL.h>
 #include <cluterm/colors.h>

@@ -178,6 +178,7 @@ static inline void csi_decscusr(Cluterm *term, CSI_Payload *csi)
 static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
 {
 
+    MouseTracking *tracking = &term->mouse_tracking;
     for (int i = 0; i < csi->nparam; ++i) {
         ClutermBuffer *b = ACTIVE_BUFFER(term);
 
@@ -194,6 +195,25 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
 
         // CSI_DECTCEM: Show cursor, VT220.
         case 25: b->cursor.visible = is_decset; break;
+
+        case 1000: UPDATE(tracking->proto, PROTO_BUTTON, is_decset); break;
+        case 1002: UPDATE(tracking->proto, PROTO_DRAG, is_decset); break;
+        case 1003: UPDATE(tracking->proto, PROTO_ALL, is_decset); break;
+
+#define update_enc(enc)                                                        \
+    do {                                                                       \
+        if (is_decset)                                                         \
+            tracking->encoding = (enc);                                        \
+        else if (tracking->encoding == (enc))                                  \
+            tracking->encoding = ENC_LEGACY;                                   \
+    } while (0)
+
+        case 1005: update_enc(ENC_UTF8); break;
+        case 1006: update_enc(ENC_SGR); break;
+        case 1015: update_enc(ENC_URXVT); break;
+        case 1016: update_enc(ENC_SGRPIXEL); break;
+
+#undef update_enc
 
         // Alternate screen buffer with save/restore cursor and screen clear.
         case 1049: {

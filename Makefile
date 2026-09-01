@@ -9,12 +9,12 @@ build: ;
 
 debug-build: ;
 	$(MAKE) $(FRONTEND)/sdl2 \
-		CFLAGS="-DDEBUG_LVL=1 -fsanitize=undefined,address -ggdb -O0 $(CFLAGS)" \
+		CFLAGS="-DDEBUG_LVL=2 -fsanitize=undefined,address -ggdb -O0 $(CFLAGS)" \
 		LDFLAGS="-fsanitize=undefined,address $(LDFLAGS)"
 
 thread-debug-build: ;
 	$(MAKE) $(FRONTEND)/sdl2 \
-		CFLAGS="-DDEBUG_LVL=1 -fsanitize=thread -ggdb -O0 $(CFLAGS)" \
+		CFLAGS="-DDEBUG_LVL=2 -fsanitize=thread -ggdb -O0 $(CFLAGS)" \
 		LDFLAGS="-fsanitize=thread $(LDFLAGS)"
 
 .PHONY: $(FRONTEND)/sdl2

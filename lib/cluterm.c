@@ -39,6 +39,7 @@ void cluterm_init(Cluterm *term)
         term->config.theme.palette[i] = color256(i);
 
     parser_init(&term->vt_parser);
+    term->mouse_tracking = (MouseTracking){0};
     term->mode = 0x0, term->osc_handler = NULL;
 }
 

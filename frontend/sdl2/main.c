@@ -1,10 +1,12 @@
 #include "main.h"
+#include "SDL_keyboard.h"
 #include "SDL_keycode.h"
 #include "SDL_video.h"
 #include "cli.h"
 #include "frame.h"
 #include "glyph_cache.h"
-#include "osc_handler.h"
+#include "handlers/mouse.h"
+#include "handlers/osc.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
 #include <cluterm/debug.h>
@@ -14,6 +16,12 @@
 #include <signal.h>
 #include <stdatomic.h>
 #include <time.h>
+
+static GFX_Context ctx;
+const GFX_Context *gfx     = &ctx;
+static Frame frame         = {0};
+static SDL_mutex *vt_mutex = NULL;
+static int f_delta         = 0;
 
 #define IS_ASCII(val) (val < 0x7f)
 
@@ -38,12 +46,6 @@ void gfx_request_render(bool fresh)
     atomic_exchange_explicit(&render_request, 0, memory_order_acquire)
 #define fresh_render()                                                         \
     atomic_exchange_explicit(&full_frame_render, 0, memory_order_relaxed)
-
-static GFX_Context ctx;
-const GFX_Context *gfx     = &ctx;
-static Frame frame         = {0};
-static SDL_mutex *vt_mutex = NULL;
-static int f_delta         = 0;
 
 #ifdef DEBUG_ATLAS
 SDL_Window *debug_window;
@@ -417,6 +419,11 @@ int main(int argc, char *const *argv)
                 } break;
                 }
             } break;
+
+            case SDL_MOUSEBUTTONDOWN:
+            case SDL_MOUSEBUTTONUP: mouse_button(&term, &e.button); break;
+            case SDL_MOUSEWHEEL: mouse_wheel(&term, &e.wheel); break;
+            case SDL_MOUSEMOTION: mouse_motion(&term, &e.motion); break;
 
             case SDL_TEXTINPUT: {
                 pty_write(&term.pty, e.text.text, strlen(e.text.text));

@@ -5,7 +5,6 @@
 #include <cluterm/util.h>
 #include <stdbool.h>
 #include <string.h>
-// clang-format off
 
 #define IS_C0(ch)   ((ch) <= 0x1f || (ch) == 0x7f)
 #define IS_C1(ch)   BETWEEN(ch, 0x80, 0x9f)
@@ -49,8 +48,8 @@ FSM_Event parser_run(VT_Parser *vtp)
         switch (vtp->fsm.state) {
         case STATE_GROUND: {
             switch (input) {
-            case 0x1b: transition(vtp, STATE_ESC);        break;
-            case 0x9b: transition(vtp, STATE_CSI_PARAM);  break;
+            case 0x1b: transition(vtp, STATE_ESC); break;
+            case 0x9b: transition(vtp, STATE_CSI_PARAM); break;
             case 0x9d: transition(vtp, STATE_OSC_STRING); break;
             default: {
                 if (IS_CTRL(input))
@@ -71,9 +70,9 @@ FSM_Event parser_run(VT_Parser *vtp)
         } break;
         case STATE_ESC: {
             switch (input) {
-            case '[': transition(vtp, STATE_CSI_PARAM);  break;
+            case '[': transition(vtp, STATE_CSI_PARAM); break;
             case ']': transition(vtp, STATE_OSC_STRING); break;
-            default:  replay(vtp, STATE_ESC_INTERM);     break;
+            default: replay(vtp, STATE_ESC_INTERM); break;
             }
         } break;
         case STATE_ESC_INTERM: {
@@ -115,8 +114,8 @@ FSM_Event parser_run(VT_Parser *vtp)
         case STATE_OSC_STRING: {
             switch (input) {
             case C0_BEL: // fallthrough.
-            case 0x9c:   dispatch(vtp, EVENT_OSC);      break;
-            case 0x1b:   transition(vtp, STATE_OSC_ST); break;
+            case 0x9c: dispatch(vtp, EVENT_OSC); break;
+            case 0x1b: transition(vtp, STATE_OSC_ST); break;
             default: {
                 if (IS_PRINTABLE(input))
                     collect(vtp, input);
@@ -128,7 +127,7 @@ FSM_Event parser_run(VT_Parser *vtp)
         case STATE_OSC_ST: {
             switch (input) {
             case '\\': dispatch(vtp, EVENT_OSC); break;
-            default:   replay(vtp, STATE_ESC);   break;
+            default: replay(vtp, STATE_ESC); break;
             }
         } break;
         }
@@ -167,8 +166,7 @@ static inline void replay(VT_Parser *vtp, FSM_State state)
 
 static inline void transition(VT_Parser *vtp, FSM_State next_state)
 {
-#if DEBUG_LVL >= 2
-    // {{{
+#if DEBUG_LVL >= 2 // {{{
     debug_2("Transition { ");
 #define FROM_REPR(sym)                                                         \
     case sym: debug(#sym " -> "); break;
@@ -203,8 +201,7 @@ static inline void transition(VT_Parser *vtp, FSM_State next_state)
     }
 #undef TO_REPR
     debug(" }\n");
-    // }}}
-#endif
+#endif // }}}
 
     switch (vtp->fsm.state) { // on Exit.
     case STATE_ESC_INTERM: {
@@ -255,8 +252,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
     } break;
     }
 
-#if DEBUG_LVL >= 2
-    // {{{
+#if DEBUG_LVL >= 2 // {{{
     debug_2("Dispatch { ");
     switch (vtp->fsm.event) {
 #define CASE_REPR(sym)                                                         \
@@ -357,8 +353,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
     }
     debug(" }\n");
     fflush(stdout);
-    // }}}
-#endif
+#endif // }}}
 
     vtp->fsm.dispatching = true;
 }
@@ -375,11 +370,14 @@ static inline void prepare_ctrl_payload(VT_Parser *vtp, CTRL_Payload *ctrl)
     case C0_FF:  // fallthrough
     case C0_CR:  // fallthrough
     case C0_SO:  // fallthrough
-    case C0_SI:  break;
-    default:     { ctrl->action = C0_NOOP; } break;
+    case C0_SI: break;
+    default: {
+        ctrl->action = C0_NOOP;
+    } break;
     }
 }
 
+// clang-format off
 static inline void prepare_esc_payload(VT_Parser *vtp, ESC_Payload *esc)
 {
     switch (esc->action = ESC_UNKNOWN, esc->final_byte) {
