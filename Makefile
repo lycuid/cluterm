@@ -7,12 +7,12 @@ build: ;
 	$(MAKE) $(FRONTEND)/sdl2 \
 		CFLAGS="-DDEBUG_LVL=0 -O3 $(CFLAGS)"
 
-debug-build: ;
+debug: ;
 	$(MAKE) $(FRONTEND)/sdl2 \
 		CFLAGS="-DDEBUG_LVL=2 -fsanitize=undefined,address -ggdb -O0 $(CFLAGS)" \
 		LDFLAGS="-fsanitize=undefined,address $(LDFLAGS)"
 
-thread-debug-build: ;
+thread-debug: ;
 	$(MAKE) $(FRONTEND)/sdl2 \
 		CFLAGS="-DDEBUG_LVL=2 -fsanitize=thread -ggdb -O0 $(CFLAGS)" \
 		LDFLAGS="-fsanitize=thread $(LDFLAGS)"
@@ -26,7 +26,7 @@ $(FRONTEND)/sdl2: lib ; mkdir -p $(shell dirname $(BIN))
 lib:
 	$(MAKE) -j -C $@
 
-.PHONY: run debug clean compile_flags fmt
+.PHONY: run clean compile_flags fmt
 run: ; ./$(BIN) 2>&1 | tee cluterm-out.txt
 
 clean: ; rm -rf $(BUILD)

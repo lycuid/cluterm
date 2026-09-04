@@ -1,27 +1,11 @@
 #ifndef __CLUTERM__VT__PARSER_H__
 #define __CLUTERM__VT__PARSER_H__
 
+#include "fsm.h"
 #include <cluterm/scanner.h>
 #include <cluterm/utf8.h>
 #include <cluterm/vt/actions.h>
 #include <stdlib.h>
-
-typedef enum FSM_State {
-    STATE_GROUND = 0,
-    STATE_UTF8_DECODE,
-    STATE_ESC,
-
-    STATE_ESC_INTERM,
-    STATE_ESC_FINAL,
-
-    STATE_CSI_PARAM,
-    STATE_CSI_INTERM,
-    STATE_CSI_FINAL,
-    STATE_CSI_IGNORE,
-
-    STATE_OSC_STRING,
-    STATE_OSC_ST,
-} FSM_State;
 
 typedef enum FSM_Event {
     EVENT_NOOP = 0,
@@ -29,7 +13,8 @@ typedef enum FSM_Event {
     EVENT_ESC,
     EVENT_CSI,
     EVENT_CTRL,
-    EVENT_OSC
+    EVENT_OSC,
+    EVENT_DCS,
 } FSM_Event;
 
 typedef struct CTRL_Payload {
@@ -53,12 +38,18 @@ typedef struct OSC_Payload {
     Scanner scanner;
 } OSC_Payload;
 
+typedef struct DCS_Payload {
+    size_t nseq;
+    uchar *seq, final_byte;
+} DCS_Payload;
+
 typedef union VT_Payload {
     Rune value;
     CTRL_Payload ctrl;
     ESC_Payload esc;
     CSI_Payload csi;
     OSC_Payload osc;
+    DCS_Payload dcs;
 } VT_Payload;
 
 typedef struct VT_Parser {
@@ -68,7 +59,7 @@ typedef struct VT_Parser {
     size_t nseq;
     VT_Payload payload;
     struct {
-        FSM_State state;
+        FSM_State from, state;
         FSM_Event event;
         bool dispatching : 1;
     } fsm;

@@ -1,0 +1,88 @@
+# state <name>
+# input <byte>    -> <next_state> <action>
+# range <lo> <hi> -> <next_state> <action>
+# default         -> <next_state> <action>
+#
+# NOTE:
+#   - transition only happends if next_state != current_state
+#   - behaviour of COLLECT depends on the current_state.
+
+
+state GROUND
+    input 0x1b       -> ESC         NONE
+    input 0x90       -> DCS_PARAM   NONE
+    input 0x9b       -> CSI_PARAM   NONE
+    input 0x9d       -> OSC_STRING  NONE
+
+    # dispatch c0.
+    range 0x00 0x1f  -> GROUND      DISPATCH_CTRL
+    input 0x7f       -> GROUND      DISPATCH_CTRL
+
+    default          -> UTF8_DECODE REPLAY
+
+state UTF8_DECODE
+    default -> UTF8_DECODE UTF8_DECODE
+
+state ESC
+    input '[' -> CSI_PARAM  NONE
+    input ']' -> OSC_STRING NONE
+    input 'P' -> DCS_PARAM  NONE
+    default   -> ESC_INTERM REPLAY
+
+state ESC_INTERM
+    range 0x20 0x2f -> ESC_INTERM COLLECT
+    range 0x30 0x7e -> GROUND     DISPATCH_ESC
+    default         -> GROUND     REPLAY
+
+state CSI_PARAM
+    range 0x30 0x3f -> CSI_PARAM  COLLECT
+    range 0x20 0x2f -> CSI_INTERM REPLAY
+    range 0x40 0x7e -> GROUND     DISPATCH_CSI
+    default         -> CSI_IGNORE REPLAY
+
+state CSI_INTERM
+    range 0x20 0x2f -> CSI_INTERM COLLECT
+    range 0x40 0x7e -> GROUND     DISPATCH_CSI
+    default         -> CSI_IGNORE REPLAY
+
+state CSI_IGNORE
+    range 0x00 0x1f -> GROUND     REPLAY
+    input 0x7f      -> GROUND     REPLAY
+    range 0x80 0x9f -> GROUND     REPLAY
+    range 0x40 0x7e -> GROUND     NONE
+    default         -> CSI_IGNORE NONE
+
+state OSC_STRING
+    input 0x07      -> GROUND     DISPATCH_OSC
+    input 0x9c      -> GROUND     DISPATCH_OSC
+    input 0x1b      -> ST         NONE
+    range 0x20 0x7e -> OSC_STRING COLLECT
+    default         -> GROUND     REPLAY
+
+state DCS_PARAM
+    range 0x30 0x3f -> DCS_PARAM  COLLECT
+    default         -> DCS_INTERM REPLAY
+
+state DCS_INTERM
+    range 0x20 0x2f -> DCS_INTERM COLLECT
+    default         -> DCS_FINAL  REPLAY
+
+state DCS_FINAL
+    range 0x40 0x7e -> DCS_PASSTHROUGH  COLLECT
+    default         -> DCS_IGNORE       REPLAY
+
+state DCS_PASSTHROUGH
+    input 0x9c -> GROUND          DISPATCH_DCS
+    input 0x1b -> ST              NONE
+    default    -> DCS_PASSTHROUGH COLLECT
+
+state DCS_IGNORE
+    range 0x00 0x1f -> GROUND     REPLAY
+    input 0x7f      -> GROUND     REPLAY
+    range 0x80 0x9f -> GROUND     REPLAY
+    range 0x40 0x7e -> GROUND     NONE
+    default         -> DCS_IGNORE NONE
+
+state ST
+    input '\' -> GROUND DISPATCH_ST
+    default   -> ESC    REPLAY

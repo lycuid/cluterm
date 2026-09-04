@@ -263,7 +263,7 @@ static inline void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
         frame_resize(&frame, rows, cols);
 
         gcache_destroy();
-        gcache_init(term->config.rows, term->config.cols);
+        gcache_init(rows, cols);
 
         gfx_request_render(1);
     } break;

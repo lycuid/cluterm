@@ -60,6 +60,18 @@ void cluterm_write(Cluterm *term, uchar *stream, size_t slen)
     VT_Parser *vt_parser = &term->vt_parser;
     parser_feed(vt_parser, stream, slen);
 
+#if DEBUG_LVL >= 2 // {{{
+    if (slen) {
+        debug_2("stream:");
+        for (size_t i = 0; i < slen; ++i)
+            if (BETWEEN(stream[i], 32, 126))
+                debug(" %c", stream[i]);
+            else
+                debug(" %d", stream[i]);
+        debug("\n");
+    }
+#endif // }}}
+
     for (FSM_Event fsm_event;;) {
         switch (fsm_event = parser_run(vt_parser)) {
         case EVENT_NOOP: goto done;
@@ -73,6 +85,9 @@ void cluterm_write(Cluterm *term, uchar *stream, size_t slen)
         case EVENT_OSC: {
             if (term->osc_handler)
                 term->osc_handler(term, &vt_parser->payload.osc);
+        } break;
+        case EVENT_DCS: {
+            // @TODO: unimplemented.
         } break;
         }
     }
@@ -96,3 +111,4 @@ void cluterm_destroy(Cluterm *term)
     buffer_destroy(&term->buffer[0]);
     buffer_destroy(&term->buffer[1]);
 }
+// vim:fdm=marker

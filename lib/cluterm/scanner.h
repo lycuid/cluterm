@@ -28,6 +28,8 @@ static inline size_t s_advance_by(Scanner *s, size_t inc)
 
 static inline size_t s_consume(Scanner *s, uchar ch)
 {
+    if (!s_buflen(s))
+        return 0;
     return s->buffer[s->cursor] == ch && s_advance(s) > 0;
 }
 

@@ -15,50 +15,50 @@ typedef enum CTRL_Action {
 } CTRL_Action;
 
 typedef enum ESC_Action {
-    ESC_UNKNOWN = -1,
-    ESC_IND,        // ESC D            (move cursor down, scroll if at bottom).
-    ESC_RI,         // ESC M            (move cursor up, scroll if at top).
-    ESC_HTS,        // ESC H            (Tab set).
-    ESC_CS_LINEGFX, // ESC [(,),*,+] 0  (Designate charset with line drawing
-                    // chars, VT100).
-    ESC_CS_USASCII, // ESC [(,),*,+] B  (Designate charset with US ASCII chars,
-                    // VT100).
-    ESC_DECSC,      // ESC 7            (Save Cursor, VT100).
-    ESC_DECRC,      // ESC 8            (Save Cursor, VT100).
+    ESC_UNKNOWN    = -1,
+    ESC_IND        = 'D', // ESC D  (move cursor down, scroll if at bottom).
+    ESC_RI         = 'M', // ESC M  (move cursor up, scroll if at top).
+    ESC_HTS        = 'H', // ESC H  (Tab set).
+    ESC_CS_LINEGFX = '0', // ESC [(,),*,+] 0  (Designate charset with line
+                          // drawing chars, VT100).
+    ESC_CS_USASCII = 'B', // ESC [(,),*,+] B  (Designate charset with US ASCII
+                          // chars, VT100).
+    ESC_DECSC = '7',      // ESC 7  (Save Cursor, VT100).
+    ESC_DECRC = '8',      // ESC 8  (Save Cursor, VT100).
 } ESC_Action;
 
 typedef enum CSI_Action {
-    CSI_UNKNOWN = -1,
-    CSI_CUU,      // CSI Ps A           (Cursor up).
-    CSI_CUD,      // CSI Ps B           (Cursor down).
-    CSI_CUF,      // CSI Ps C           (Cursor forward).
-    CSI_CUB,      // CSI Ps D           (Cursor back).
-    CSI_VPA,      // CSI Ps d           (Line position absolute).
-    CSI_CNL,      // CSI Ps E           (Cursor next line).
-    CSI_CPL,      // CSI Ps F           (Cursor previous line).
-    CSI_CHA,      // CSI Ps G           (Cursor horizontal Absolute).
-    CSI_CUP,      // CSI Ps ; Ps H      (Cursor position).
-    CSI_CHT,      // CSI Ps I           (Forward tabulation).
-    CSI_CBT,      // CSI Ps Z           (Backward tabulation).
-    CSI_TBC,      // CSI Ps g           (Tabulation clear).
-    CSI_ED,       // CSI Ps J           (Erase in display).
-    CSI_EL,       // CSI Ps K           (Erase in line).
-    CSI_IL,       // CSI Ps L           (Insert lines).
-    CSI_DL,       // CSI Ps M           (Delete lines).
-    CSI_ICH,      // CSI Ps @           (Insert blank chars).
-    CSI_DCH,      // CSI Ps P           (Delete chars on current line).
-    CSI_ECH,      // CSI Ps X           (Erase chars on current line).
-    CSI_SU,       // CSI Ps S           (Scroll up).
-    CSI_SD,       // CSI Ps T           (Scroll down).
-    CSI_HVP,      // CSI Ps ; Ps f      (Horizontal Vertical position).
-    CSI_SGR,      // CSI Pm m           (Select Graphic Rendition).
-    CSI_SC,       // CSI s              (Save current cursor position).
-    CSI_RC,       // CSI u              (Restore saved cursor position).
-    CSI_DECSCUSR, // CSI Ps SP q        (Set Cursor Style).
-    CSI_DECSTBM,  // CSI Ps ; Ps r      (Set scrolling region).
-    CSI_DECSET,   // CSI Pm h           (Private mode 'set', xterm).
-    CSI_DECRST,   // CSI Pm l           (Private mode 'reset', xterm).
-    CSI_DA1,      // CSI c              (Private mode 'reset', xterm).
+    CSI_UNKNOWN  = -1,
+    CSI_CUU      = 'A', // CSI Ps A           (Cursor up).
+    CSI_CUD      = 'B', // CSI Ps B           (Cursor down).
+    CSI_CUF      = 'C', // CSI Ps C           (Cursor forward).
+    CSI_CUB      = 'D', // CSI Ps D           (Cursor back).
+    CSI_VPA      = 'd', // CSI Ps d           (Line position absolute).
+    CSI_CNL      = 'E', // CSI Ps E           (Cursor next line).
+    CSI_CPL      = 'F', // CSI Ps F           (Cursor previous line).
+    CSI_CHA      = 'G', // CSI Ps G           (Cursor horizontal Absolute).
+    CSI_CUP      = 'H', // CSI Ps ; Ps H      (Cursor position).
+    CSI_CHT      = 'I', // CSI Ps I           (Forward tabulation).
+    CSI_CBT      = 'Z', // CSI Ps Z           (Backward tabulation).
+    CSI_TBC      = 'g', // CSI Ps g           (Tabulation clear).
+    CSI_ED       = 'J', // CSI Ps J           (Erase in display).
+    CSI_EL       = 'K', // CSI Ps K           (Erase in line).
+    CSI_IL       = 'L', // CSI Ps L           (Insert lines).
+    CSI_DL       = 'M', // CSI Ps M           (Delete lines).
+    CSI_ICH      = '@', // CSI Ps @           (Insert blank chars).
+    CSI_DCH      = 'P', // CSI Ps P           (Delete chars on current line).
+    CSI_ECH      = 'X', // CSI Ps X           (Erase chars on current line).
+    CSI_SU       = 'S', // CSI Ps S           (Scroll up).
+    CSI_SD       = 'T', // CSI Ps T           (Scroll down).
+    CSI_HVP      = 'f', // CSI Ps ; Ps f      (Horizontal Vertical position).
+    CSI_SGR      = 'm', // CSI Pm m           (Select Graphic Rendition).
+    CSI_SC       = 's', // CSI s              (Save current cursor position).
+    CSI_RC       = 'u', // CSI u              (Restore saved cursor position).
+    CSI_DECSCUSR = 'q', // CSI Ps SP q        (Set Cursor Style).
+    CSI_DECSTBM  = 'r', // CSI Ps ; Ps r      (Set scrolling region).
+    CSI_DECSET   = 'h', // CSI Pm h           (Private mode 'set', xterm).
+    CSI_DECRST   = 'l', // CSI Pm l           (Private mode 'reset', xterm).
+    CSI_DA1      = 'c', // CSI c              (Private mode 'reset', xterm).
 } CSI_Action;
 
 typedef enum OSC_Action {
