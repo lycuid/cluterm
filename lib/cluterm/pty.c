@@ -1,7 +1,6 @@
 #include "pty.h"
 #include <cluterm/debug.h>
 #include <err.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/fcntl.h>
@@ -15,23 +14,23 @@
             err(1, __VA_ARGS__);                                               \
     } while (0)
 
-#define TRY(expr, msg)                                                         \
-    ASSERT((expr) == -1, "%s: (%s)\n.", msg, strerror(errno));
+#define TRY(expr, msg) ASSERT((expr) == -1, "%s", msg);
 
 void pty_open(pty_t *pty)
 {
-    TRY((pty->ptmx = posix_openpt(O_RDWR)), "ptmx open");
-    TRY(grantpt(pty->ptmx), "pts chown");
-    TRY(unlockpt(pty->ptmx), "pts unlock"); // ioctl: TIOCSPTLCK
+    TRY((pty->ptmx = posix_openpt(O_RDWR)), "openpt()");
+    TRY(grantpt(pty->ptmx), "grantpt()");
+    TRY(unlockpt(pty->ptmx), "unlockpt()"); // ioctl: TIOCSPTLCK
     fcntl(pty->ptmx, F_SETFL, fcntl(pty->ptmx, F_GETFL) | O_NONBLOCK);
 }
 
 void pty_spawn(pty_t *pty, char *const *cmd)
 {
-    const char *pts_path = ptsname(pty->ptmx); // ioctl: TIOCGPTN
+    const char *pts_path = ptsname(pty->ptmx);
+    ASSERT(!pts_path, "ptsname()"); // ioctl: TIOCGPTN
     debug_1("pts_path: '%s'.\n", pts_path);
 
-    TRY((pty->shell = fork()), "[fork]: starting child process for shell");
+    TRY((pty->shell = fork()), "fork()");
     if (pty->shell) {
         return;
     }
@@ -40,11 +39,11 @@ void pty_spawn(pty_t *pty, char *const *cmd)
     TRY((pts = open(pts_path, O_RDWR, 0)), "pts open");
 
     debug_1("child executed!.\n");
-    TRY(setsid(), "setsid().\n");
-    TRY(ioctl(pts, TIOCSCTTY, 0), "ioctl(TIOCSCTTY).\n");
-    TRY(dup2(pts, STDIN_FILENO), "dup2(stdin).\n");
-    TRY(dup2(pts, STDOUT_FILENO), "dup2(stdout).\n");
-    TRY(dup2(pts, STDERR_FILENO), "dup2(stderr).\n");
+    TRY(setsid(), "setsid()");
+    TRY(ioctl(pts, TIOCSCTTY, 0), "ioctl(TIOCSCTTY)");
+    TRY(dup2(pts, STDIN_FILENO), "dup2(stdin)");
+    TRY(dup2(pts, STDOUT_FILENO), "dup2(stdout)");
+    TRY(dup2(pts, STDERR_FILENO), "dup2(stderr)");
     close(pts);
     close(pty->ptmx);
     setenv("TERM", "xterm-256color", 1);

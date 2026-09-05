@@ -73,9 +73,9 @@ static inline FSM_State execute(VT_Parser *vtp, uchar input, FSM_Effect effect)
     } break;
 
     case FSM_DISPATCH_ESC: {
+        vtp->payload.esc.final_byte = input;
         vtp->payload.esc.interm     = vtp->seq;
         vtp->payload.esc.ninterm    = vtp->nseq;
-        vtp->payload.esc.final_byte = input;
         dispatch(vtp, EVENT_ESC);
     } break;
 
