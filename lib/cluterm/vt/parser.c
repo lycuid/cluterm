@@ -277,6 +277,7 @@ static inline void dispatch(VT_Parser *vtp, FSM_Event event)
             CASE_REPR(CSI_EL);
             CASE_REPR(CSI_IL);
             CASE_REPR(CSI_DL);
+            CASE_REPR(CSI_DSR);
             CASE_REPR(CSI_ICH);
             CASE_REPR(CSI_DCH);
             CASE_REPR(CSI_ECH);
@@ -379,6 +380,7 @@ static inline void prepare_csi_payload(VT_Parser *vtp, CSI_Payload *csi)
     case CSI_ICH: // fallthrough
     case CSI_DCH: // fallthrough
     case CSI_ECH: // fallthrough
+    case CSI_DSR: // fallthrough
     case CSI_DA1: {
         // CSI Ps C (force single param, default: 0).
         csi->param[csi->nparam++] = s_consume_number(&param_s);

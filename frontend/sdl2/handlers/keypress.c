@@ -102,6 +102,16 @@ void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
     } break;
 
         // clang-format off
+    case SDLK_LEFTBRACKET: {
+        if      (alt && ctrl) pty_write(&term->pty, "\x1b\x1b[",  3);
+        else if (alt)         pty_write(&term->pty, "\x1b[",      2);
+        else if (ctrl)        pty_write(&term->pty, "\x1b",       1);
+    } break;
+    case SDLK_RIGHTBRACKET: {
+        if      (alt && ctrl) pty_write(&term->pty, "\x1b\x1b]",  3);
+        else if (alt)         pty_write(&term->pty, "\x1b]",      2);
+        else if (ctrl)        pty_write(&term->pty, "\x1d",       1);
+    } break;
     case SDLK_F1:  pty_write(&term->pty, "\x1bOP",    3); break;
     case SDLK_F2:  pty_write(&term->pty, "\x1bOQ",    3); break;
     case SDLK_F3:  pty_write(&term->pty, "\x1bOR",    3); break;

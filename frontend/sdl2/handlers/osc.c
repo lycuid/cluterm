@@ -127,13 +127,14 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
     case OSC_4: {
         if (!s_consume(s, ';'))
             break;
+
         bool ok = 1;
         do {
             int index = s_consume_number(s);
             if (!BETWEEN(index, 0, 255) || !s_consume(s, ';'))
                 break;
 
-            ok = (s_peek(s) && *s_peek(s) == '?')
+            ok = (s_consume(s, '?'))
                      ? osc_query(term, osc->action, index)
                      : osc_set_color(term, osc->action, index, s);
         } while (s_consume(s, ';') && ok);
@@ -153,9 +154,8 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
         OSC_Action action = osc->action;
         bool ok;
         do {
-            ok = (s_peek(s) && *s_peek(s) == '?')
-                     ? osc_query(term, action, 0)
-                     : osc_set_color(term, action, 0, s);
+            ok = (s_consume(s, '?')) ? osc_query(term, action, 0)
+                                     : osc_set_color(term, action, 0, s);
             action++;
         } while (s_consume(s, ';') && ok);
 

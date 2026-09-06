@@ -156,10 +156,25 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
     }
 }
 
+static inline void csi_dsr(Cluterm *term, CSI_Payload *csi)
+{
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
+
+    switch (PARAM(0)) {
+    case 5: pty_write(&term->pty, "\x1b[0n", 4); break;
+    case 6: {
+        char seq[32] = {0};
+        sprintf(seq, "\x1b[%d;%dR", b->cursor.y + 1, b->cursor.x + 1);
+        pty_write(&term->pty, seq, strlen(seq));
+    } break;
+    }
+}
+
 static inline void csi_decscusr(Cluterm *term, CSI_Payload *csi)
 {
     ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *c        = &b->cursor;
+
     switch (PARAM(0)) {
     case 0:
         c->style = term->config.cursor_style,
@@ -295,6 +310,7 @@ EXPORT void csi_execute(Cluterm *term, CSI_Payload *csi)
             region->start = 0, region->end = b->rows - 1;
     } break;
 
+    case CSI_DSR: csi_dsr(term, csi); break;
     case CSI_DECSCUSR: csi_decscusr(term, csi); break;
     case CSI_DECSET: /* fallthrough. */
     case CSI_DECRST: csi_decmode(term, csi, csi->action == CSI_DECSET); break;

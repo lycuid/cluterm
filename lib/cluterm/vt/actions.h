@@ -50,6 +50,7 @@ typedef enum CSI_Action {
     CSI_ECH      = 'X', // CSI Ps X           (Erase chars on current line).
     CSI_SU       = 'S', // CSI Ps S           (Scroll up).
     CSI_SD       = 'T', // CSI Ps T           (Scroll down).
+    CSI_DSR      = 'n', // CSI Ps n           (Device Status Report).
     CSI_HVP      = 'f', // CSI Ps ; Ps f      (Horizontal Vertical position).
     CSI_SGR      = 'm', // CSI Pm m           (Select Graphic Rendition).
     CSI_SC       = 's', // CSI s              (Save current cursor position).
