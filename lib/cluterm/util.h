@@ -43,10 +43,16 @@ typedef enum CursorShape {
     CursorBar
 } CursorShape;
 
+enum FontType { FontRegular, FontBold, FontItalic, FontBoldItalic };
+typedef struct Box {
+    int top, right, bottom, left;
+} Box;
+
 typedef struct Config {
     const char *title;
 
     int rows, cols, history, tab_width;
+    Box padding;
 
     const char *font_family;
     int font_size;
@@ -57,7 +63,5 @@ typedef struct Config {
     CursorStyle cursor_style;
     CursorShape cursor_shape;
 } Config;
-
-enum FontType { FontRegular, FontBold, FontItalic, FontBoldItalic };
 
 #endif

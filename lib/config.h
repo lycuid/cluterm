@@ -1,7 +1,15 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+#include <cluterm/util.h>
 #include <cluterm/vt/buffer.h>
+
+static const Box Padding = {
+    .top    = 0,
+    .right  = 0,
+    .bottom = 0,
+    .left   = 0,
+};
 
 static const char Title[]      = "cluterm";
 static const int Rows          = 36;

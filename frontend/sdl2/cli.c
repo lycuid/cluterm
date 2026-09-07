@@ -9,15 +9,19 @@ static const char usage[] =
     "Usage: " NAME " [options] [-e command [args...]]\n"
     "\n"
     "Options:\n"
-    "  -h  help        Show this help.\n"
-    "  -t  title       Set window title.\n"
-    "  -g  geometry    Set window window (COLSxROWS).\n"
-    "  -fg color       Set foreground color (#RRGGBB).\n"
-    "  -bg color       Set background color (#RRGGBB).\n"
-    "  -tw width       Set tab width.\n"
-    "  -fn font        Set font family.\n"
-    "  -fs size        Set font size.\n"
-    "  -e  command...  Execute command and pass remaining arguments.\n";
+    "  -h   help        Show this help.\n"
+    "  -t   title       Set window title.\n"
+    "  -g   geometry    Set window window (COLSxROWS).\n"
+    "  -fg  color       Set foreground color (#RRGGBB).\n"
+    "  -bg  color       Set background color (#RRGGBB).\n"
+    "  -tw  width       Set tab width.\n"
+    "  -pt  size        Set top padding.\n"
+    "  -pr  size        Set right padding.\n"
+    "  -pb  size        Set bottom padding.\n"
+    "  -pl  size        Set left padding.\n"
+    "  -fn  font        Set font family.\n"
+    "  -fs  size        Set font size.\n"
+    "  -e   command...  Execute command and pass remaining arguments.\n";
 
 char *const *argparse(int argc, char *const *argv, Config *cfg)
 {
@@ -69,6 +73,38 @@ char *const *argparse(int argc, char *const *argv, Config *cfg)
                 break;
             if (sscanf(*++argv, "%d", &cfg->tab_width) != 1)
                 debug("Invalid tab width: '%s'.\n", *argv);
+            continue;
+        }
+
+        if (strcmp(*argv, "-pt") == 0) {
+            if (--argc <= 0)
+                break;
+            if (sscanf(*++argv, "%d", &cfg->padding.top) != 1)
+                debug("Invalid top padding value: '%s'.\n", *argv);
+            continue;
+        }
+
+        if (strcmp(*argv, "-pr") == 0) {
+            if (--argc <= 0)
+                break;
+            if (sscanf(*++argv, "%d", &cfg->padding.right) != 1)
+                debug("Invalid right padding value: '%s'.\n", *argv);
+            continue;
+        }
+
+        if (strcmp(*argv, "-pb") == 0) {
+            if (--argc <= 0)
+                break;
+            if (sscanf(*++argv, "%d", &cfg->padding.bottom) != 1)
+                debug("Invalid bottom padding value: '%s'.\n", *argv);
+            continue;
+        }
+
+        if (strcmp(*argv, "-pl") == 0) {
+            if (--argc <= 0)
+                break;
+            if (sscanf(*++argv, "%d", &cfg->padding.left) != 1)
+                debug("Invalid left padding value: '%s'.\n", *argv);
             continue;
         }
 

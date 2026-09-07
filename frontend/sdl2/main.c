@@ -12,6 +12,7 @@
 #include <cluterm/debug.h>
 #include <cluterm/pty.h>
 #include <cluterm/vt/buffer.h>
+#include <config.h>
 #include <fontconfig/fontconfig.h>
 #include <signal.h>
 #include <stdatomic.h>
@@ -116,6 +117,8 @@ void gfx_rebuild(Cluterm *term)
     calculate_font_metrics();
     int w, h;
     SDL_GetWindowSize(ctx.window, &w, &h);
+    w -= term->config.padding.left + term->config.padding.right;
+    h -= term->config.padding.top + term->config.padding.bottom;
     int cols = w / ctx.f_width, rows = h / ctx.f_height;
 
     GUARD(vt_mutex) { cluterm_resize(term, rows, cols); }
@@ -149,8 +152,11 @@ static inline void sdl_init(Cluterm *term)
     calculate_font_metrics();
 
     ctx.window = tryp(SDL_CreateWindow(
-        term->config.title, 280, 100, ctx.f_width * term->config.cols,
-        ctx.f_height * term->config.rows,
+        term->config.title, 280, 100,
+        ctx.f_width * term->config.cols + term->config.padding.left +
+            term->config.padding.right,
+        ctx.f_height * term->config.rows + term->config.padding.top +
+            term->config.padding.bottom,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE));
     ctx.renderer =
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
@@ -185,9 +191,14 @@ static inline void render(Cluterm *term)
         SDL_RenderClear(ctx.renderer);
     }
 
-    SDL_Rect rect = {
-        .x = 0, .y = 0, .w = frame.canvas.dispw, .h = frame.canvas.disph};
-    SDL_RenderCopy(ctx.renderer, frame.canvas.texture, &rect, &rect);
+    SDL_RenderCopy(
+        ctx.renderer, frame.canvas.texture,
+        &(SDL_Rect){
+            .x = 0, .y = 0, .w = frame.canvas.dispw, .h = frame.canvas.disph},
+        &(SDL_Rect){.x = term->config.padding.left,
+                    .y = term->config.padding.top,
+                    .w = frame.canvas.dispw,
+                    .h = frame.canvas.disph});
     SDL_RenderPresent(ctx.renderer);
 }
 
@@ -258,8 +269,14 @@ int main(int argc, char *const *argv)
                 case SDL_WINDOWEVENT_CLOSE: quit(); break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    resz.w       = MAX(win->data1 / ctx.f_width, 10),
-                    resz.h       = MAX(win->data2 / ctx.f_height, 10),
+                    resz.w       = MAX((win->data1 - term.config.padding.left -
+                                        term.config.padding.right) /
+                                           ctx.f_width,
+                                       10),
+                    resz.h       = MAX((win->data2 - term.config.padding.top -
+                                        term.config.padding.bottom) /
+                                           ctx.f_height,
+                                       10),
                     resz.pending = 1;
                 } break;
                 }

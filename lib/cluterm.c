@@ -27,6 +27,7 @@ void cluterm_init(Cluterm *term)
     term->config.rows         = Rows;
     term->config.cols         = Columns;
     term->config.tab_width    = TabWidth;
+    term->config.padding      = Padding;
     term->config.font_family  = FontFamily;
     term->config.font_size    = FontSize;
     term->config.cursor_color = DefaultCursorColor;
