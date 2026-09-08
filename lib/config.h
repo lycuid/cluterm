@@ -15,7 +15,7 @@ static const char Title[]      = "cluterm";
 static const int Rows          = 36;
 static const int Columns       = 120;
 static const int TabWidth      = 8;
-static const char FontFamily[] = "JetBrainsMono Nerd Font";
+static const char FontFamily[] = "monospace";
 static const int FontSize      = 12;
 
 static const Theme DefaultTheme = {
