@@ -4,6 +4,7 @@
 #include <cluterm/vt/actions/csi.h>
 #include <cluterm/vt/actions/ctrl.h>
 #include <cluterm/vt/actions/esc.h>
+#include <cluterm/vt/actions/osc.h>
 #include <unistd.h>
 
 static inline Rgb color256(uint8_t n)
@@ -40,8 +41,9 @@ void cluterm_init(Cluterm *term)
         term->config.theme.palette[i] = color256(i);
 
     parser_init(&term->vt_parser);
-    term->mouse_tracking = (MouseTracking){0};
-    term->mode = 0x0, term->osc_handler = NULL;
+    term->mouse_report = (MouseReport){0};
+    term->mode         = 0x0;
+    memset(&term->actions, 0, sizeof(term->actions));
 }
 
 void cluterm_start(Cluterm *term, char *const *cmd)
@@ -83,10 +85,7 @@ void cluterm_write(Cluterm *term, uchar *stream, size_t slen)
         case EVENT_ESC: esc_execute(term, &vt_parser->payload.esc); break;
         case EVENT_CSI: csi_execute(term, &vt_parser->payload.csi); break;
         case EVENT_CTRL: ctrl_execute(term, &vt_parser->payload.ctrl); break;
-        case EVENT_OSC: {
-            if (term->osc_handler)
-                term->osc_handler(term, &vt_parser->payload.osc);
-        } break;
+        case EVENT_OSC: osc_execute(term, &vt_parser->payload.osc); break;
         case EVENT_DCS: {
             // @TODO: unimplemented.
         } break;

@@ -67,7 +67,7 @@ static inline void report_urxvt(const Cluterm *term, int cb, int x, int y)
 static inline void report(const Cluterm *term, int cb, int x, int y,
                           bool pressed)
 {
-    switch (term->mouse_tracking.encoding) {
+    switch (term->mouse_report.encoding) {
     case ENC_LEGACY: {
         if (!pressed)
             cb = (cb & ~3) | 3;
@@ -90,8 +90,8 @@ static inline void report(const Cluterm *term, int cb, int x, int y,
 
 void mouse_button(const Cluterm *term, SDL_MouseButtonEvent *mouse)
 {
-    if (!IS_SET_ANY(term->mouse_tracking.proto,
-                    PROTO_BUTTON | PROTO_DRAG | PROTO_ALL))
+    if (!IS_SET_ANY(term->mouse_report.event,
+                    EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
         return;
 
     int button = mouse->button == SDL_BUTTON_LEFT     ? 0
@@ -107,8 +107,8 @@ void mouse_button(const Cluterm *term, SDL_MouseButtonEvent *mouse)
 
 void mouse_wheel(const Cluterm *term, SDL_MouseWheelEvent *wheel)
 {
-    if (!IS_SET_ANY(term->mouse_tracking.proto,
-                    PROTO_BUTTON | PROTO_DRAG | PROTO_ALL))
+    if (!IS_SET_ANY(term->mouse_report.event,
+                    EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
         return;
 
     int mods = with_mods(0);
@@ -126,7 +126,7 @@ void mouse_wheel(const Cluterm *term, SDL_MouseWheelEvent *wheel)
 
 void mouse_motion(const Cluterm *term, SDL_MouseMotionEvent *motion)
 {
-    if (!IS_SET_ANY(term->mouse_tracking.proto, PROTO_DRAG | PROTO_ALL))
+    if (!IS_SET_ANY(term->mouse_report.event, EVENT_DRAG | EVENT_ALL))
         return;
 
     int button = 0;
@@ -138,7 +138,7 @@ void mouse_motion(const Cluterm *term, SDL_MouseMotionEvent *motion)
         button = 34;
 
     if (button == 0) {
-        if (!IS_SET(term->mouse_tracking.proto, PROTO_ALL))
+        if (!IS_SET(term->mouse_report.event, EVENT_ALL))
             return;
         SET(button, 3);
     }

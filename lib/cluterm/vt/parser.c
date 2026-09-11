@@ -32,7 +32,6 @@ FSM_Event parser_run(VT_Parser *vtp)
         vtp->fsm.event = EVENT_NOOP;
     }
     vtp->fsm.dispatching = false;
-    FSM_State next_state;
     for (Scanner *s = &vtp->scanner;
          !vtp->fsm.dispatching && s_peek(s) != NULL;) {
         uchar input = s_next(s);
@@ -41,10 +40,8 @@ FSM_Event parser_run(VT_Parser *vtp)
         if (!effect)
             effect = default_transition[vtp->fsm.state];
 
-        if (effect) {
-            next_state = execute(vtp, input, effect);
-            transition(vtp, next_state);
-        }
+        if (effect)
+            transition(vtp, execute(vtp, input, effect));
     }
 
     return vtp->fsm.event;

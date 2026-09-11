@@ -6,7 +6,7 @@
 #include "glyph_cache.h"
 #include "handlers/keypress.h"
 #include "handlers/mouse.h"
-#include "handlers/osc.h"
+#include "term_actions.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
 #include <cluterm/debug.h>
@@ -46,12 +46,6 @@ void gfx_request_render(bool fresh)
     atomic_exchange_explicit(&render_request, 0, memory_order_acquire)
 #define fresh_render()                                                         \
     atomic_exchange_explicit(&full_frame_render, 0, memory_order_relaxed)
-
-#ifdef DEBUG_ATLAS
-SDL_Window *debug_window;
-SDL_Renderer *debug_renderer;
-SDL_Texture *debug_texture;
-#endif
 
 void sigquit(__attribute__((unused)) int _) { quit(); }
 
@@ -161,20 +155,9 @@ static inline void sdl_init(Cluterm *term)
     ctx.renderer =
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
 
-#ifdef DEBUG_ATLAS
-    debug_window =
-        tryp(SDL_CreateWindow(cfg->title, 0, 0, 0, 0, SDL_WINDOW_BORDERLESS));
-    debug_renderer =
-        tryp(SDL_CreateRenderer(debug_window, -1, SDL_RENDERER_ACCELERATED));
-#endif
-
     frame_resize(&frame, term->config.rows, term->config.cols);
     gcache_init(term->config.rows, term->config.cols);
 
-#ifdef DEBUG_ATLAS
-    SDL_SetWindowSize(debug_window, 200 * ctx.f_width * 1.2f,
-                      8 * ctx.f_height * 1.2f);
-#endif
     SDL_StartTextInput();
 }
 
@@ -186,11 +169,8 @@ static inline void render(Cluterm *term)
         GUARD(vt_mutex) { frame_capture(&frame, term); }
     frame_canvas_update(&frame, fresh);
 
-    if (fresh) {
-        SDL_SetRenderDrawColor(ctx.renderer, UNPACK(term->theme.bg), 0);
-        SDL_RenderClear(ctx.renderer);
-    }
-
+    SDL_SetRenderDrawColor(ctx.renderer, UNPACK(term->theme.bg), 0);
+    SDL_RenderClear(ctx.renderer);
     SDL_RenderCopy(
         ctx.renderer, frame.canvas.texture,
         &(SDL_Rect){
@@ -223,7 +203,17 @@ int main(int argc, char *const *argv)
 {
     Cluterm term = {0};
     cluterm_init(&term);
-    term.osc_handler = osc_handler;
+
+    term.actions = (ClutermActions){
+        .set_window_title       = set_window_title,
+        .query_palette_index    = query_palette_index,
+        .query_palette_fg       = query_palette_fg,
+        .query_palette_bg       = query_palette_bg,
+        .query_cursor_color     = query_cursor_color,
+        .device_state_report    = device_state_report,
+        .report_cursor_position = report_cursor_position,
+        .send_device_attributes = send_device_attributes,
+    };
 
     char *const *cmd = argparse(argc, argv, &term.config);
     char *shell[2]   = {0};
@@ -300,13 +290,6 @@ int main(int argc, char *const *argv)
         if (should_render())
             render(&term);
 
-#ifdef DEBUG_ATLAS
-        SDL_SetRenderDrawColor(debug_renderer, UNPACK(0x0), 0);
-        SDL_RenderClear(debug_renderer);
-        SDL_RenderCopy(debug_renderer, debug_texture, NULL, NULL);
-        SDL_RenderPresent(debug_renderer);
-#endif
-
         SDL_Delay(FPS(1000));
     }
 
@@ -314,12 +297,6 @@ int main(int argc, char *const *argv)
 
     cluterm_destroy(&term);
     {
-#ifdef DEBUG_ATLAS
-        if (debug_renderer)
-            SDL_DestroyRenderer(debug_renderer);
-        if (debug_window)
-            SDL_DestroyWindow(debug_window);
-#endif
         SDL_DestroyMutex(vt_mutex);
         frame_destroy(&frame);
         gcache_destroy();

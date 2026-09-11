@@ -1,11 +1,11 @@
-#ifndef __CLUTERM__ACTIONS__ESC_H__
-#define __CLUTERM__ACTIONS__ESC_H__
+#ifndef __CLUTERM__VT__ACTIONS__ESC_H__
+#define __CLUTERM__VT__ACTIONS__ESC_H__
 
 #include <cluterm.h>
 #include <cluterm/vt/actions.h>
 #include <stdbool.h>
 
-EXPORT void esc_execute(Cluterm *term, ESC_Payload *esc)
+EXPORT inline void esc_execute(Cluterm *term, ESC_Payload *esc)
 {
     ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor   = &b->cursor;

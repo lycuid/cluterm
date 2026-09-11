@@ -87,13 +87,6 @@ void gcache_init(int rows, int cols)
                           SDL_TEXTUREACCESS_STREAMING, atlas_w, atlas_h);
     SDL_SetTextureBlendMode(atlas.texture, SDL_BLENDMODE_BLEND);
 
-#ifdef DEBUG_ATLAS
-    debug_texture =
-        SDL_CreateTexture(debug_renderer, SDL_PIXELFORMAT_RGBA8888,
-                          SDL_TEXTUREACCESS_STREAMING, atlas_w, atlas_h);
-    SDL_SetTextureBlendMode(debug_texture, SDL_BLENDMODE_BLEND);
-#endif
-
     int nfonts = LENGTH(gfx->fonts);
     for (int f_index = 0; f_index < nfonts; ++f_index) {
         for (int ch = PRINTABLE_ASCII_START; ch <= PRINTABLE_ASCII_END; ch++) {
@@ -113,13 +106,6 @@ void gcache_init(int rows, int cols)
                 &(SDL_Rect){
                     .x = slot->x, .y = slot->y, .w = slot->w, .h = slot->h},
                 surface->pixels, surface->pitch);
-#ifdef DEBUG_ATLAS
-            SDL_UpdateTexture(
-                debug_texture,
-                &(SDL_Rect){
-                    .x = slot->x, .y = slot->y, .w = slot->w, .h = slot->h},
-                surface->pixels, surface->pitch);
-#endif
             SDL_FreeSurface(surface);
         }
     }
@@ -141,12 +127,6 @@ void gcache_destroy(void)
         SDL_DestroyTexture(atlas.texture);
         atlas.texture = NULL;
     }
-#ifdef DEBUG_ATLAS
-    if (debug_texture) {
-        SDL_DestroyTexture(debug_texture);
-        debug_texture = NULL;
-    }
-#endif
     while (non_ascii_cache[0].stale)
         free(lru_evict(&non_ascii_cache[0]));
     while (non_ascii_cache[1].stale)
@@ -214,14 +194,6 @@ static inline AtlasSlot *get_slot(Cell cell)
                                   .w = slot->w,
                                   .h = slot->h},
                       surface->pixels, surface->pitch);
-#ifdef DEBUG_ATLAS
-    SDL_UpdateTexture(debug_texture,
-                      &(SDL_Rect){.x = slot->x + MIN(0, dx),
-                                  .y = slot->y + MIN(0, dy),
-                                  .w = slot->w,
-                                  .h = slot->h},
-                      surface->pixels, surface->pitch);
-#endif
     SDL_FreeSurface(surface);
     return slot;
 }

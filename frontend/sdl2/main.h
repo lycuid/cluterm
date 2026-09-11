@@ -25,10 +25,4 @@ extern const GFX_Context *gfx;
 void gfx_rebuild(Cluterm *);
 void gfx_request_render(bool);
 
-#ifdef DEBUG_ATLAS
-extern SDL_Window *debug_window;
-extern SDL_Renderer *debug_renderer;
-extern SDL_Texture *debug_texture;
-#endif
-
 #endif

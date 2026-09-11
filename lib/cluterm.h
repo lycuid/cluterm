@@ -17,33 +17,44 @@ typedef struct Cluterm Cluterm;
 
 typedef void (*OSC_Handler)(Cluterm *term, OSC_Payload *osc);
 
-typedef uint16_t TrackingProtocol;
-#define PROTO_BUTTON (1 << 0)
-#define PROTO_DRAG   (1 << 1)
-#define PROTO_ALL    (1 << 2)
+typedef uint16_t ReportEvent;
+#define EVENT_BUTTON (1 << 0)
+#define EVENT_DRAG   (1 << 1)
+#define EVENT_ALL    (1 << 2)
 
-typedef enum ProtoEncoding {
-    ENC_LEGACY,
-    ENC_UTF8     = 1005,
-    ENC_SGR      = 1006,
-    ENC_URXVT    = 1015,
-    ENC_SGRPIXEL = 1016,
-} ProtoEncoding;
+typedef struct MouseReport {
+    ReportEvent event;
+    enum {
+        ENC_LEGACY,
+        ENC_UTF8     = 1005,
+        ENC_SGR      = 1006,
+        ENC_URXVT    = 1015,
+        ENC_SGRPIXEL = 1016,
+    } encoding;
+} MouseReport;
 
-typedef struct MouseTracking {
-    TrackingProtocol proto;
-    ProtoEncoding encoding;
-} MouseTracking;
+typedef struct ClutermActions {
+    void (*set_window_title)(const Cluterm *, const char *); // OSC 1,2
+    void (*query_palette_index)(const Cluterm *, int);       // OSC 4
+    void (*query_palette_fg)(const Cluterm *);               // OSC 10
+    void (*query_palette_bg)(const Cluterm *);               // OSC 11
+    void (*query_cursor_color)(const Cluterm *);             // OSC 12
+    void (*device_state_report)(const Cluterm *);            // DSR 5
+    void (*report_cursor_position)(const Cluterm *);         // DSR 6
+    void (*send_device_attributes)(const Cluterm *);         // Primary DA (DA1)
+} ClutermActions;
 
 struct Cluterm {
     pty_t pty;
     VT_Parser vt_parser;
     ClutermBuffer buffer[2];
     cluterm_mode_t mode;
-    MouseTracking mouse_tracking;
-    OSC_Handler osc_handler;
+
     Theme theme;
     Config config;
+
+    MouseReport mouse_report;
+    ClutermActions actions;
 };
 
 #define ACTIVE_BUFFER(term)                                                    \

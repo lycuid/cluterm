@@ -1,8 +1,7 @@
-#ifndef __CLUTERM__ACTIONS__CSI_H__
-#define __CLUTERM__ACTIONS__CSI_H__
+#ifndef __CLUTERM__VT__ACTIONS__CSI_H__
+#define __CLUTERM__VT__ACTIONS__CSI_H__
 
 #include <cluterm.h>
-#include <cluterm/pty.h>
 #include <cluterm/vt/actions.h>
 #include <cluterm/vt/buffer.h>
 #include <config.h>
@@ -158,14 +157,14 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
 
 static inline void csi_dsr(Cluterm *term, CSI_Payload *csi)
 {
-    ClutermBuffer *b = ACTIVE_BUFFER(term);
-
     switch (PARAM(0)) {
-    case 5: pty_write(&term->pty, "\x1b[0n", 4); break;
+    case 5: {
+        if (term->actions.device_state_report)
+            term->actions.device_state_report(term);
+    } break;
     case 6: {
-        char seq[32] = {0};
-        sprintf(seq, "\x1b[%d;%dR", b->cursor.y + 1, b->cursor.x + 1);
-        pty_write(&term->pty, seq, strlen(seq));
+        if (term->actions.report_cursor_position)
+            term->actions.report_cursor_position(term);
     } break;
     }
 }
@@ -193,7 +192,7 @@ static inline void csi_decscusr(Cluterm *term, CSI_Payload *csi)
 static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
 {
 
-    MouseTracking *tracking = &term->mouse_tracking;
+    MouseReport *mreport = &term->mouse_report;
     for (int i = 0; i < csi->nparam; ++i) {
         ClutermBuffer *b = ACTIVE_BUFFER(term);
 
@@ -211,16 +210,16 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
         // CSI_DECTCEM: Show cursor, VT220.
         case 25: b->cursor.visible = is_decset; break;
 
-        case 1000: UPDATE(tracking->proto, PROTO_BUTTON, is_decset); break;
-        case 1002: UPDATE(tracking->proto, PROTO_DRAG, is_decset); break;
-        case 1003: UPDATE(tracking->proto, PROTO_ALL, is_decset); break;
+        case 1000: UPDATE(mreport->event, EVENT_BUTTON, is_decset); break;
+        case 1002: UPDATE(mreport->event, EVENT_DRAG, is_decset); break;
+        case 1003: UPDATE(mreport->event, EVENT_ALL, is_decset); break;
 
 #define update_enc(enc)                                                        \
     do {                                                                       \
         if (is_decset)                                                         \
-            tracking->encoding = (enc);                                        \
-        else if (tracking->encoding == (enc))                                  \
-            tracking->encoding = ENC_LEGACY;                                   \
+            mreport->encoding = (enc);                                         \
+        else if (mreport->encoding == (enc))                                   \
+            mreport->encoding = ENC_LEGACY;                                    \
     } while (0)
 
         case 1005: update_enc(ENC_UTF8); break;
@@ -249,7 +248,7 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
     }
 }
 
-EXPORT void csi_execute(Cluterm *term, CSI_Payload *csi)
+EXPORT inline void csi_execute(Cluterm *term, CSI_Payload *csi)
 {
     ClutermBuffer *b = ACTIVE_BUFFER(term);
     Cursor *cursor   = &b->cursor;
@@ -314,7 +313,10 @@ EXPORT void csi_execute(Cluterm *term, CSI_Payload *csi)
     case CSI_DECSCUSR: csi_decscusr(term, csi); break;
     case CSI_DECSET: /* fallthrough. */
     case CSI_DECRST: csi_decmode(term, csi, csi->action == CSI_DECSET); break;
-    case CSI_DA1: pty_write(&term->pty, "\x1b[?62c", 6); break;
+    case CSI_DA1: {
+        if (term->actions.send_device_attributes)
+            term->actions.send_device_attributes(term);
+    } break;
     case CSI_UNKNOWN: break;
     }
 }

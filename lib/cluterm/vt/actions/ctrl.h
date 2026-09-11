@@ -1,10 +1,10 @@
-#ifndef __CLUTERM__ACTIONS__CTRL_H__
-#define __CLUTERM__ACTIONS__CTRL_H__
+#ifndef __CLUTERM__VT__ACTIONS__CTRL_H__
+#define __CLUTERM__VT__ACTIONS__CTRL_H__
 
 #include <cluterm.h>
 #include <cluterm/vt/actions.h>
 
-EXPORT void ctrl_execute(Cluterm *term, CTRL_Payload *ctrl)
+EXPORT inline void ctrl_execute(Cluterm *term, CTRL_Payload *ctrl)
 {
     ClutermBuffer *b = ACTIVE_BUFFER(term);
 

@@ -1,6 +1,7 @@
-#include "osc.h"
-#include "main.h"
-#include <SDL2/SDL.h>
+#ifndef __CLUTERM__VT__ACTIONS__OSC_H__
+#define __CLUTERM__VT__ACTIONS__OSC_H__
+
+#include <cluterm.h>
 #include <cluterm/colors.h>
 #include <config.h>
 
@@ -50,64 +51,53 @@ static inline bool osc_set_color(Cluterm *term, OSC_Action action, int index,
         return 0;
 
     switch (action) {
-    case OSC_4:
+    case OSC_4: {
         term->theme.palette[index] = color;
-        gfx_request_render(1);
-        break;
-    case OSC_10:
+        dirty_buffer(ACTIVE_BUFFER(term));
+    } break;
+    case OSC_10: {
         term->theme.fg = color;
-        gfx_request_render(1);
-        break;
-    case OSC_11:
+        dirty_buffer(ACTIVE_BUFFER(term));
+    } break;
+    case OSC_11: {
         term->theme.bg = color;
-        gfx_request_render(1);
-        break;
+        dirty_buffer(ACTIVE_BUFFER(term));
+    } break;
     case OSC_12: {
         term->buffer[0].cursor.color = color;
         term->buffer[1].cursor.color = color;
-        gfx_request_render(1);
+        dirty_buffer(ACTIVE_BUFFER(term));
     } break;
     default: debug_2("osc action unsupported: '%d'.\n", action);
     }
     return 1;
 }
 
-static inline bool osc_query(Cluterm *term, OSC_Action action, int index)
+static inline bool osc_color(Cluterm *term, OSC_Action action, Scanner *s)
 {
-    char osc_color[36]     = {0};
-    const ClutermBuffer *b = ACTIVE_BUFFER(term);
-
-#define RRGGBB(i)                                                              \
-    ((i) >> 16) & 0xff, ((i) >> 16) & 0xff, ((i) >> 8) & 0xff,                 \
-        ((i) >> 8) & 0xff, (i) & 0xff, (i) & 0xff
-
+    void (*query)(const Cluterm *) = NULL;
     switch (action) {
-    case OSC_4:
-        sprintf(osc_color, "\x1b]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
-                index, RRGGBB(term->theme.palette[index]));
-        goto send_cmd;
-    case OSC_10:
-        sprintf(osc_color, "\x1b]10;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
-                RRGGBB(term->theme.fg));
-        goto send_cmd;
-    case OSC_11:
-        sprintf(osc_color, "\x1b]11;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
-                RRGGBB(term->theme.bg));
-        goto send_cmd;
-    case OSC_12:
-        sprintf(osc_color, "\x1b]12;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
-                RRGGBB(b->cursor.color));
-#undef RRGGBB
-    send_cmd: {
-        pty_write(&term->pty, osc_color, strlen(osc_color));
-    } break;
-
-    default: debug_2("osc action unsupported: '%d'.\n", action);
+    case OSC_10: query = term->actions.query_palette_fg; break;
+    case OSC_11: query = term->actions.query_palette_bg; break;
+    case OSC_12: query = term->actions.query_cursor_color; break;
+    default: return true;
     }
-    return 1;
+
+    if (!s_consume(s, ';'))
+        return false;
+
+    bool ok = true;
+    if (!s_consume(s, '?'))
+        ok = osc_set_color(term, action, 0, s);
+    else if (query)
+        query(term);
+
+    if (ok && s_buflen(s))
+        ok = osc_color(term, action + 1, s);
+    return ok;
 }
 
-void osc_handler(Cluterm *term, OSC_Payload *osc)
+EXPORT inline void osc_execute(Cluterm *term, OSC_Payload *osc)
 {
     Scanner *s = &osc->scanner;
     debug_2("OSC %d%s.\n", osc->action, s_buffer(s));
@@ -115,13 +105,14 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
     switch (osc->action) {
     case OSC_0: // fallthrough
     case OSC_2: {
-        if (!s_consume(s, ';'))
-            break;
-        // safe to malloc/free, as this is probably not gonna be frequent.
-        char *title = calloc(s_buflen(s) + 1, sizeof(char));
-        memcpy(title, s_buffer(s), s_buflen(s));
-        SDL_SetWindowTitle(gfx->window, title);
-        free(title);
+        if (term->actions.set_window_title) {
+            if (!s_consume(s, ';'))
+                break;
+            char *title = calloc(s_buflen(s) + 1, sizeof(char));
+            memcpy(title, s_buffer(s), s_buflen(s));
+            term->actions.set_window_title(term, title);
+            free(title);
+        }
     } break;
 
     case OSC_4: {
@@ -134,9 +125,12 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
             if (!BETWEEN(index, 0, 255) || !s_consume(s, ';'))
                 break;
 
-            ok = (s_consume(s, '?'))
-                     ? osc_query(term, osc->action, index)
-                     : osc_set_color(term, osc->action, index, s);
+            if (s_consume(s, '?')) {
+                if (term->actions.query_palette_index)
+                    term->actions.query_palette_index(term, index);
+            } else {
+                ok = osc_set_color(term, osc->action, index, s);
+            }
         } while (s_consume(s, ';') && ok);
 
         if (s_buflen(s))
@@ -145,19 +139,11 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
 
     case OSC_7: break; // Not supported!.
 
-    case OSC_10: // fallthrough
-    case OSC_11: // fallthrough
+    case OSC_10:
+    case OSC_11:
     case OSC_12: {
-        if (!s_consume(s, ';'))
-            break;
-
-        OSC_Action action = osc->action;
-        bool ok;
-        do {
-            ok = (s_consume(s, '?')) ? osc_query(term, action, 0)
-                                     : osc_set_color(term, action, 0, s);
-            action++;
-        } while (s_consume(s, ';') && ok);
+        if (!osc_color(term, osc->action, s))
+            debug_2("Unable to execute osc %d %s", osc->action, s->buffer);
 
         if (s_buflen(s))
             debug_2("Invalid osc string '%s'.\n", s->buffer);
@@ -182,20 +168,25 @@ void osc_handler(Cluterm *term, OSC_Payload *osc)
 
     case OSC_110: {
         term->theme.fg = DefaultTheme.fg;
-        gfx_request_render(1);
+        dirty_buffer(ACTIVE_BUFFER(term));
     } break;
 
     case OSC_111: {
         term->theme.bg = DefaultTheme.bg;
-        gfx_request_render(1);
+        dirty_buffer(ACTIVE_BUFFER(term));
     } break;
 
     case OSC_112: {
         ClutermBuffer *b = ACTIVE_BUFFER(term);
         b->cursor.color  = DefaultCursorColor;
-        gfx_request_render(1);
+        dirty_buffer(b);
     } break;
 
     case OSC_UNKNOWN: break;
     }
+
+    if (s_buflen(s))
+        debug_2("osc action unsupported: '%d' (%s).\n", osc->action, s->buffer);
 }
+
+#endif
