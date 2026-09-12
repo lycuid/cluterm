@@ -8,8 +8,8 @@ void query_palette_index(const Cluterm *, int);
 void query_palette_fg(const Cluterm *);
 void query_palette_bg(const Cluterm *);
 void query_cursor_color(const Cluterm *);
-void device_state_report(const Cluterm *);
+void device_state_report(void);
 void report_cursor_position(const Cluterm *);
-void send_device_attributes(const Cluterm *);
+void send_device_attributes(void);
 
 #endif

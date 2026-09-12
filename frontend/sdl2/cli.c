@@ -1,4 +1,5 @@
 #include "cli.h"
+#include "../../default_config.h"
 #include "main.h"
 #include <cluterm/colors.h>
 #include <cluterm/debug.h>
@@ -23,8 +24,38 @@ static const char usage[] =
     "  -fs  size        Set font size.\n"
     "  -e   command...  Execute command and pass remaining arguments.\n";
 
+static inline Rgb color256(uint8_t n)
+{
+    static const int cube[] = {0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff};
+
+    Rgb color = 0;
+    if (n <= 15)
+        color = DefaultTheme.palette[n];
+    else if (BETWEEN(n, 16, 231))
+        for (int i = 0, m = n - 16; m; m /= 6)
+            color |= cube[m % 6] << (8 * i++);
+    else if (n >= 232)
+        n = (n - 232) * 10 + 8, color = (n << 16) | (n << 8) | n;
+    return color;
+}
+
 char *const *argparse(int argc, char *const *argv, Config *cfg)
 {
+    cfg->title        = Title;
+    cfg->rows         = Rows;
+    cfg->cols         = Columns;
+    cfg->tab_width    = TabWidth;
+    cfg->padding      = Padding;
+    cfg->font_family  = FontFamily;
+    cfg->font_size    = FontSize;
+    cfg->cursor_color = DefaultCursorColor;
+    cfg->cursor_style = DefaultCursorStyle;
+    cfg->cursor_shape = DefaultCursorShape;
+
+    cfg->theme.fg = DefaultTheme.fg;
+    cfg->theme.bg = DefaultTheme.bg;
+    for (size_t i = 0; i <= 255; ++i)
+        cfg->theme.palette[i] = color256(i);
 
     for (--argc, ++argv; argc > 0; --argc, ++argv) {
         if (strcmp(*argv, "-h") == 0)

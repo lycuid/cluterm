@@ -3,7 +3,6 @@
 
 #include <cluterm.h>
 #include <cluterm/colors.h>
-#include <config.h>
 
 static inline bool rgb_component(Scanner *s, uint8_t *comp)
 {
@@ -167,18 +166,18 @@ EXPORT inline void osc_execute(Cluterm *term, OSC_Payload *osc)
     } break;
 
     case OSC_110: {
-        term->theme.fg = DefaultTheme.fg;
+        term->theme.fg = term->config.theme.fg;
         dirty_buffer(ACTIVE_BUFFER(term));
     } break;
 
     case OSC_111: {
-        term->theme.bg = DefaultTheme.bg;
+        term->theme.bg = term->config.theme.bg;
         dirty_buffer(ACTIVE_BUFFER(term));
     } break;
 
     case OSC_112: {
         ClutermBuffer *b = ACTIVE_BUFFER(term);
-        b->cursor.color  = DefaultCursorColor;
+        b->cursor.color  = term->config.cursor_color;
         dirty_buffer(b);
     } break;
 

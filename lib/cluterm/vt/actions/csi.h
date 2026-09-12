@@ -4,7 +4,6 @@
 #include <cluterm.h>
 #include <cluterm/vt/actions.h>
 #include <cluterm/vt/buffer.h>
-#include <config.h>
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
@@ -160,7 +159,7 @@ static inline void csi_dsr(Cluterm *term, CSI_Payload *csi)
     switch (PARAM(0)) {
     case 5: {
         if (term->actions.device_state_report)
-            term->actions.device_state_report(term);
+            term->actions.device_state_report();
     } break;
     case 6: {
         if (term->actions.report_cursor_position)
@@ -315,7 +314,7 @@ EXPORT inline void csi_execute(Cluterm *term, CSI_Payload *csi)
     case CSI_DECRST: csi_decmode(term, csi, csi->action == CSI_DECSET); break;
     case CSI_DA1: {
         if (term->actions.send_device_attributes)
-            term->actions.send_device_attributes(term);
+            term->actions.send_device_attributes();
     } break;
     case CSI_UNKNOWN: break;
     }

@@ -1,6 +1,7 @@
 #ifndef __SDL2__MAIN_H__
 #define __SDL2__MAIN_H__
 
+#include "pty.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <cluterm.h>
@@ -18,6 +19,7 @@ typedef struct GFX_Context {
     TTF_Font *fonts[4];
     int f_width, f_height;
     float hdpi, vdpi;
+    pty_t pty;
 } GFX_Context;
 
 extern const GFX_Context *gfx;

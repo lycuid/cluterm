@@ -9,7 +9,7 @@ Requirements
  - [fontconfig](https://gitlab.freedesktop.org/fontconfig/fontconfig)
  - pkg-config (optional).
 
-_**Note**_: default configs can be updated in `lib/config.h` file.
+_**Note**_: default configs can be updated in `default_config.h` file.
 
 Build
 -----

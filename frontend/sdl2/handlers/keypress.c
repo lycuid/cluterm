@@ -10,13 +10,13 @@ static inline ssize_t clipboard_paste(const Cluterm *term)
         return -1;
 
     if (IS_SET(term->mode, MODE_BRACKETED_PASTE))
-        pty_write(&term->pty, "\x1b[200~", 6);
+        pty_write(&gfx->pty, "\x1b[200~", 6);
 
     size_t len = strlen(text);
-    ssize_t n  = pty_write(&term->pty, text, len);
+    ssize_t n  = pty_write(&gfx->pty, text, len);
 
     if (IS_SET(term->mode, MODE_BRACKETED_PASTE))
-        pty_write(&term->pty, "\x1b[201~", 6);
+        pty_write(&gfx->pty, "\x1b[201~", 6);
 
     SDL_free(text);
     return n;
@@ -62,9 +62,9 @@ void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
     case SDLK_z: {
     mod_put:
         if (ctrl)
-            pty_write(&term->pty, (char[]){key->keysym.sym - 'a' + 1}, 1);
+            pty_write(&gfx->pty, (char[]){key->keysym.sym - 'a' + 1}, 1);
         else if (alt)
-            pty_write(&term->pty, (char[]){0x1b, key->keysym.sym}, 2);
+            pty_write(&gfx->pty, (char[]){0x1b, key->keysym.sym}, 2);
     } break;
 
     case SDLK_0: // fallthrough
@@ -103,52 +103,52 @@ void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
 
         // clang-format off
     case SDLK_LEFTBRACKET: {
-        if      (alt && ctrl) pty_write(&term->pty, "\x1b\x1b[",  3);
-        else if (alt)         pty_write(&term->pty, "\x1b[",      2);
-        else if (ctrl)        pty_write(&term->pty, "\x1b",       1);
+        if      (alt && ctrl) pty_write(&gfx->pty, "\x1b\x1b[",  3);
+        else if (alt)         pty_write(&gfx->pty, "\x1b[",      2);
+        else if (ctrl)        pty_write(&gfx->pty, "\x1b",       1);
     } break;
     case SDLK_RIGHTBRACKET: {
-        if      (alt && ctrl) pty_write(&term->pty, "\x1b\x1b]",  3);
-        else if (alt)         pty_write(&term->pty, "\x1b]",      2);
-        else if (ctrl)        pty_write(&term->pty, "\x1d",       1);
+        if      (alt && ctrl) pty_write(&gfx->pty, "\x1b\x1b]",  3);
+        else if (alt)         pty_write(&gfx->pty, "\x1b]",      2);
+        else if (ctrl)        pty_write(&gfx->pty, "\x1d",       1);
     } break;
-    case SDLK_F1:  pty_write(&term->pty, "\x1bOP",    3); break;
-    case SDLK_F2:  pty_write(&term->pty, "\x1bOQ",    3); break;
-    case SDLK_F3:  pty_write(&term->pty, "\x1bOR",    3); break;
-    case SDLK_F4:  pty_write(&term->pty, "\x1bOS",    3); break;
-    case SDLK_F5:  pty_write(&term->pty, "\x1b[15~",  5); break;
-    case SDLK_F6:  pty_write(&term->pty, "\x1b[17~",  5); break;
-    case SDLK_F7:  pty_write(&term->pty, "\x1b[18~",  5); break;
-    case SDLK_F8:  pty_write(&term->pty, "\x1b[19~",  5); break;
-    case SDLK_F9:  pty_write(&term->pty, "\x1b[20~",  5); break;
-    case SDLK_F10: pty_write(&term->pty, "\x1b[21~",  5); break;
-    case SDLK_F11: pty_write(&term->pty, "\x1b[23~",  5); break;
-    case SDLK_F12: pty_write(&term->pty, "\x1b[24~",  5); break;
+    case SDLK_F1:  pty_write(&gfx->pty, "\x1bOP",    3); break;
+    case SDLK_F2:  pty_write(&gfx->pty, "\x1bOQ",    3); break;
+    case SDLK_F3:  pty_write(&gfx->pty, "\x1bOR",    3); break;
+    case SDLK_F4:  pty_write(&gfx->pty, "\x1bOS",    3); break;
+    case SDLK_F5:  pty_write(&gfx->pty, "\x1b[15~",  5); break;
+    case SDLK_F6:  pty_write(&gfx->pty, "\x1b[17~",  5); break;
+    case SDLK_F7:  pty_write(&gfx->pty, "\x1b[18~",  5); break;
+    case SDLK_F8:  pty_write(&gfx->pty, "\x1b[19~",  5); break;
+    case SDLK_F9:  pty_write(&gfx->pty, "\x1b[20~",  5); break;
+    case SDLK_F10: pty_write(&gfx->pty, "\x1b[21~",  5); break;
+    case SDLK_F11: pty_write(&gfx->pty, "\x1b[23~",  5); break;
+    case SDLK_F12: pty_write(&gfx->pty, "\x1b[24~",  5); break;
 
     case SDLK_RETURN:    // fallthrough
-    case SDLK_RETURN2:   pty_write(&term->pty, "\r", 1);     break;
-    case SDLK_TAB:       pty_write(&term->pty, "\t", 1);     break;
-    case SDLK_BACKSPACE: pty_write(&term->pty, "\b", 1);     break;
-    case SDLK_ESCAPE:    pty_write(&term->pty, "\x1b", 1);   break;
+    case SDLK_RETURN2:   pty_write(&gfx->pty, "\r", 1);     break;
+    case SDLK_TAB:       pty_write(&gfx->pty, "\t", 1);     break;
+    case SDLK_BACKSPACE: pty_write(&gfx->pty, "\b", 1);     break;
+    case SDLK_ESCAPE:    pty_write(&gfx->pty, "\x1b", 1);   break;
 
 #define pty_write_arrow(final)                                                 \
     do {                                                                       \
         if (ctrl && shift && alt)                                              \
-            pty_write(&term->pty, "\x1b[1;8" final, 6);                        \
+            pty_write(&gfx->pty, "\x1b[1;8" final, 6);                        \
         else if (alt && ctrl)                                                  \
-            pty_write(&term->pty, "\x1b[1;7" final, 6);                        \
+            pty_write(&gfx->pty, "\x1b[1;7" final, 6);                        \
         else if (ctrl && shift)                                                \
-            pty_write(&term->pty, "\x1b[1;6" final, 6);                        \
+            pty_write(&gfx->pty, "\x1b[1;6" final, 6);                        \
         else if (shift && alt)                                                 \
-            pty_write(&term->pty, "\x1b[1;4" final, 6);                        \
+            pty_write(&gfx->pty, "\x1b[1;4" final, 6);                        \
         else if (ctrl)                                                         \
-            pty_write(&term->pty, "\x1b[1;5" final, 6);                        \
+            pty_write(&gfx->pty, "\x1b[1;5" final, 6);                        \
         else if (shift)                                                        \
-            pty_write(&term->pty, "\x1b[1;2" final, 6);                        \
+            pty_write(&gfx->pty, "\x1b[1;2" final, 6);                        \
         else if (alt)                                                          \
-            pty_write(&term->pty, "\x1b[1;3" final, 6);                        \
+            pty_write(&gfx->pty, "\x1b[1;3" final, 6);                        \
         else                                                                   \
-            pty_write(&term->pty, "\x1b[" final, 3);                           \
+            pty_write(&gfx->pty, "\x1b[" final, 3);                           \
     } while (0)
 
     case SDLK_UP:        pty_write_arrow("A"); break;
@@ -157,14 +157,14 @@ void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
     case SDLK_LEFT:      pty_write_arrow("D"); break;
 #undef pty_write_arrow
 
-    case SDLK_HOME:      pty_write(&term->pty, "\x1b[H", 3); break;
-    case SDLK_END:       pty_write(&term->pty, "\x1b[F", 3); break;
+    case SDLK_HOME:      pty_write(&gfx->pty, "\x1b[H", 3); break;
+    case SDLK_END:       pty_write(&gfx->pty, "\x1b[F", 3); break;
     case SDLK_INSERT: {
-        shift ? clipboard_paste(term) : pty_write(&term->pty, "\x1b[2~", 4);
+        shift ? clipboard_paste(term) : pty_write(&gfx->pty, "\x1b[2~", 4);
     } break;
-    case SDLK_DELETE:    pty_write(&term->pty, "\x1b[3~", 4); break;
-    case SDLK_PAGEUP:    pty_write(&term->pty, "\x1b[5~", 4); break;
-    case SDLK_PAGEDOWN:  pty_write(&term->pty, "\x1b[6~", 4); break;
+    case SDLK_DELETE:    pty_write(&gfx->pty, "\x1b[3~", 4); break;
+    case SDLK_PAGEUP:    pty_write(&gfx->pty, "\x1b[5~", 4); break;
+    case SDLK_PAGEDOWN:  pty_write(&gfx->pty, "\x1b[6~", 4); break;
         // clang-format on
     default: break;
     }

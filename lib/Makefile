@@ -6,18 +6,17 @@ LIB:=$(BUILD)/lib$(NAME).a
 
 O_FILES:=$(O_DIR)/$(NAME).o            \
          $(O_DIR)/$(NAME)/colors.o     \
-         $(O_DIR)/$(NAME)/pty.o        \
          $(O_DIR)/$(NAME)/utf8.o       \
          $(O_DIR)/$(NAME)/vt/buffer.o  \
          $(O_DIR)/$(NAME)/vt/parser.o
 
-override CFLAGS+= $(FLAGS) $(DEFINE) -fPIC -I$(I_DIR)
+override CFLAGS+= $(FLAGS) $(DEFINE) -I$(I_DIR)
 
 $(LIB): $(O_FILES); @mkdir -p $(@D)
 	$(AR) rcs $@ $^
 
 $(O_DIR)/%.o: $(I_DIR)/%.c $(I_DIR)/%.h ; @mkdir -p $(@D)
-	$(CC) $(CFLAGS) -c -fPIC -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(O_DIR)/$(NAME).o:                  \
 	$(I_DIR)/$(NAME)/scanner.h         \

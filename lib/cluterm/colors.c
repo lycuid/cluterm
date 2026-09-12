@@ -1,5 +1,4 @@
 #include "colors.h"
-#include <config.h>
 
 Rgb resolve_color(const Color *color, const Theme *theme)
 {

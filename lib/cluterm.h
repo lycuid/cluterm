@@ -1,7 +1,6 @@
 #ifndef __CLUTERM_H__
 #define __CLUTERM_H__
 
-#include <cluterm/pty.h>
 #include <cluterm/vt/buffer.h>
 #include <cluterm/vt/parser.h>
 
@@ -39,13 +38,12 @@ typedef struct ClutermActions {
     void (*query_palette_fg)(const Cluterm *);               // OSC 10
     void (*query_palette_bg)(const Cluterm *);               // OSC 11
     void (*query_cursor_color)(const Cluterm *);             // OSC 12
-    void (*device_state_report)(const Cluterm *);            // DSR 5
+    void (*device_state_report)(void);                       // DSR 5
     void (*report_cursor_position)(const Cluterm *);         // DSR 6
-    void (*send_device_attributes)(const Cluterm *);         // Primary DA (DA1)
+    void (*send_device_attributes)(void);                    // Primary DA (DA1)
 } ClutermActions;
 
 struct Cluterm {
-    pty_t pty;
     VT_Parser vt_parser;
     ClutermBuffer buffer[2];
     cluterm_mode_t mode;
@@ -60,9 +58,8 @@ struct Cluterm {
 #define ACTIVE_BUFFER(term)                                                    \
     (&(term)->buffer[IS_SET((term)->mode, MODE_ALT_BUFFER)])
 
-void cluterm_init(Cluterm *);
-void cluterm_start(Cluterm *, char *const *);
-void cluterm_write(Cluterm *, uchar *, size_t);
+void cluterm_init(Cluterm *, Config *);
+void cluterm_feed(Cluterm *, uchar *, size_t);
 void cluterm_resize(Cluterm *, int, int);
 void cluterm_destroy(Cluterm *);
 

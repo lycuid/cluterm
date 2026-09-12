@@ -10,9 +10,7 @@
 #include <SDL2/SDL.h>
 #include <cluterm.h>
 #include <cluterm/debug.h>
-#include <cluterm/pty.h>
 #include <cluterm/vt/buffer.h>
-#include <config.h>
 #include <fontconfig/fontconfig.h>
 #include <signal.h>
 #include <stdatomic.h>
@@ -115,6 +113,7 @@ void gfx_rebuild(Cluterm *term)
     h -= term->config.padding.top + term->config.padding.bottom;
     int cols = w / ctx.f_width, rows = h / ctx.f_height;
 
+    pty_resize(&ctx.pty, rows, cols);
     GUARD(vt_mutex) { cluterm_resize(term, rows, cols); }
     frame_resize(&frame, rows, cols);
 
@@ -188,9 +187,10 @@ int pty_reader(void *arg)
     uchar stream[4096] = {0};
     ssize_t n          = 0;
     struct timespec ts = {.tv_nsec = 1e6};
+
     while (is_running()) {
-        if ((n = pty_read(&term->pty, stream, sizeof(stream))) > 0) {
-            GUARD(vt_mutex) { cluterm_write(term, stream, (size_t)n); }
+        if ((n = pty_read(&ctx.pty, stream, sizeof(stream))) > 0) {
+            GUARD(vt_mutex) { cluterm_feed(term, stream, (size_t)n); }
             gfx_request_render(0);
         } else {
             nanosleep(&ts, &ts);
@@ -199,11 +199,25 @@ int pty_reader(void *arg)
     return 0;
 }
 
+static inline void pty_init(char *const *cmd, Config *cfg)
+{
+    char *shell[2] = {0};
+    if (!cmd || !*cmd) {
+        if (!(*shell = getenv("SHELL")))
+            *shell = "/bin/sh";
+        cmd = shell;
+    }
+    pty_spawn(&ctx.pty, cmd);
+    pty_resize(&ctx.pty, cfg->rows, cfg->cols);
+}
+
 int main(int argc, char *const *argv)
 {
-    Cluterm term = {0};
-    cluterm_init(&term);
+    Config cfg       = {0};
+    char *const *cmd = argparse(argc, argv, &cfg);
 
+    Cluterm term = {0};
+    cluterm_init(&term, &cfg);
     term.actions = (ClutermActions){
         .set_window_title       = set_window_title,
         .query_palette_index    = query_palette_index,
@@ -215,15 +229,7 @@ int main(int argc, char *const *argv)
         .send_device_attributes = send_device_attributes,
     };
 
-    char *const *cmd = argparse(argc, argv, &term.config);
-    char *shell[2]   = {0};
-    if (!cmd || !*cmd) {
-        if (!(*shell = getenv("SHELL")))
-            *shell = "/bin/sh";
-        cmd = shell;
-    }
-    cluterm_start(&term, cmd);
-
+    pty_init(cmd, &cfg);
     sdl_init(&term);
     signal(SIGCHLD, sigquit); // shell exits/crashes.
 
@@ -243,6 +249,7 @@ int main(int argc, char *const *argv)
         if (resz.pending && since(&resz.last, FPS(2))) {
             resz.pending = 0;
             GUARD(vt_mutex) { cluterm_resize(&term, resz.h, resz.w); }
+            pty_resize(&ctx.pty, resz.h, resz.w);
             frame_resize(&frame, resz.h, resz.w);
             gcache_resize(resz.h, resz.w);
             gfx_request_render(1);
@@ -278,7 +285,7 @@ int main(int argc, char *const *argv)
             case SDL_MOUSEMOTION: mouse_motion(&term, &e.motion); break;
 
             case SDL_TEXTINPUT: {
-                pty_write(&term.pty, e.text.text, strlen(e.text.text));
+                pty_write(&ctx.pty, e.text.text, strlen(e.text.text));
                 frame_activity(&frame);
             } break;
 
@@ -295,6 +302,7 @@ int main(int argc, char *const *argv)
 
     SDL_WaitThread(thread, NULL);
 
+    pty_destroy(&ctx.pty);
     cluterm_destroy(&term);
     {
         SDL_DestroyMutex(vt_mutex);
