@@ -39,10 +39,9 @@ void query_palette_bg(const Cluterm *term)
 
 void query_cursor_color(const Cluterm *term)
 {
-    char osc_color[64]     = {0};
-    const ClutermBuffer *b = ACTIVE_BUFFER(term);
+    char osc_color[64] = {0};
     int len = sprintf(osc_color, "\x1b]12;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
-                      RRGGBB(b->cursor.color));
+                      RRGGBB(term->theme.cursor));
     pty_write(&gfx->pty, osc_color, len);
 }
 

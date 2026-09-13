@@ -33,7 +33,7 @@ typedef Rgb Palette[256];
 
 typedef struct Theme {
     Palette palette;
-    Rgb fg, bg;
+    Rgb fg, bg, cursor;
 } Theme;
 
 typedef enum CursorStyle { CursorSolid, CursorBlink } CursorStyle;
@@ -59,7 +59,6 @@ typedef struct Config {
 
     Theme theme;
 
-    Rgb cursor_color;
     CursorStyle cursor_style;
     CursorShape cursor_shape;
 } Config;

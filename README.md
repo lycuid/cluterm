@@ -14,7 +14,7 @@ _**Note**_: default configs can be updated in `default_config.h` file.
 Build
 -----
 ```sh
-make clean && make -j build
+make -j build
 ```
 
 Run
@@ -22,25 +22,28 @@ Run
 ```sh
 make run
 ```
+
 Usage
 -----
 ```txt
 Usage: cluterm [options] [-e command [args...]]
 
 Options:
-  -h   help        Show this help.
-  -t   title       Set window title.
-  -g   geometry    Set window window (COLSxROWS).
-  -fg  color       Set foreground color (#RRGGBB).
-  -bg  color       Set background color (#RRGGBB).
-  -tw  width       Set tab width.
-  -pt  size        Set top padding.
-  -pr  size        Set right padding.
-  -pb  size        Set bottom padding.
-  -pl  size        Set left padding.
-  -fn  font        Set font family.
-  -fs  size        Set font size.
-  -e   command...  Execute command and pass remaining arguments.
+  -h                  Show this help.
+  -t   <title>        Set window title.
+  -g   <geometry>     Set window geometry (COLSxROWS).
+  -c   <shape>        Set cursor shape (block|underline|bar).
+  -cb                 Enable blinking cursor.
+  -fg  <color>        Set foreground color (#RRGGBB).
+  -bg  <color>        Set background color (#RRGGBB).
+  -tw  <width>        Set tab width.
+  -pt  <size>         Set top padding.
+  -pr  <size>         Set right padding.
+  -pb  <size>         Set bottom padding.
+  -pl  <size>         Set left padding.
+  -fn  <font>         Set font family.
+  -fs  <size>         Set font size.
+  -e   <command> ...  Execute command and pass remaining arguments.
 ```
 
 Licence:

@@ -33,7 +33,6 @@ typedef struct Cell {
 typedef Cell *Line;
 typedef struct Cursor {
     int y, x;
-    Rgb color;
     bool visible : 1;
     CursorStyle style;
     CursorShape shape;
@@ -73,9 +72,9 @@ typedef struct ClutermBuffer {
 #define dirty_buffer(b)                                                        \
     memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
 
-void buffer_init(ClutermBuffer *, Config *);
+void buffer_init(ClutermBuffer *, const Config *);
 void buffer_destroy(ClutermBuffer *);
-void buffer_resize(ClutermBuffer *, Config *, int, int);
+void buffer_resize(ClutermBuffer *, const Config *, int, int);
 
 Cell getcell(const ClutermBuffer *, int, int);
 void putcell(ClutermBuffer *, int, int, Cell);

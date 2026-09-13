@@ -1,15 +1,9 @@
-#ifndef __CONFIG_H__
-#define __CONFIG_H__
+#ifndef __DEFAULT_CONFIG_H__
+#define __DEFAULT_CONFIG_H__
 
-#include <cluterm/util.h>
-#include <cluterm/vt/buffer.h>
+#include "lib/cluterm/util.h"
 
-static const Box Padding = {
-    .top    = 0,
-    .right  = 0,
-    .bottom = 0,
-    .left   = 0,
-};
+static const Box Padding = {.top = 0, .right = 0, .bottom = 0, .left = 0};
 
 static const char Title[]      = "cluterm";
 static const int Rows          = 36;
@@ -38,11 +32,10 @@ static const Theme DefaultTheme = {
             [14] = 0xddffff,
             [15] = 0xffffff,
         },
-    .fg = 0xeeeeee,
-    .bg = 0x000000,
+    .fg     = 0xeeeeee,
+    .bg     = 0x000000,
+    .cursor = 0xeeeeee,
 };
-
-static const Rgb DefaultCursorColor = DefaultTheme.fg;
 
 // CursorBlock | CursorUnderline | CursorBar
 static const CursorShape DefaultCursorShape = CursorBlock;

@@ -60,8 +60,8 @@ struct Cluterm {
 #define ACTIVE_BUFFER(term)                                                    \
     (&(term)->buffer[IS_SET((term)->mode, MODE_ALT_BUFFER)])
 
-void cluterm_init(Cluterm *, Config *);
-void cluterm_feed(Cluterm *, uchar *, size_t);
+void cluterm_init(Cluterm *, const Config *);
+void cluterm_feed(Cluterm *, const uchar *, size_t);
 void cluterm_resize(Cluterm *, int, int);
 void cluterm_destroy(Cluterm *);
 

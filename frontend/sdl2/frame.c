@@ -119,6 +119,7 @@ static inline void batch_flush(const Line line)
 static inline void draw_cursor(const Frame *frame)
 {
     const Cursor *c = &frame->buffer.cursor;
+    Rgb color       = frame->theme.cursor;
     if (c->x >= frame->buffer.cols || c->y >= frame->buffer.rows)
         return;
 
@@ -134,8 +135,8 @@ static inline void draw_cursor(const Frame *frame)
          (c->style == CursorBlink && frame->_cursor_blink_state.visible));
 
     if (use_cursor && c->shape == CursorBlock) {
-        cell.attrs.fg = ColorRgb(~c->color & 0xffffff);
-        cell.attrs.bg = ColorRgb(c->color);
+        cell.attrs.fg = ColorRgb(~color & 0xffffff);
+        cell.attrs.bg = ColorRgb(color);
     }
 
     Rgb fg = cell_fg(&cell, &frame->theme), bg = cell_bg(&cell, &frame->theme);
@@ -144,12 +145,12 @@ static inline void draw_cursor(const Frame *frame)
     gcache_emit(cell, fg, c->y, c->x);
 
     if (use_cursor && c->shape == CursorUnderline)
-        underline(c->color, dst, 3);
+        underline(color, dst, 3);
     else if (IS_SET(cell.attrs.state, CELL_UNDERLINE))
         underline(fg, dst, 2);
 
     if (use_cursor && c->shape == CursorBar)
-        bar(c->color, dst, 3);
+        bar(color, dst, 3);
 
     gcache_flush();
 }

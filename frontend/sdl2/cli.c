@@ -10,19 +10,21 @@ static const char usage[] =
     "Usage: " NAME " [options] [-e command [args...]]\n"
     "\n"
     "Options:\n"
-    "  -h   help        Show this help.\n"
-    "  -t   title       Set window title.\n"
-    "  -g   geometry    Set window window (COLSxROWS).\n"
-    "  -fg  color       Set foreground color (#RRGGBB).\n"
-    "  -bg  color       Set background color (#RRGGBB).\n"
-    "  -tw  width       Set tab width.\n"
-    "  -pt  size        Set top padding.\n"
-    "  -pr  size        Set right padding.\n"
-    "  -pb  size        Set bottom padding.\n"
-    "  -pl  size        Set left padding.\n"
-    "  -fn  font        Set font family.\n"
-    "  -fs  size        Set font size.\n"
-    "  -e   command...  Execute command and pass remaining arguments.\n";
+    "  -h                  Show this help.\n"
+    "  -t   <title>        Set window title.\n"
+    "  -g   <geometry>     Set window geometry (COLSxROWS).\n"
+    "  -c   <shape>        Set cursor shape (block|underline|bar).\n"
+    "  -cb                 Enable blinking cursor.\n"
+    "  -fg  <color>        Set foreground color (#RRGGBB).\n"
+    "  -bg  <color>        Set background color (#RRGGBB).\n"
+    "  -tw  <width>        Set tab width.\n"
+    "  -pt  <size>         Set top padding.\n"
+    "  -pr  <size>         Set right padding.\n"
+    "  -pb  <size>         Set bottom padding.\n"
+    "  -pl  <size>         Set left padding.\n"
+    "  -fn  <font>         Set font family.\n"
+    "  -fs  <size>         Set font size.\n"
+    "  -e   <command> ...  Execute command and pass remaining arguments.\n";
 
 static inline Rgb color256(uint8_t n)
 {
@@ -48,12 +50,12 @@ char *const *argparse(int argc, char *const *argv, Config *cfg)
     cfg->padding      = Padding;
     cfg->font_family  = FontFamily;
     cfg->font_size    = FontSize;
-    cfg->cursor_color = DefaultCursorColor;
     cfg->cursor_style = DefaultCursorStyle;
     cfg->cursor_shape = DefaultCursorShape;
 
-    cfg->theme.fg = DefaultTheme.fg;
-    cfg->theme.bg = DefaultTheme.bg;
+    cfg->theme.fg     = DefaultTheme.fg;
+    cfg->theme.bg     = DefaultTheme.bg;
+    cfg->theme.cursor = DefaultTheme.cursor;
     for (size_t i = 0; i <= 255; ++i)
         cfg->theme.palette[i] = color256(i);
 
@@ -76,6 +78,26 @@ char *const *argparse(int argc, char *const *argv, Config *cfg)
                 debug("Invalid geometry: '%s'.\n", *argv);
             else
                 cfg->cols = cols;
+            continue;
+        }
+
+        if (strcmp(*argv, "-c") == 0) {
+            if (--argc <= 0)
+                break;
+            const char *const shape = *++argv;
+            if (strcmp(shape, "block") == 0)
+                cfg->cursor_shape = CursorBlock;
+            else if (strcmp(shape, "underline") == 0)
+                cfg->cursor_shape = CursorUnderline;
+            else if (strcmp(shape, "bar") == 0)
+                cfg->cursor_shape = CursorBar;
+            else
+                debug("Invalid cursor shape: '%s'.\n", *argv);
+            continue;
+        }
+
+        if (strcmp(*argv, "-cb") == 0) {
+            cfg->cursor_style = CursorBlink;
             continue;
         }
 

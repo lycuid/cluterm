@@ -6,7 +6,7 @@
 #include <cluterm/vt/actions/osc.h>
 #include <unistd.h>
 
-void cluterm_init(Cluterm *term, Config *config)
+void cluterm_init(Cluterm *term, const Config *config)
 {
     memcpy(&term->config, config, sizeof(Config));
     parser_init(&term->vt_parser);
@@ -20,7 +20,7 @@ void cluterm_init(Cluterm *term, Config *config)
     memcpy(&term->theme, &term->config.theme, sizeof(Theme));
 }
 
-void cluterm_feed(Cluterm *term, uchar *stream, size_t slen)
+void cluterm_feed(Cluterm *term, const uchar *stream, size_t slen)
 {
     VT_Parser *vt_parser = &term->vt_parser;
     parser_feed(vt_parser, stream, slen);

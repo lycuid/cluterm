@@ -18,7 +18,7 @@
 
 #define dirty_line(b, y) dirty_lines(b, y, 1)
 
-void buffer_init(ClutermBuffer *b, Config *cfg)
+void buffer_init(ClutermBuffer *b, const Config *cfg)
 {
     b->rows = cfg->rows, b->cols = cfg->cols, b->history = cfg->history,
     b->last_row = 0, b->scroll_region.start = 0,
@@ -28,8 +28,8 @@ void buffer_init(ClutermBuffer *b, Config *cfg)
         b->tab[i] = 1;
 
     /* Cursor. */ {
-        b->cursor.y = b->cursor.x = 0, b->cursor.color = cfg->cursor_color,
-        b->cursor.visible = 1, b->cursor.style = cfg->cursor_style,
+        b->cursor.y = b->cursor.x = 0, b->cursor.visible = 1,
+        b->cursor.style = cfg->cursor_style,
         b->cursor.shape = cfg->cursor_shape;
         b->saved_cursor = b->cursor;
     }
@@ -50,7 +50,7 @@ void buffer_init(ClutermBuffer *b, Config *cfg)
     clear(b);
 }
 
-void buffer_resize(ClutermBuffer *b, Config *cfg, int rows, int cols)
+void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
 {
     debug_1("buffer resized to %dx%d.\n", cols, rows);
     Line *ll = malloc(rows * sizeof(Line));
