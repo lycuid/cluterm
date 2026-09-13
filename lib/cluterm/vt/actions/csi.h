@@ -163,7 +163,7 @@ static inline void csi_dsr(Cluterm *term, CSI_Payload *csi)
     } break;
     case 6: {
         if (term->actions.report_cursor_position)
-            term->actions.report_cursor_position(term);
+            term->actions.report_cursor_position();
     } break;
     }
 }

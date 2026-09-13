@@ -174,9 +174,9 @@ void frame_resize(Frame *frame, int rows, int cols)
     canvas_resize(&frame->canvas, cols * gfx->f_width, rows * gfx->f_height);
 }
 
-void frame_capture(Frame *frame, const Cluterm *term)
+void frame_capture(Frame *frame)
 {
-    const ClutermBuffer *cb = ACTIVE_BUFFER(term);
+    const ClutermBuffer *cb = ACTIVE_BUFFER(&gfx->term);
     struct FrameBuffer *fb  = &frame->buffer;
 
     for (int y = 0; y < cb->rows; ++y)
@@ -186,7 +186,7 @@ void frame_capture(Frame *frame, const Cluterm *term)
     memmove(fb->dirty, cb->dirty, cb->cols * cb->rows * sizeof(*cb->dirty));
     memset(cb->dirty, 0, cb->rows * cb->cols * sizeof(*cb->dirty));
 
-    memcpy(&frame->theme, &term->theme, sizeof(Theme));
+    memcpy(&frame->theme, &gfx->term.theme, sizeof(Theme));
 
 #if DUMP_DIRTY_FRAME >= 1
     // {{{

@@ -3,13 +3,13 @@
 
 #include <cluterm.h>
 
-void set_window_title(const Cluterm *, const char *);
-void query_palette_index(const Cluterm *, int);
-void query_palette_fg(const Cluterm *);
-void query_palette_bg(const Cluterm *);
-void query_cursor_color(const Cluterm *);
+void set_window_title(const char *);
+void query_palette_index(int);
+void query_palette_fg(void);
+void query_palette_bg(void);
+void query_cursor_color(void);
 void device_state_report(void);
-void report_cursor_position(const Cluterm *);
+void report_cursor_position(void);
 void send_device_attributes(void);
 
 #endif

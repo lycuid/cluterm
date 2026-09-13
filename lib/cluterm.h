@@ -35,14 +35,14 @@ typedef struct MouseReport {
 } MouseReport;
 
 typedef struct ClutermActions {
-    void (*set_window_title)(const Cluterm *, const char *); // OSC 1,2
-    void (*query_palette_index)(const Cluterm *, int);       // OSC 4
-    void (*query_palette_fg)(const Cluterm *);               // OSC 10
-    void (*query_palette_bg)(const Cluterm *);               // OSC 11
-    void (*query_cursor_color)(const Cluterm *);             // OSC 12
-    void (*device_state_report)(void);                       // DSR 5
-    void (*report_cursor_position)(const Cluterm *);         // DSR 6
-    void (*send_device_attributes)(void);                    // Primary DA (DA1)
+    void (*set_window_title)(const char *); // OSC 1,2
+    void (*query_palette_index)(int);       // OSC 4
+    void (*query_palette_fg)(void);         // OSC 10
+    void (*query_palette_bg)(void);         // OSC 11
+    void (*query_cursor_color)(void);       // OSC 12
+    void (*device_state_report)(void);      // DSR 5
+    void (*report_cursor_position)(void);   // DSR 6
+    void (*send_device_attributes)(void);   // Primary DA (DA1)
 } ClutermActions;
 
 struct Cluterm {

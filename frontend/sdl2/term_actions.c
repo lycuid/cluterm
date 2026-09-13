@@ -6,40 +6,43 @@
     ((i) >> 16) & 0xff, ((i) >> 16) & 0xff, ((i) >> 8) & 0xff,                 \
         ((i) >> 8) & 0xff, (i) & 0xff, (i) & 0xff
 
-void set_window_title(const Cluterm *term, const char *title)
+void set_window_title(const char *title)
 {
     if (strlen(title))
         SDL_SetWindowTitle(gfx->window, title);
-    (void)term;
 }
 
-void query_palette_index(const Cluterm *term, int index)
+void query_palette_index(int index)
 {
-    char osc_color[64] = {0};
+    const Cluterm *term = &gfx->term;
+    char osc_color[64]  = {0};
     int len = sprintf(osc_color, "\x1b]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       index, RRGGBB(term->theme.palette[index]));
     pty_write(&gfx->pty, osc_color, len);
 }
 
-void query_palette_fg(const Cluterm *term)
+void query_palette_fg(void)
 {
-    char osc_color[64] = {0};
+    const Cluterm *term = &gfx->term;
+    char osc_color[64]  = {0};
     int len = sprintf(osc_color, "\x1b]10;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       RRGGBB(term->theme.fg));
     pty_write(&gfx->pty, osc_color, len);
 }
 
-void query_palette_bg(const Cluterm *term)
+void query_palette_bg(void)
 {
-    char osc_color[64] = {0};
+    const Cluterm *term = &gfx->term;
+    char osc_color[64]  = {0};
     int len = sprintf(osc_color, "\x1b]11;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       RRGGBB(term->theme.bg));
     pty_write(&gfx->pty, osc_color, len);
 }
 
-void query_cursor_color(const Cluterm *term)
+void query_cursor_color(void)
 {
-    char osc_color[64] = {0};
+    const Cluterm *term = &gfx->term;
+    char osc_color[64]  = {0};
     int len = sprintf(osc_color, "\x1b]12;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       RRGGBB(term->theme.cursor));
     pty_write(&gfx->pty, osc_color, len);
@@ -47,10 +50,11 @@ void query_cursor_color(const Cluterm *term)
 
 void device_state_report(void) { pty_write(&gfx->pty, "\x1b[0n", 4); }
 
-void report_cursor_position(const Cluterm *term)
+void report_cursor_position(void)
 {
-    char seq[32]           = {0};
+    const Cluterm *term    = &gfx->term;
     const ClutermBuffer *b = ACTIVE_BUFFER(term);
+    char seq[32]           = {0};
 
     sprintf(seq, "\x1b[%d;%dR", b->cursor.y + 1, b->cursor.x + 1);
     pty_write(&gfx->pty, seq, strlen(seq));

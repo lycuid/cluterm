@@ -3,11 +3,12 @@
 
 static int f_delta = 0;
 
-ssize_t send_arrow(const Cluterm *term, char final, Uint16 keymod)
+ssize_t send_arrow(char final, Uint16 keymod)
 {
-    bool ctrl  = IS_SET_ANY(keymod, KMOD_CTRL),
-         shift = IS_SET_ANY(keymod, KMOD_SHIFT),
-         alt   = IS_SET_ANY(keymod, KMOD_ALT);
+    const Cluterm *term = &gfx->term;
+    bool ctrl           = IS_SET_ANY(keymod, KMOD_CTRL),
+         shift          = IS_SET_ANY(keymod, KMOD_SHIFT),
+         alt            = IS_SET_ANY(keymod, KMOD_ALT);
 
     if (ctrl && shift && alt)
         return pty_write(&gfx->pty, (char[]){27, '[', '1', ';', '8', final}, 6);
@@ -49,11 +50,12 @@ static inline ssize_t clipboard_paste(const Cluterm *term)
     return n;
 }
 
-void handle_keydown(Cluterm *term, const SDL_KeyboardEvent *key)
+void handle_keydown(const SDL_KeyboardEvent *key)
 {
-    bool ctrl  = IS_SET_ANY(key->keysym.mod, KMOD_CTRL),
-         shift = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT),
-         alt   = IS_SET_ANY(key->keysym.mod, KMOD_ALT);
+    const Cluterm *term = &gfx->term;
+    bool ctrl           = IS_SET_ANY(key->keysym.mod, KMOD_CTRL),
+         shift          = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT),
+         alt            = IS_SET_ANY(key->keysym.mod, KMOD_ALT);
 
     switch (key->keysym.sym) {
     case SDLK_a: goto mod_put;
@@ -118,13 +120,16 @@ void handle_keydown(Cluterm *term, const SDL_KeyboardEvent *key)
         }
         break;
     resize_font: {
-        int size  = term->config.font_size + f_delta;
-        uint hdpi = lroundf(gfx->hdpi), vdpi = lroundf(gfx->vdpi);
+        Dpi dpi;
+        gfx_display_dpi(0, &dpi);
+        uint hdpi = lroundf(dpi.h), vdpi = lroundf(dpi.v);
+
+        int size = term->config.font_size + f_delta;
         TTF_SetFontSizeDPI(gfx->fonts[FontRegular], size, hdpi, vdpi);
         TTF_SetFontSizeDPI(gfx->fonts[FontBold], size, hdpi, vdpi);
         TTF_SetFontSizeDPI(gfx->fonts[FontItalic], size, hdpi, vdpi);
         TTF_SetFontSizeDPI(gfx->fonts[FontBoldItalic], size, hdpi, vdpi);
-        gfx_rebuild(term);
+        gfx_rebuild();
         gfx_request_render(1);
     } break;
 
@@ -158,10 +163,10 @@ void handle_keydown(Cluterm *term, const SDL_KeyboardEvent *key)
     case SDLK_BACKSPACE: pty_write(&gfx->pty, "\b", 1);     break;
     case SDLK_ESCAPE:    pty_write(&gfx->pty, "\x1b", 1);   break;
 
-    case SDLK_UP:        send_arrow_up(term, key->keysym.mod); break;
-    case SDLK_DOWN:      send_arrow_down(term, key->keysym.mod); break;
-    case SDLK_RIGHT:     send_arrow_right(term, key->keysym.mod); break;
-    case SDLK_LEFT:      send_arrow_left(term, key->keysym.mod); break;
+    case SDLK_UP:        send_arrow_up(key->keysym.mod); break;
+    case SDLK_DOWN:      send_arrow_down(key->keysym.mod); break;
+    case SDLK_RIGHT:     send_arrow_right(key->keysym.mod); break;
+    case SDLK_LEFT:      send_arrow_left(key->keysym.mod); break;
 
     case SDLK_HOME:      pty_write(&gfx->pty, "\x1b[H", 3); break;
     case SDLK_END:       pty_write(&gfx->pty, "\x1b[F", 3); break;

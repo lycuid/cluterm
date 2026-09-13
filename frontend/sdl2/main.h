@@ -13,18 +13,25 @@
         exit(code);                                                            \
     } while (0)
 
+typedef struct Dpi {
+    float d, h, v;
+} Dpi;
+
 typedef struct GFX_Context {
     SDL_Window *window;
     SDL_Renderer *renderer;
     TTF_Font *fonts[4];
+
     int f_width, f_height;
-    float hdpi, vdpi;
+
+    Cluterm term;
     pty_t pty;
 } GFX_Context;
 
 extern const GFX_Context *gfx;
 
-void gfx_rebuild(Cluterm *);
+void gfx_rebuild(void);
 void gfx_request_render(bool);
+void gfx_display_dpi(int, Dpi *);
 
 #endif

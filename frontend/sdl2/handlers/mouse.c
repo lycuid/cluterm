@@ -87,8 +87,9 @@ static inline void report(const MouseReport *mouse_report, int cb, int x, int y,
     }
 }
 
-void mouse_button(const Cluterm *term, const SDL_MouseButtonEvent *mouse)
+void mouse_button(const SDL_MouseButtonEvent *mouse)
 {
+    const Cluterm *term = &gfx->term;
     if (!IS_SET_ANY(term->mouse_report.event,
                     EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
         return;
@@ -104,8 +105,9 @@ void mouse_button(const Cluterm *term, const SDL_MouseButtonEvent *mouse)
            mouse->state == SDL_PRESSED);
 }
 
-void mouse_wheel(const Cluterm *term, const SDL_MouseWheelEvent *wheel)
+void mouse_wheel(const SDL_MouseWheelEvent *wheel)
 {
+    const Cluterm *term        = &gfx->term;
     const MouseReport *mreport = &term->mouse_report;
     if (IS_SET_ANY(mreport->event, EVENT_BUTTON | EVENT_DRAG | EVENT_ALL)) {
         int dy = wheel->y, dx = wheel->x, mods = with_mods(0);
@@ -120,18 +122,19 @@ void mouse_wheel(const Cluterm *term, const SDL_MouseWheelEvent *wheel)
     } else if (IS_SET(term->mode, MODE_ALT_BUFFER | MODE_ALT_SCROLL)) {
         int dy = wheel->y, dx = wheel->x;
         for (; dy > 0; --dy)
-            send_arrow_up(term, 0);
+            send_arrow_up(0);
         for (; dy < 0; ++dy)
-            send_arrow_down(term, 0);
+            send_arrow_down(0);
         for (; dx > 0; --dx)
-            send_arrow_right(term, 0);
+            send_arrow_right(0);
         for (; dx < 0; ++dx)
-            send_arrow_left(term, 0);
+            send_arrow_left(0);
     }
 }
 
-void mouse_motion(const Cluterm *term, const SDL_MouseMotionEvent *motion)
+void mouse_motion(const SDL_MouseMotionEvent *motion)
 {
+    const Cluterm *term = &gfx->term;
     if (!IS_SET_ANY(term->mouse_report.event, EVENT_DRAG | EVENT_ALL))
         return;
 

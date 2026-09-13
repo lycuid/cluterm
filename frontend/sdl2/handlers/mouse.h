@@ -4,8 +4,8 @@
 #include <SDL2/SDL.h>
 #include <cluterm.h>
 
-void mouse_button(const Cluterm *term, const SDL_MouseButtonEvent *);
-void mouse_wheel(const Cluterm *term, const SDL_MouseWheelEvent *);
-void mouse_motion(const Cluterm *term, const SDL_MouseMotionEvent *);
+void mouse_button(const SDL_MouseButtonEvent *);
+void mouse_wheel(const SDL_MouseWheelEvent *);
+void mouse_motion(const SDL_MouseMotionEvent *);
 
 #endif

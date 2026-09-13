@@ -73,7 +73,7 @@ static inline bool osc_set_color(Cluterm *term, OSC_Action action, int index,
 
 static inline bool osc_color(Cluterm *term, OSC_Action action, Scanner *s)
 {
-    void (*query)(const Cluterm *) = NULL;
+    void (*query)(void) = NULL;
     switch (action) {
     case OSC_10: query = term->actions.query_palette_fg; break;
     case OSC_11: query = term->actions.query_palette_bg; break;
@@ -86,7 +86,7 @@ static inline bool osc_color(Cluterm *term, OSC_Action action, Scanner *s)
 
     bool ok = true;
     if (s_consume(s, '?'))
-        query(term);
+        query();
     else
         ok = osc_set_color(term, action, 0, s);
 
@@ -108,7 +108,7 @@ EXPORT inline void osc_execute(Cluterm *term, OSC_Payload *osc)
                 break;
             char *title = calloc(s_buflen(s) + 1, sizeof(char));
             memcpy(title, s_buffer(s), s_buflen(s));
-            term->actions.set_window_title(term, title);
+            term->actions.set_window_title(title);
             free(title);
         }
     } break;
@@ -125,7 +125,7 @@ EXPORT inline void osc_execute(Cluterm *term, OSC_Payload *osc)
 
             if (s_consume(s, '?')) {
                 if (term->actions.query_palette_index)
-                    term->actions.query_palette_index(term, index);
+                    term->actions.query_palette_index(index);
             } else {
                 ok = osc_set_color(term, osc->action, index, s);
             }
