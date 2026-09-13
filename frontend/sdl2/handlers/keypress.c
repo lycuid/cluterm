@@ -3,6 +3,33 @@
 
 static int f_delta = 0;
 
+ssize_t send_arrow(const Cluterm *term, char final, Uint16 keymod)
+{
+    bool ctrl  = IS_SET_ANY(keymod, KMOD_CTRL),
+         shift = IS_SET_ANY(keymod, KMOD_SHIFT),
+         alt   = IS_SET_ANY(keymod, KMOD_ALT);
+
+    if (ctrl && shift && alt)
+        return pty_write(&gfx->pty, (char[]){27, '[', '1', ';', '8', final}, 6);
+    if (alt && ctrl)
+        return pty_write(&gfx->pty, (char[]){27, '[', '1', ';', '7', final}, 6);
+    if (ctrl && shift)
+        return pty_write(&gfx->pty, (char[]){27, '[', '1', ';', '6', final}, 6);
+    if (shift && alt)
+        return pty_write(&gfx->pty, (char[]){27, '[', '1', ';', '4', final}, 6);
+    if (ctrl)
+        return pty_write(&gfx->pty, (char[]){27, '[', '1', ';', '5', final}, 6);
+    if (shift)
+        return pty_write(&gfx->pty, (char[]){27, '[', '1', ';', '2', final}, 6);
+    if (alt)
+        return pty_write(&gfx->pty, (char[]){27, '[', '1', ';', '3', final}, 6);
+
+    if (IS_SET(term->mode, MODE_APP_CURSOR_KEYS))
+        return pty_write(&gfx->pty, (char[]){27, 'O', final}, 3);
+
+    return pty_write(&gfx->pty, (char[]){27, '[', final}, 3);
+}
+
 static inline ssize_t clipboard_paste(const Cluterm *term)
 {
     char *text = SDL_GetClipboardText();
@@ -22,7 +49,7 @@ static inline ssize_t clipboard_paste(const Cluterm *term)
     return n;
 }
 
-void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
+void handle_keydown(Cluterm *term, const SDL_KeyboardEvent *key)
 {
     bool ctrl  = IS_SET_ANY(key->keysym.mod, KMOD_CTRL),
          shift = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT),
@@ -131,31 +158,10 @@ void handle_keydown(Cluterm *term, SDL_KeyboardEvent *key)
     case SDLK_BACKSPACE: pty_write(&gfx->pty, "\b", 1);     break;
     case SDLK_ESCAPE:    pty_write(&gfx->pty, "\x1b", 1);   break;
 
-#define pty_write_arrow(final)                                                 \
-    do {                                                                       \
-        if (ctrl && shift && alt)                                              \
-            pty_write(&gfx->pty, "\x1b[1;8" final, 6);                        \
-        else if (alt && ctrl)                                                  \
-            pty_write(&gfx->pty, "\x1b[1;7" final, 6);                        \
-        else if (ctrl && shift)                                                \
-            pty_write(&gfx->pty, "\x1b[1;6" final, 6);                        \
-        else if (shift && alt)                                                 \
-            pty_write(&gfx->pty, "\x1b[1;4" final, 6);                        \
-        else if (ctrl)                                                         \
-            pty_write(&gfx->pty, "\x1b[1;5" final, 6);                        \
-        else if (shift)                                                        \
-            pty_write(&gfx->pty, "\x1b[1;2" final, 6);                        \
-        else if (alt)                                                          \
-            pty_write(&gfx->pty, "\x1b[1;3" final, 6);                        \
-        else                                                                   \
-            pty_write(&gfx->pty, "\x1b[" final, 3);                           \
-    } while (0)
-
-    case SDLK_UP:        pty_write_arrow("A"); break;
-    case SDLK_DOWN:      pty_write_arrow("B"); break;
-    case SDLK_RIGHT:     pty_write_arrow("C"); break;
-    case SDLK_LEFT:      pty_write_arrow("D"); break;
-#undef pty_write_arrow
+    case SDLK_UP:        send_arrow_up(term, key->keysym.mod); break;
+    case SDLK_DOWN:      send_arrow_down(term, key->keysym.mod); break;
+    case SDLK_RIGHT:     send_arrow_right(term, key->keysym.mod); break;
+    case SDLK_LEFT:      send_arrow_left(term, key->keysym.mod); break;
 
     case SDLK_HOME:      pty_write(&gfx->pty, "\x1b[H", 3); break;
     case SDLK_END:       pty_write(&gfx->pty, "\x1b[F", 3); break;

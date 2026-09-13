@@ -28,8 +28,7 @@ static int atlas_cell_width, atlas_cell_height;
 static struct GlyphAtlas {
     SDL_Texture *texture;
     SDL_Vertex *verts;
-    int *indices;
-    int nverts, nindices;
+    int nverts, *indices, nindices;
 } atlas = {0};
 
 static AtlasSlot ascii_slots[4 * TOTAL_ASCII] = {0};

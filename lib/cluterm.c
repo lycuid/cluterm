@@ -11,7 +11,7 @@ void cluterm_init(Cluterm *term, Config *config)
     memcpy(&term->config, config, sizeof(Config));
     parser_init(&term->vt_parser);
     term->mouse_report = (MouseReport){0};
-    term->mode         = 0x0;
+    term->mode         = MODE_ALT_SCROLL;
     memset(&term->actions, 0, sizeof(term->actions));
 
     buffer_init(&term->buffer[0], &term->config);

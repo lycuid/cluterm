@@ -197,7 +197,10 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
 
         switch (csi->param[i]) {
 
-        // CSI_DECANM
+        // CSI_DECCKM.
+        case 1: UPDATE(term->mode, MODE_APP_CURSOR_KEYS, is_decset); break;
+
+        // CSI_DECANM.
         case 2: {
             if (is_decset)
                 memset(b->charset, CS_USASCII, sizeof(b->charset));
@@ -223,6 +226,9 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
 
         case 1005: update_enc(ENC_UTF8); break;
         case 1006: update_enc(ENC_SGR); break;
+
+        case 1007: UPDATE(term->mode, MODE_ALT_SCROLL, is_decset); break;
+
         case 1015: update_enc(ENC_URXVT); break;
         case 1016: update_enc(ENC_SGRPIXEL); break;
 

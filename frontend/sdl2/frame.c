@@ -187,10 +187,12 @@ void frame_capture(Frame *frame, const Cluterm *term)
 
     memcpy(&frame->theme, &term->theme, sizeof(Theme));
 
-#ifdef DUMP_DIRTY_FRAME
+#if DUMP_DIRTY_FRAME >= 1
     // {{{
-    static uint64_t frameno = 0;
+#if DUMP_DIRTY_FRAME >= 2
     debug("\x1b[2J");
+#endif
+    static uint64_t frameno = 0;
     debug("----------------- Frame begin: (%ld) -----------------\n",
           ++frameno);
     for (int y = 0; y < frame->buffer.rows; ++y) {

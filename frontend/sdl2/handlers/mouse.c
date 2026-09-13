@@ -1,4 +1,5 @@
 #include "mouse.h"
+#include "keypress.h"
 #include "main.h"
 #include <cluterm/utf8.h>
 
@@ -86,7 +87,7 @@ static inline void report(const MouseReport *mouse_report, int cb, int x, int y,
     }
 }
 
-void mouse_button(const Cluterm *term, SDL_MouseButtonEvent *mouse)
+void mouse_button(const Cluterm *term, const SDL_MouseButtonEvent *mouse)
 {
     if (!IS_SET_ANY(term->mouse_report.event,
                     EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
@@ -103,26 +104,33 @@ void mouse_button(const Cluterm *term, SDL_MouseButtonEvent *mouse)
            mouse->state == SDL_PRESSED);
 }
 
-void mouse_wheel(const Cluterm *term, SDL_MouseWheelEvent *wheel)
+void mouse_wheel(const Cluterm *term, const SDL_MouseWheelEvent *wheel)
 {
-    if (!IS_SET_ANY(term->mouse_report.event,
-                    EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
-        return;
-
-    int mods = with_mods(0);
-
-    int dy = wheel->y, dx = wheel->x;
-    for (; dy > 0; --dy)
-        report(&term->mouse_report, 64 | mods, wheel->mouseX, wheel->mouseY, 1);
-    for (; dy < 0; ++dy)
-        report(&term->mouse_report, 65 | mods, wheel->mouseX, wheel->mouseY, 1);
-    for (; dx < 0; ++dx)
-        report(&term->mouse_report, 66 | mods, wheel->mouseX, wheel->mouseY, 1);
-    for (; dx > 0; --dx)
-        report(&term->mouse_report, 67 | mods, wheel->mouseX, wheel->mouseY, 1);
+    const MouseReport *mreport = &term->mouse_report;
+    if (IS_SET_ANY(mreport->event, EVENT_BUTTON | EVENT_DRAG | EVENT_ALL)) {
+        int dy = wheel->y, dx = wheel->x, mods = with_mods(0);
+        for (; dy > 0; --dy)
+            report(mreport, 64 | mods, wheel->mouseX, wheel->mouseY, 1);
+        for (; dy < 0; ++dy)
+            report(mreport, 65 | mods, wheel->mouseX, wheel->mouseY, 1);
+        for (; dx < 0; ++dx)
+            report(mreport, 66 | mods, wheel->mouseX, wheel->mouseY, 1);
+        for (; dx > 0; --dx)
+            report(mreport, 67 | mods, wheel->mouseX, wheel->mouseY, 1);
+    } else if (IS_SET(term->mode, MODE_ALT_BUFFER | MODE_ALT_SCROLL)) {
+        int dy = wheel->y, dx = wheel->x;
+        for (; dy > 0; --dy)
+            send_arrow_up(term, 0);
+        for (; dy < 0; ++dy)
+            send_arrow_down(term, 0);
+        for (; dx > 0; --dx)
+            send_arrow_right(term, 0);
+        for (; dx < 0; ++dx)
+            send_arrow_left(term, 0);
+    }
 }
 
-void mouse_motion(const Cluterm *term, SDL_MouseMotionEvent *motion)
+void mouse_motion(const Cluterm *term, const SDL_MouseMotionEvent *motion)
 {
     if (!IS_SET_ANY(term->mouse_report.event, EVENT_DRAG | EVENT_ALL))
         return;
