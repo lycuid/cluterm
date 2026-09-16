@@ -20,14 +20,14 @@ static inline void report_sgrpixel(int cb, int x, int y, bool pressed)
     char seq[32] = {0}, final = pressed ? 'M' : 'm';
 
     sprintf(seq, "\x1b[<%d;%d;%d%c", cb, x, y, final);
-    pty_write(&gfx->pty, seq, strlen(seq));
+    gfx_write(seq, strlen(seq));
 }
 
 static inline void report_x10(int cb, int x, int y)
 {
     int cy = y / gfx->f_height + 1, cx = x / gfx->f_width + 1;
     char seq[] = {'\x1b', '[', 'M', 32 + cb, 32 + cx, 32 + cy};
-    pty_write(&gfx->pty, seq, 6);
+    gfx_write(seq, 6);
 }
 
 static inline void report_utf8(int cb, int x, int y)
@@ -46,7 +46,7 @@ static inline void report_utf8(int cb, int x, int y)
     strcat(seq, ux);
     strcat(seq, uy);
 
-    pty_write(&gfx->pty, seq, strlen(seq));
+    gfx_write(seq, strlen(seq));
 }
 
 static inline void report_sgr(int cb, int x, int y, bool pressed)
@@ -60,7 +60,7 @@ static inline void report_urxvt(int cb, int x, int y)
     int cy = y / gfx->f_height + 1, cx = x / gfx->f_width + 1;
     char seq[32] = {0};
     sprintf(seq, "\x1b[%d;%d;%dM", cb, cx, cy);
-    pty_write(&gfx->pty, seq, strlen(seq));
+    gfx_write(seq, strlen(seq));
 }
 
 static inline void report(const MouseReport *mouse_report, int cb, int x, int y,

@@ -18,7 +18,7 @@ void query_palette_index(int index)
     char osc_color[64]  = {0};
     int len = sprintf(osc_color, "\x1b]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       index, RRGGBB(term->theme.palette[index]));
-    pty_write(&gfx->pty, osc_color, len);
+    gfx_write(osc_color, len);
 }
 
 void query_palette_fg(void)
@@ -27,7 +27,7 @@ void query_palette_fg(void)
     char osc_color[64]  = {0};
     int len = sprintf(osc_color, "\x1b]10;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       RRGGBB(term->theme.fg));
-    pty_write(&gfx->pty, osc_color, len);
+    gfx_write(osc_color, len);
 }
 
 void query_palette_bg(void)
@@ -36,7 +36,7 @@ void query_palette_bg(void)
     char osc_color[64]  = {0};
     int len = sprintf(osc_color, "\x1b]11;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       RRGGBB(term->theme.bg));
-    pty_write(&gfx->pty, osc_color, len);
+    gfx_write(osc_color, len);
 }
 
 void query_cursor_color(void)
@@ -45,10 +45,10 @@ void query_cursor_color(void)
     char osc_color[64]  = {0};
     int len = sprintf(osc_color, "\x1b]12;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       RRGGBB(term->theme.cursor));
-    pty_write(&gfx->pty, osc_color, len);
+    gfx_write(osc_color, len);
 }
 
-void device_state_report(void) { pty_write(&gfx->pty, "\x1b[0n", 4); }
+void device_state_report(void) { gfx_write("\x1b[0n", 4); }
 
 void report_cursor_position(void)
 {
@@ -57,7 +57,7 @@ void report_cursor_position(void)
     char seq[32]           = {0};
 
     sprintf(seq, "\x1b[%d;%dR", b->cursor.y + 1, b->cursor.x + 1);
-    pty_write(&gfx->pty, seq, strlen(seq));
+    gfx_write(seq, strlen(seq));
 }
 
-void send_device_attributes(void) { pty_write(&gfx->pty, "\x1b[?62c", 6); }
+void send_device_attributes(void) { gfx_write("\x1b[?62c", 6); }

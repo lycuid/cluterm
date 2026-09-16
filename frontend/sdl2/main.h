@@ -1,7 +1,6 @@
 #ifndef __SDL2__MAIN_H__
 #define __SDL2__MAIN_H__
 
-#include "pty.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <cluterm.h>
@@ -25,13 +24,11 @@ typedef struct GFX_Context {
     int f_width, f_height;
 
     Cluterm term;
-    pty_t pty;
 } GFX_Context;
 
 extern const GFX_Context *gfx;
 
+ssize_t gfx_write(const char *, size_t);
 void gfx_rebuild(void);
-void gfx_request_render(bool);
-void gfx_display_dpi(int, Dpi *);
 
 #endif

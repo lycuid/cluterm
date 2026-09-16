@@ -74,7 +74,7 @@ static inline AtlasSlot *ascii_slot(char ch, int f_index)
     return &ascii_slots[index];
 }
 
-void gcache_init(int rows, int cols)
+void gcache_init(void)
 {
     atlas_cell_width  = 1.2f * gfx->f_width,
     atlas_cell_height = 1.2f * gfx->f_height;
@@ -108,7 +108,6 @@ void gcache_init(int rows, int cols)
             SDL_FreeSurface(surface);
         }
     }
-    gcache_resize(rows, cols);
     atlas.nverts = 0, atlas.nindices = 0;
 }
 
