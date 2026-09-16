@@ -13,6 +13,7 @@ typedef uint16_t CellState;
 #define CELL_ITALIC    (1 << 1)
 #define CELL_UNDERLINE (1 << 2)
 #define CELL_INVERSE   (1 << 3)
+#define CELL_LINEBREAK (1 << 4)
 
 typedef struct CellAttributes {
     Color fg, bg;

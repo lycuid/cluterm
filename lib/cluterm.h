@@ -6,7 +6,7 @@
 
 #define cluterm_set_osc_handler(term, handler) (term)->osc_handler = handler;
 
-typedef uint16_t cluterm_mode_t;
+typedef uint16_t ClutermMode;
 #define MODE_ORIGIN          (1 << 0)
 #define MODE_APP_CURSOR_KEYS (1 << 1)
 #define MODE_ALT_BUFFER      (1 << 2)
@@ -48,7 +48,7 @@ typedef struct ClutermActions {
 struct Cluterm {
     VT_Parser vt_parser;
     ClutermBuffer buffer[2];
-    cluterm_mode_t mode;
+    ClutermMode mode;
 
     Theme theme;
     Config config;

@@ -13,6 +13,7 @@
 #include <cluterm/debug.h>
 #include <cluterm/vt/buffer.h>
 #include <fontconfig/fontconfig.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdatomic.h>
 #include <time.h>
@@ -21,12 +22,12 @@ static GFX_Context ctx;
 const GFX_Context *gfx = &ctx;
 static Frame frame     = {0};
 static pty_t pty;
-static SDL_mutex *vt_mutex = NULL;
+static pthread_rwlock_t vt_mutex = PTHREAD_RWLOCK_INITIALIZER;
+static struct {
+    int anchor, pointer;
+} sel = {-1, -1};
 
 #define IS_ASCII(val) (val < 0x7f)
-
-#define GUARD(mu)                                                              \
-    for (int i = SDL_LockMutex((mu)) == 0; i; i = (SDL_UnlockMutex((mu)), 0))
 
 static atomic_bool         //
     running           = 1, //
@@ -109,7 +110,12 @@ static inline void calculate_font_metrics(void)
 
 static inline void resize(int rows, int cols)
 {
-    GUARD(vt_mutex) { cluterm_resize(&ctx.term, rows, cols); }
+    pthread_rwlock_wrlock(&vt_mutex);
+    {
+        cluterm_resize(&ctx.term, rows, cols);
+    }
+    pthread_rwlock_unlock(&vt_mutex);
+
     pty_resize(&pty, rows, cols);
     frame_resize(&frame, rows, cols);
     gcache_resize(rows, cols);
@@ -118,6 +124,7 @@ static inline void resize(int rows, int cols)
 
 ssize_t gfx_write(const char *buffer, size_t len)
 {
+    select_clear();
     return pty_write(&pty, buffer, len);
 }
 
@@ -133,6 +140,141 @@ void gfx_rebuild(void)
     h -= ctx.term.config.padding.top + ctx.term.config.padding.bottom;
     int cols = w / ctx.f_width, rows = h / ctx.f_height;
     resize(rows, cols);
+}
+
+char *gfx_selected_text(void)
+{
+    if (sel.anchor == -1 || sel.pointer == -1)
+        return NULL;
+
+    pthread_rwlock_rdlock(&vt_mutex);
+    const ClutermBuffer *b = ACTIVE_BUFFER(&ctx.term);
+
+    int start = sel.anchor, end = sel.pointer;
+    if (start > end)
+        SWAP(start, end);
+
+    char *buffer = calloc((end - start + 1) * 4 + b->rows + 1, sizeof(char));
+    if (!buffer)
+        return NULL;
+
+    char *it = buffer;
+    for (; start <= end; ++start) {
+        int y = start / b->cols, x = start % b->cols;
+
+        Cell cell               = getcell(b, y, x);
+        UTF8_String utf8_string = {0};
+        utf8_encode(cell.value, utf8_string);
+
+        size_t len = strlen(utf8_string);
+        memcpy(it, utf8_string, len);
+        it += len;
+
+        if (IS_SET(cell.attrs.state, CELL_LINEBREAK)) {
+            while (it > buffer && (it[-1] == ' ' || it[-1] == '\t'))
+                --it;
+            *it++ = '\n';
+            start += b->cols - (start % b->cols) - 1;
+        }
+    }
+    pthread_rwlock_unlock(&vt_mutex);
+
+    while (it > buffer && (it[-1] == ' ' || it[-1] == '\t'))
+        --it;
+    *it = 0;
+    return buffer;
+}
+
+void select_start(int y, int x)
+{
+    select_clear();
+
+    pthread_rwlock_rdlock(&vt_mutex);
+    {
+        const ClutermBuffer *b = ACTIVE_BUFFER(&ctx.term);
+        sel.anchor             = y * b->cols + x;
+    }
+    pthread_rwlock_unlock(&vt_mutex);
+}
+
+void select_update(int y, int x)
+{
+    if (sel.anchor == -1)
+        return;
+
+    pthread_rwlock_rdlock(&vt_mutex);
+    const ClutermBuffer *b = ACTIVE_BUFFER(&ctx.term);
+
+    if (y == -1)
+        y = sel.pointer / b->cols;
+    if (x == -1)
+        x = sel.pointer % b->cols;
+
+    sel.pointer = y * b->cols + x;
+
+    pthread_rwlock_unlock(&vt_mutex);
+    request_render(1);
+}
+
+void select_word(int y, int x)
+{
+    select_clear();
+    static const bool select_boundary[128] = {
+        [' '] = 1, ['\t'] = 1, ['\n'] = 1, ['\"'] = 1, ['|'] = 1, [':'] = 1,
+        [';'] = 1, [','] = 1,  ['('] = 1,  [')'] = 1,  ['['] = 1, [']'] = 1,
+        ['{'] = 1, ['}'] = 1,  ['<'] = 1,  ['>'] = 1,  ['$'] = 1,
+    };
+
+    pthread_rwlock_rdlock(&vt_mutex);
+
+    const ClutermBuffer *b = ACTIVE_BUFFER(&ctx.term);
+    const Line line        = line_at(b, y);
+    int x0 = x, x1 = x;
+    for (; x0 > 0; --x0) {
+        Cell cell = line[x0 - 1];
+        if (BETWEEN(cell.value, 32, 126) && select_boundary[cell.value])
+            break;
+    }
+    for (; x1 < b->cols - 1; ++x1) {
+        Cell cell = line[x1 + 1];
+        if (BETWEEN(cell.value, 32, 126) && select_boundary[cell.value])
+            break;
+    }
+    sel.anchor  = y * b->cols + x0;
+    sel.pointer = y * b->cols + x1;
+
+    pthread_rwlock_unlock(&vt_mutex);
+    request_render(1);
+}
+
+void select_line(int y)
+{
+    select_clear();
+    pthread_rwlock_rdlock(&vt_mutex);
+    {
+        const ClutermBuffer *b = ACTIVE_BUFFER(&ctx.term);
+        sel.anchor = y * b->cols, sel.pointer = sel.anchor + b->cols;
+    }
+    pthread_rwlock_unlock(&vt_mutex);
+    request_render(1);
+}
+
+void select_clear(void)
+{
+    sel.anchor = sel.pointer = -1;
+    request_render(1);
+}
+
+bool select_contains(int y, int x, int cols)
+{
+    if (sel.anchor == -1 || sel.pointer == -1)
+        return false;
+
+    int start = sel.anchor, end = sel.pointer, index = y * cols + x;
+    if (start > end)
+        SWAP(start, end);
+
+    return BETWEEN(index, start, end);
 }
 
 static inline void sdl_init(void)
@@ -182,7 +324,12 @@ static inline void render(void)
     const Cluterm *term = &ctx.term;
     bool fresh          = fresh_render();
 
-    GUARD(vt_mutex) { frame_capture(&frame); }
+    pthread_rwlock_wrlock(&vt_mutex);
+    {
+        frame_capture(&frame);
+    }
+    pthread_rwlock_unlock(&vt_mutex);
+
     frame_canvas_update(&frame, fresh);
 
     SDL_SetRenderDrawColor(ctx.renderer, UNPACK(term->theme.bg), 0);
@@ -198,16 +345,20 @@ static inline void render(void)
     SDL_RenderPresent(ctx.renderer);
 }
 
-int pty_reader(void *arg)
+int pty_reader(__attribute__((unused)) void *arg)
 {
-    Cluterm *term      = (Cluterm *)arg;
     uchar stream[4096] = {0};
     ssize_t n          = 0;
     struct timespec ts = {.tv_nsec = 1e6};
 
     while (is_running()) {
         if ((n = pty_read(&pty, stream, sizeof(stream))) > 0) {
-            GUARD(vt_mutex) { cluterm_feed(term, stream, (size_t)n); }
+            pthread_rwlock_wrlock(&vt_mutex);
+            {
+                cluterm_feed(&ctx.term, stream, (size_t)n);
+            }
+            pthread_rwlock_unlock(&vt_mutex);
+
             request_render(0);
         } else {
             nanosleep(&ts, &ts);
@@ -250,9 +401,7 @@ int main(int argc, char *const *argv)
         uint w, h, pending : 1;
     } resz = {0};
 
-    vt_mutex = SDL_CreateMutex();
-    SDL_Thread *thread =
-        SDL_CreateThread(pty_reader, NAME ":ptyread", &ctx.term);
+    SDL_Thread *thread = SDL_CreateThread(pty_reader, NAME ":ptyread", NULL);
 
     for (SDL_Event e; is_running();) {
 
@@ -263,6 +412,11 @@ int main(int argc, char *const *argv)
             resz.pending = 0;
             resize(resz.h, resz.w);
         }
+
+        pthread_rwlock_rdlock(&vt_mutex);
+        ClutermMode mode    = ctx.term.mode;
+        MouseReport mreport = ctx.term.mouse_report;
+        pthread_rwlock_unlock(&vt_mutex);
 
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
@@ -289,16 +443,16 @@ int main(int argc, char *const *argv)
             } break;
 
             case SDL_MOUSEBUTTONDOWN:
-            case SDL_MOUSEBUTTONUP: mouse_button(&e.button); break;
-            case SDL_MOUSEWHEEL: mouse_wheel(&e.wheel); break;
-            case SDL_MOUSEMOTION: mouse_motion(&e.motion); break;
+            case SDL_MOUSEBUTTONUP: mouse_button(&e.button, &mreport); break;
+            case SDL_MOUSEWHEEL: mouse_wheel(&e.wheel, &mreport, mode); break;
+            case SDL_MOUSEMOTION: mouse_motion(&e.motion, &mreport); break;
 
             case SDL_TEXTINPUT: {
                 gfx_write(e.text.text, strlen(e.text.text));
                 frame_activity(&frame);
             } break;
 
-            case SDL_KEYDOWN: handle_keydown(&e.key); break;
+            case SDL_KEYDOWN: keydown(&e.key, mode, &cfg); break;
             default: break;
             }
         }
@@ -314,7 +468,7 @@ int main(int argc, char *const *argv)
     pty_destroy(&pty);
     cluterm_destroy(&ctx.term);
     {
-        SDL_DestroyMutex(vt_mutex);
+        pthread_rwlock_destroy(&vt_mutex);
         frame_destroy(&frame);
         gcache_destroy();
         destroy_fonts();

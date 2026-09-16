@@ -31,36 +31,54 @@ ssize_t send_arrow(char final, Uint16 keymod)
     return gfx_write((char[]){27, '[', final}, 3);
 }
 
-static inline ssize_t clipboard_paste(const Cluterm *term)
+static inline void clipboard_copy(void)
+{
+    char *buffer = gfx_selected_text();
+    if (!buffer)
+        return;
+
+    SDL_SetClipboardText(buffer);
+    free(buffer);
+    select_clear();
+}
+
+static inline ssize_t clipboard_paste(bool bracketed_mode)
 {
     char *text = SDL_GetClipboardText();
     if (!text)
         return -1;
 
-    if (IS_SET(term->mode, MODE_BRACKETED_PASTE))
+    if (bracketed_mode)
         gfx_write("\x1b[200~", 6);
 
     size_t len = strlen(text);
     ssize_t n  = gfx_write(text, len);
 
-    if (IS_SET(term->mode, MODE_BRACKETED_PASTE))
+    if (bracketed_mode)
         gfx_write("\x1b[201~", 6);
 
     SDL_free(text);
     return n;
 }
 
-void handle_keydown(const SDL_KeyboardEvent *key)
+void keydown(const SDL_KeyboardEvent *key, ClutermMode mode,
+             const Config *config)
 {
-    const Cluterm *term = &gfx->term;
-    bool ctrl           = IS_SET_ANY(key->keysym.mod, KMOD_CTRL),
-         shift          = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT),
-         alt            = IS_SET_ANY(key->keysym.mod, KMOD_ALT);
+    bool ctrl  = IS_SET_ANY(key->keysym.mod, KMOD_CTRL),
+         shift = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT),
+         alt   = IS_SET_ANY(key->keysym.mod, KMOD_ALT);
+
+    bool bracketed_mode = IS_SET(mode, MODE_BRACKETED_PASTE);
 
     switch (key->keysym.sym) {
     case SDLK_a: goto mod_put;
     case SDLK_b: goto mod_put;
-    case SDLK_c: goto mod_put;
+    case SDLK_c: {
+        if (ctrl && shift)
+            clipboard_copy();
+        else
+            goto mod_put;
+    } break;
     case SDLK_d: goto mod_put;
     case SDLK_e: goto mod_put;
     case SDLK_f: goto mod_put;
@@ -81,7 +99,7 @@ void handle_keydown(const SDL_KeyboardEvent *key)
     case SDLK_u: goto mod_put;
     case SDLK_v: {
         if (ctrl && shift)
-            clipboard_paste(term);
+            clipboard_paste(bracketed_mode);
         else
             goto mod_put;
     } break;
@@ -115,7 +133,7 @@ void handle_keydown(const SDL_KeyboardEvent *key)
     case SDLK_MINUS: // fallthrough
     case SDLK_KP_MINUS:
         if (ctrl) {
-            f_delta = MAX(1 - term->config.font_size, f_delta - 1);
+            f_delta = MAX(1 - config->font_size, f_delta - 1);
             goto resize_font;
         }
         break;
@@ -124,7 +142,7 @@ void handle_keydown(const SDL_KeyboardEvent *key)
         SDL_GetDisplayDPI(0, &dpi.d, &dpi.h, &dpi.v);
         uint hdpi = lroundf(dpi.h), vdpi = lroundf(dpi.v);
 
-        int size = term->config.font_size + f_delta;
+        int size = config->font_size + f_delta;
         TTF_SetFontSizeDPI(gfx->fonts[FontRegular], size, hdpi, vdpi);
         TTF_SetFontSizeDPI(gfx->fonts[FontBold], size, hdpi, vdpi);
         TTF_SetFontSizeDPI(gfx->fonts[FontItalic], size, hdpi, vdpi);
@@ -170,7 +188,7 @@ void handle_keydown(const SDL_KeyboardEvent *key)
     case SDLK_HOME:      gfx_write("\x1b[H", 3); break;
     case SDLK_END:       gfx_write("\x1b[F", 3); break;
     case SDLK_INSERT: {
-        shift ? clipboard_paste(term) : gfx_write("\x1b[2~", 4);
+        shift ? clipboard_paste(bracketed_mode) : gfx_write("\x1b[2~", 4);
     } break;
     case SDLK_DELETE:    gfx_write("\x1b[3~", 4); break;
     case SDLK_PAGEUP:    gfx_write("\x1b[5~", 4); break;

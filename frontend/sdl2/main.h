@@ -30,5 +30,13 @@ extern const GFX_Context *gfx;
 
 ssize_t gfx_write(const char *, size_t);
 void gfx_rebuild(void);
+char *gfx_selected_text(void);
+
+void select_start(int, int);
+void select_update(int, int);
+void select_word(int, int);
+void select_line(int);
+void select_clear(void);
+bool select_contains(int, int, int);
 
 #endif

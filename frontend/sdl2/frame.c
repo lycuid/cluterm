@@ -187,6 +187,12 @@ void frame_capture(Frame *frame)
     memset(cb->dirty, 0, cb->rows * cb->cols * sizeof(*cb->dirty));
 
     memcpy(&frame->theme, &gfx->term.theme, sizeof(Theme));
+}
+
+void frame_canvas_update(Frame *frame, bool fresh)
+{
+    SDL_SetRenderTarget(gfx->renderer, frame->canvas.texture);
+    struct FrameBuffer *b = &frame->buffer;
 
 #if DUMP_DIRTY_FRAME >= 1
     // {{{
@@ -196,10 +202,10 @@ void frame_capture(Frame *frame)
     static uint64_t frameno = 0;
     debug("----------------- Frame begin: (%ld) -----------------\n",
           ++frameno);
-    for (int y = 0; y < frame->buffer.rows; ++y) {
-        for (int x = 0; x < frame->buffer.cols; ++x) {
-            Cell cell = frame->buffer.lines[y][x];
-            if (frame->buffer.dirty[y * frame->buffer.cols + x]) {
+    for (int y = 0; y < b->rows; ++y) {
+        for (int x = 0; x < b->cols; ++x) {
+            Cell cell = b->lines[y][x];
+            if (b->dirty[y * b->cols + x] || select_contains(y, x, b->cols)) {
                 UTF8_String utf8_string = {0};
                 utf8_encode(cell.value, utf8_string);
                 debug("%s", utf8_string);
@@ -212,28 +218,25 @@ void frame_capture(Frame *frame)
     debug("----------------- Frame end -----------------\n");
     // }}}
 #endif
-}
 
-void frame_canvas_update(Frame *frame, bool fresh)
-{
-    SDL_SetRenderTarget(gfx->renderer, frame->canvas.texture);
-    struct FrameBuffer *buffer = &frame->buffer;
-
-    for (int y = 0; y < buffer->rows; ++y) {
+    for (int y = 0; y < b->rows; ++y) {
         batch.y = y;
-        for (int x = 0; x < buffer->cols; ++x) {
-            if (!fresh && !buffer->dirty[y * buffer->cols + x]) {
-                batch_flush(buffer->lines[y]);
+        for (int x = 0; x < b->cols; ++x) {
+            if (!fresh && !b->dirty[y * b->cols + x] &&
+                !select_contains(y, x, b->cols)) {
+                batch_flush(b->lines[y]);
                 continue;
             }
 
-            Cell cell = buffer->lines[y][x];
+            Cell cell = b->lines[y][x];
+            if (select_contains(y, x, b->cols))
+                cell.attrs.fg = ColorBg(), cell.attrs.bg = ColorFg();
 
             if (!cell_belongs(&cell, &frame->theme))
-                batch_flush(buffer->lines[y]);
+                batch_flush(b->lines[y]);
             batch_add(&cell, &frame->theme, x);
         }
-        batch_flush(buffer->lines[y]);
+        batch_flush(b->lines[y]);
         gcache_flush();
     }
     draw_cursor(frame);

@@ -247,6 +247,13 @@ void insert_cell(ClutermBuffer *b, Cell cell)
 void linefeed(ClutermBuffer *b)
 {
     b->cursor.y == b->scroll_region.end ? scrollup(b, 1) : move_cursor(b, 1, 0);
+    if (b->cursor.y > 0) {
+        int y = b->cursor.y - 1, x = b->cols - 1;
+        while (x > 0 && line_at(b, y)[x].value == ' ')
+            --x;
+        SET(line_at(b, y)[x].attrs.state, CELL_LINEBREAK);
+        dirty_cell(b, y, x);
+    }
 }
 
 void save_cursor(ClutermBuffer *b) { b->saved_cursor = b->cursor; }

@@ -1,5 +1,4 @@
 #include "lru.h"
-#include <cluterm/debug.h>
 
 struct Node {
     Key key;
