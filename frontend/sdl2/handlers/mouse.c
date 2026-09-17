@@ -101,15 +101,15 @@ static inline void report_mouse_button(const SDL_MouseButtonEvent *mouse,
            mouse->state == SDL_PRESSED);
 }
 
-static inline void select_mouse_button(const SDL_MouseButtonEvent *mouse)
+static inline void selection_mouse_button(const SDL_MouseButtonEvent *mouse)
 {
     if (mouse->state == SDL_PRESSED) {
         int y = mouse->y / gfx->f_height, x = mouse->x / gfx->f_width;
 
         switch (mouse->clicks) {
-        case 1: select_start(y, x); break;
-        case 2: select_word(y, x); break;
-        case 3: select_line(y); break;
+        case 1: selection_start(y, x); break;
+        case 2: selection_word(y, x); break;
+        case 3: selection_line(y); break;
         }
     }
 }
@@ -128,10 +128,9 @@ static inline void report_mouse_wheel(const SDL_MouseWheelEvent *wheel,
         report(mreport, 67 | mods, wheel->mouseX, wheel->mouseY, 1);
 }
 
-static inline void select_mouse_wheel(const SDL_MouseWheelEvent *wheel,
-                                      ClutermMode mode)
+static inline void selection_mouse_wheel(const SDL_MouseWheelEvent *wheel)
 {
-    if (IS_SET(mode, MODE_ALT_BUFFER | MODE_ALT_SCROLL)) {
+    if (IS_SET(gfx->frame.term_mode, MODE_ALT_BUFFER | MODE_ALT_SCROLL)) {
         int dy = wheel->y, dx = wheel->x;
         for (; dy > 0; --dy)
             send_arrow_up(0);
@@ -164,7 +163,7 @@ static inline void report_mouse_motion(const SDL_MouseMotionEvent *motion,
     report(mreport, with_mods(button), motion->x, motion->y, 1);
 }
 
-static inline void select_mouse_motion(const SDL_MouseMotionEvent *motion)
+static inline void selection_mouse_motion(const SDL_MouseMotionEvent *motion)
 {
     if (motion->state == SDL_PRESSED) {
         int w, h, y = -1, x = -1;
@@ -173,7 +172,7 @@ static inline void select_mouse_motion(const SDL_MouseMotionEvent *motion)
             y = motion->y / gfx->f_height;
         if (BETWEEN(motion->x, 0, w))
             x = motion->x / gfx->f_width;
-        select_update(y, x);
+        selection_extend(y, x);
     }
 }
 
@@ -182,16 +181,15 @@ void mouse_button(const SDL_MouseButtonEvent *mouse, const MouseReport *mreport)
     if (IS_SET_ANY(mreport->event, EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
         report_mouse_button(mouse, mreport);
     else
-        select_mouse_button(mouse);
+        selection_mouse_button(mouse);
 }
 
-void mouse_wheel(const SDL_MouseWheelEvent *wheel, const MouseReport *mreport,
-                 ClutermMode mode)
+void mouse_wheel(const SDL_MouseWheelEvent *wheel, const MouseReport *mreport)
 {
     if (IS_SET_ANY(mreport->event, EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
         report_mouse_wheel(wheel, mreport);
     else
-        select_mouse_wheel(wheel, mode);
+        selection_mouse_wheel(wheel);
 }
 
 void mouse_motion(const SDL_MouseMotionEvent *motion,
@@ -200,5 +198,5 @@ void mouse_motion(const SDL_MouseMotionEvent *motion,
     if (IS_SET_ANY(mreport->event, EVENT_DRAG | EVENT_ALL))
         report_mouse_motion(motion, mreport);
     else
-        select_mouse_motion(motion);
+        selection_mouse_motion(motion);
 }

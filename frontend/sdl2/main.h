@@ -1,6 +1,8 @@
 #ifndef __SDL2__MAIN_H__
 #define __SDL2__MAIN_H__
 
+#include "frame.h"
+#include "selection.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <cluterm.h>
@@ -23,20 +25,14 @@ typedef struct GFX_Context {
 
     int f_width, f_height;
 
-    Cluterm term;
+    Frame frame;
+    Selection *sel;
 } GFX_Context;
 
 extern const GFX_Context *gfx;
 
 ssize_t gfx_write(const char *, size_t);
-void gfx_rebuild(void);
-char *gfx_selected_text(void);
-
-void select_start(int, int);
-void select_update(int, int);
-void select_word(int, int);
-void select_line(int);
-void select_clear(void);
-bool select_contains(int, int, int);
+void gfx_rebuild(const Config *);
+void gfx_request_render(bool);
 
 #endif

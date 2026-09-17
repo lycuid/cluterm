@@ -5,10 +5,9 @@ static int f_delta = 0;
 
 ssize_t send_arrow(char final, Uint16 keymod)
 {
-    const Cluterm *term = &gfx->term;
-    bool ctrl           = IS_SET_ANY(keymod, KMOD_CTRL),
-         shift          = IS_SET_ANY(keymod, KMOD_SHIFT),
-         alt            = IS_SET_ANY(keymod, KMOD_ALT);
+    bool ctrl  = IS_SET_ANY(keymod, KMOD_CTRL),
+         shift = IS_SET_ANY(keymod, KMOD_SHIFT),
+         alt   = IS_SET_ANY(keymod, KMOD_ALT);
 
     if (ctrl && shift && alt)
         return gfx_write((char[]){27, '[', '1', ';', '8', final}, 6);
@@ -25,7 +24,7 @@ ssize_t send_arrow(char final, Uint16 keymod)
     if (alt)
         return gfx_write((char[]){27, '[', '1', ';', '3', final}, 6);
 
-    if (IS_SET(term->mode, MODE_APP_CURSOR_KEYS))
+    if (IS_SET(gfx->frame.term_mode, MODE_APP_CURSOR_KEYS))
         return gfx_write((char[]){27, 'O', final}, 3);
 
     return gfx_write((char[]){27, '[', final}, 3);
@@ -33,21 +32,22 @@ ssize_t send_arrow(char final, Uint16 keymod)
 
 static inline void clipboard_copy(void)
 {
-    char *buffer = gfx_selected_text();
+    char *buffer = selection_get_text();
     if (!buffer)
         return;
 
     SDL_SetClipboardText(buffer);
     free(buffer);
-    select_clear();
+    selection_clear();
 }
 
-static inline ssize_t clipboard_paste(bool bracketed_mode)
+static inline ssize_t clipboard_paste(void)
 {
     char *text = SDL_GetClipboardText();
     if (!text)
         return -1;
 
+    bool bracketed_mode = IS_SET(gfx->frame.term_mode, MODE_BRACKETED_PASTE);
     if (bracketed_mode)
         gfx_write("\x1b[200~", 6);
 
@@ -61,14 +61,11 @@ static inline ssize_t clipboard_paste(bool bracketed_mode)
     return n;
 }
 
-void keydown(const SDL_KeyboardEvent *key, ClutermMode mode,
-             const Config *config)
+void keydown(const SDL_KeyboardEvent *key, const Config *config)
 {
     bool ctrl  = IS_SET_ANY(key->keysym.mod, KMOD_CTRL),
          shift = IS_SET_ANY(key->keysym.mod, KMOD_SHIFT),
          alt   = IS_SET_ANY(key->keysym.mod, KMOD_ALT);
-
-    bool bracketed_mode = IS_SET(mode, MODE_BRACKETED_PASTE);
 
     switch (key->keysym.sym) {
     case SDLK_a: goto mod_put;
@@ -99,7 +96,7 @@ void keydown(const SDL_KeyboardEvent *key, ClutermMode mode,
     case SDLK_u: goto mod_put;
     case SDLK_v: {
         if (ctrl && shift)
-            clipboard_paste(bracketed_mode);
+            clipboard_paste();
         else
             goto mod_put;
     } break;
@@ -147,7 +144,7 @@ void keydown(const SDL_KeyboardEvent *key, ClutermMode mode,
         TTF_SetFontSizeDPI(gfx->fonts[FontBold], size, hdpi, vdpi);
         TTF_SetFontSizeDPI(gfx->fonts[FontItalic], size, hdpi, vdpi);
         TTF_SetFontSizeDPI(gfx->fonts[FontBoldItalic], size, hdpi, vdpi);
-        gfx_rebuild();
+        gfx_rebuild(config);
     } break;
 
         // clang-format off
@@ -188,7 +185,7 @@ void keydown(const SDL_KeyboardEvent *key, ClutermMode mode,
     case SDLK_HOME:      gfx_write("\x1b[H", 3); break;
     case SDLK_END:       gfx_write("\x1b[F", 3); break;
     case SDLK_INSERT: {
-        shift ? clipboard_paste(bracketed_mode) : gfx_write("\x1b[2~", 4);
+        shift ? clipboard_paste() : gfx_write("\x1b[2~", 4);
     } break;
     case SDLK_DELETE:    gfx_write("\x1b[3~", 4); break;
     case SDLK_PAGEUP:    gfx_write("\x1b[5~", 4); break;

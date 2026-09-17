@@ -9,7 +9,7 @@
 #define send_arrow_right(mods) send_arrow('C', mods)
 #define send_arrow_left(mods)  send_arrow('D', mods)
 
-ssize_t send_arrow(char final, Uint16);
-void keydown(const SDL_KeyboardEvent *, ClutermMode, const Config *);
+ssize_t send_arrow(char, Uint16);
+void keydown(const SDL_KeyboardEvent *, const Config *);
 
 #endif

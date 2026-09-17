@@ -18,6 +18,7 @@ typedef struct FrameBuffer {
 typedef struct Frame {
     FrameBuffer buffer;
     FrameCanvas canvas;
+    ClutermMode term_mode;
     Theme theme;
 
     struct {
@@ -38,7 +39,7 @@ static inline bool since(uint64_t *time, uint64_t ms)
 }
 
 void frame_resize(Frame *, int, int);
-void frame_capture(Frame *);
+void frame_capture(Frame *, const Cluterm *);
 void frame_canvas_update(Frame *, bool);
 bool frame_tick(Frame *);
 void frame_activity(Frame *);

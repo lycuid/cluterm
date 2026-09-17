@@ -5,7 +5,7 @@
 #include <cluterm.h>
 
 void mouse_button(const SDL_MouseButtonEvent *, const MouseReport *);
-void mouse_wheel(const SDL_MouseWheelEvent *, const MouseReport *, ClutermMode);
+void mouse_wheel(const SDL_MouseWheelEvent *, const MouseReport *);
 void mouse_motion(const SDL_MouseMotionEvent *, const MouseReport *);
 
 #endif

@@ -17,6 +17,7 @@ O_FILES:=$(O_DIR)/main.o                   \
          $(O_DIR)/handlers/keypress.o      \
          $(O_DIR)/handlers/mouse.o         \
          $(O_DIR)/pty.o                    \
+         $(O_DIR)/selection.o              \
          $(O_DIR)/term_actions.o
 
 $(BIN): $(O_FILES) ; @mkdir -p $(@D)

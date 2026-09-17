@@ -174,11 +174,12 @@ void frame_resize(Frame *frame, int rows, int cols)
     canvas_resize(&frame->canvas, cols * gfx->f_width, rows * gfx->f_height);
 }
 
-void frame_capture(Frame *frame)
+void frame_capture(Frame *frame, const Cluterm *term)
 {
-    const ClutermBuffer *cb = ACTIVE_BUFFER(&gfx->term);
+    const ClutermBuffer *cb = ACTIVE_BUFFER(term);
     struct FrameBuffer *fb  = &frame->buffer;
 
+    frame->term_mode = term->mode;
     for (int y = 0; y < cb->rows; ++y)
         memcpy(fb->lines[y], line_at(cb, y), cb->cols * sizeof(*cb->lines[y]));
     memcpy(&fb->cursor, &cb->cursor, sizeof(Cursor));
@@ -186,7 +187,7 @@ void frame_capture(Frame *frame)
     memmove(fb->dirty, cb->dirty, cb->cols * cb->rows * sizeof(*cb->dirty));
     memset(cb->dirty, 0, cb->rows * cb->cols * sizeof(*cb->dirty));
 
-    memcpy(&frame->theme, &gfx->term.theme, sizeof(Theme));
+    memcpy(&frame->theme, &term->theme, sizeof(Theme));
 }
 
 void frame_canvas_update(Frame *frame, bool fresh)
@@ -205,7 +206,7 @@ void frame_canvas_update(Frame *frame, bool fresh)
     for (int y = 0; y < b->rows; ++y) {
         for (int x = 0; x < b->cols; ++x) {
             Cell cell = b->lines[y][x];
-            if (b->dirty[y * b->cols + x] || select_contains(y, x, b->cols)) {
+            if (b->dirty[y * b->cols + x] || selection_contains(y, x)) {
                 UTF8_String utf8_string = {0};
                 utf8_encode(cell.value, utf8_string);
                 debug("%s", utf8_string);
@@ -223,13 +224,13 @@ void frame_canvas_update(Frame *frame, bool fresh)
         batch.y = y;
         for (int x = 0; x < b->cols; ++x) {
             if (!fresh && !b->dirty[y * b->cols + x] &&
-                !select_contains(y, x, b->cols)) {
+                !selection_contains(y, x)) {
                 batch_flush(b->lines[y]);
                 continue;
             }
 
             Cell cell = b->lines[y][x];
-            if (select_contains(y, x, b->cols))
+            if (selection_contains(y, x))
                 cell.attrs.fg = ColorBg(), cell.attrs.bg = ColorFg();
 
             if (!cell_belongs(&cell, &frame->theme))
