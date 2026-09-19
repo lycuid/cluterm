@@ -173,9 +173,9 @@ void keydown(const SDL_KeyboardEvent *key, const Config *config)
     case SDLK_F12: gfx_write("\x1b[24~",  5); break;
 
     case SDLK_RETURN:    // fallthrough
-    case SDLK_RETURN2:   gfx_write("\r", 1);     break;
-    case SDLK_TAB:       gfx_write("\t", 1);     break;
-    case SDLK_BACKSPACE: gfx_write("\b", 1);     break;
+    case SDLK_RETURN2:   gfx_write("\r",   1);   break;
+    case SDLK_TAB:       gfx_write("\t",   1);   break;
+    case SDLK_BACKSPACE: gfx_write("\x7f", 1);   break;
     case SDLK_ESCAPE:    gfx_write("\x1b", 1);   break;
 
     case SDLK_UP:        send_arrow_up(key->keysym.mod); break;

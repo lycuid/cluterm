@@ -147,6 +147,9 @@ static inline void selection_mouse_wheel(const SDL_MouseWheelEvent *wheel)
 static inline void report_mouse_motion(const SDL_MouseMotionEvent *motion,
                                        const MouseReport *mreport)
 {
+    if (motion->state != SDL_PRESSED)
+        return;
+
     int button = 0;
     if (IS_SET_ANY(motion->state, SDL_BUTTON_LMASK))
         button = 32;
@@ -161,7 +164,7 @@ static inline void report_mouse_motion(const SDL_MouseMotionEvent *motion,
         SET(button, 3);
     }
 
-    report(mreport, with_mods(button), motion->x, motion->y, 1);
+    report(mreport, with_mods(button), motion->x, motion->y, 0);
 }
 
 static inline void selection_mouse_motion(const SDL_MouseMotionEvent *motion)
