@@ -45,14 +45,14 @@ typedef struct Region {
 
 typedef enum Charset { CS_USASCII, CS_LINEGFX } Charset;
 
-#define MEMBERS_FRAME_BUFFER                                                   \
+#define MEMBERS_TERM_SNAPSHOT                                                  \
     int rows, cols;                                                            \
     Line *lines;                                                               \
     bool *dirty;                                                               \
     Cursor cursor;
 
 typedef struct ClutermBuffer {
-    MEMBERS_FRAME_BUFFER
+    MEMBERS_TERM_SNAPSHOT
 
     int history, last_row;
     bool *tab;

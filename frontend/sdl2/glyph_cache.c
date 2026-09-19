@@ -31,7 +31,7 @@ static struct GlyphAtlas {
     int nverts, *indices, nindices;
 } atlas = {0};
 
-static AtlasSlot ascii_slots[4 * TOTAL_ASCII] = {0};
+static AtlasSlot ascii_cache[4 * TOTAL_ASCII] = {0};
 static LRU non_ascii_cache[2]                 = {
     {.capacity = CACHE_CAP, .key_eq = cell_eq},
     {.capacity = CACHE_CAP / 2, .key_eq = cell_eq},
@@ -53,8 +53,8 @@ bool cell_eq(Cell c1, Cell c2)
 static inline SDL_Surface *create_surface(Rune ch, TTF_Font *font)
 {
     UTF8_String utf8_string = {0};
-    utf8_encode(ch, utf8_string);
-    if (strlen(utf8_string) == 0)
+    size_t utf8_len         = utf8_encode(ch, utf8_string);
+    if (utf8_len == 0)
         return NULL;
 
     SDL_Surface *text =
@@ -71,7 +71,7 @@ static inline SDL_Surface *create_surface(Rune ch, TTF_Font *font)
 static inline AtlasSlot *ascii_slot(char ch, int f_index)
 {
     int index = f_index * TOTAL_ASCII + (ch - PRINTABLE_ASCII_START);
-    return &ascii_slots[index];
+    return &ascii_cache[index];
 }
 
 void gcache_init(void)

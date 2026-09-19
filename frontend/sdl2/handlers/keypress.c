@@ -24,7 +24,7 @@ ssize_t send_arrow(char final, Uint16 keymod)
     if (alt)
         return gfx_write((char[]){27, '[', '1', ';', '3', final}, 6);
 
-    if (IS_SET(gfx->frame.term_mode, MODE_APP_CURSOR_KEYS))
+    if (IS_SET(gfx->frame.term_snapshot.term_mode, MODE_APP_CURSOR_KEYS))
         return gfx_write((char[]){27, 'O', final}, 3);
 
     return gfx_write((char[]){27, '[', final}, 3);
@@ -47,7 +47,8 @@ static inline ssize_t clipboard_paste(void)
     if (!text)
         return -1;
 
-    bool bracketed_mode = IS_SET(gfx->frame.term_mode, MODE_BRACKETED_PASTE);
+    bool bracketed_mode =
+        IS_SET(gfx->frame.term_snapshot.term_mode, MODE_BRACKETED_PASTE);
     if (bracketed_mode)
         gfx_write("\x1b[200~", 6);
 

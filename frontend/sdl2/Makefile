@@ -10,7 +10,7 @@ override CFLAGS+= $(FLAGS) $(DEFINE) -I$(I_DIR) -I$(LIB) $(shell pkg-config --cf
 override LDFLAGS+= -L$(LIB)/$(BUILD) -l$(NAME) $(shell pkg-config --libs $(PKGS)) -lm
 
 O_FILES:=$(O_DIR)/main.o                   \
-         $(O_DIR)/cli.o                    \
+         $(O_DIR)/args.o                   \
          $(O_DIR)/frame.o                  \
          $(O_DIR)/glyph_cache.o            \
          $(O_DIR)/glyph_cache/lru.o        \

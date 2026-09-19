@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define UTF8_MAX_LEN 4
 
@@ -22,6 +23,6 @@ void utf8decoder_feed(UTF8_Decoder *, char);
 // Assumes the input string is valid utf8 encoded, for error handled utf8
 // decoding use `UTF8_Decoder` instead.
 Rune utf8_decode(const char *);
-void utf8_encode(Rune, UTF8_String);
+size_t utf8_encode(Rune, UTF8_String);
 
 #endif

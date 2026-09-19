@@ -48,12 +48,15 @@ Rune utf8_decode(const char *str)
     return decoder.rune;
 }
 
-void utf8_encode(Rune rune, UTF8_String str)
+size_t utf8_encode(Rune rune, UTF8_String str)
 {
-    int len = 0, i = 0;
+    size_t len = 0, i = 0;
     while (rune > utf8_max[len])
         len++;
-    if (len)
-        for (str[i++] = BYTE(rune, len, len); --len;)
-            str[i++] = BYTE(rune, len, 0);
+    if (len) {
+        str[i++] = BYTE(rune, len, len);
+        for (int l = len; --l;)
+            str[i++] = BYTE(rune, l, 0);
+    }
+    return len;
 }

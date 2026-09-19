@@ -45,6 +45,13 @@ typedef struct ClutermActions {
     void (*send_device_attributes)(void);   // Primary DA (DA1)
 } ClutermActions;
 
+typedef struct ClutermSnapshot {
+    MEMBERS_TERM_SNAPSHOT
+
+    Theme theme;
+    ClutermMode term_mode;
+} ClutermSnapshot;
+
 struct Cluterm {
     VT_Parser vt_parser;
     ClutermBuffer buffer[2];
@@ -62,6 +69,7 @@ struct Cluterm {
 
 void cluterm_init(Cluterm *, const Config *);
 void cluterm_feed(Cluterm *, const uchar *, size_t);
+void cluterm_snapshot(Cluterm *, ClutermSnapshot *);
 void cluterm_resize(Cluterm *, int, int);
 void cluterm_destroy(Cluterm *);
 

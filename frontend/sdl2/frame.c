@@ -16,6 +16,7 @@ static inline void canvas_resize(FrameCanvas *canvas, size_t w, size_t h)
     canvas->dispw = w, canvas->disph = h;
     if (canvas->dispw <= canvas->w && canvas->disph <= canvas->h)
         return;
+
     canvas->w = canvas->dispw, canvas->h = canvas->disph;
     if (canvas->texture)
         SDL_DestroyTexture(canvas->texture);
@@ -71,7 +72,7 @@ static inline Rgb cell_bg(const Cell *cell, const Theme *theme)
     return resolve_color(&cell->attrs.bg, theme);
 }
 
-static inline bool cell_belongs(const Cell *cell, const Theme *theme)
+static inline bool cell_belongs_in_batch(const Cell *cell, const Theme *theme)
 {
     Rgb fg = cell_fg(cell, theme), bg = cell_bg(cell, theme);
 
@@ -118,12 +119,14 @@ static inline void batch_flush(const Line line)
 
 static inline void draw_cursor(const Frame *frame)
 {
-    const Cursor *c = &frame->buffer.cursor;
-    Rgb color       = frame->theme.cursor;
-    if (c->x >= frame->buffer.cols || c->y >= frame->buffer.rows)
+    const ClutermSnapshot *snap = &frame->term_snapshot;
+    const Cursor *c             = &snap->cursor;
+    Rgb color                   = snap->theme.cursor;
+
+    if (c->x >= snap->cols || c->y >= snap->rows)
         return;
 
-    Cell cell    = frame->buffer.lines[c->y][c->x];
+    Cell cell    = snap->lines[c->y][c->x];
     SDL_Rect dst = {.x = c->x * gfx->f_width,
                     .y = c->y * gfx->f_height,
                     .w = gfx->f_width,
@@ -139,7 +142,7 @@ static inline void draw_cursor(const Frame *frame)
         cell.attrs.bg = ColorRgb(color);
     }
 
-    Rgb fg = cell_fg(&cell, &frame->theme), bg = cell_bg(&cell, &frame->theme);
+    Rgb fg = cell_fg(&cell, &snap->theme), bg = cell_bg(&cell, &snap->theme);
 
     background(bg, &dst);
     gcache_emit(cell, fg, c->y, c->x);
@@ -157,43 +160,13 @@ static inline void draw_cursor(const Frame *frame)
 
 void frame_resize(Frame *frame, int rows, int cols)
 {
-    Line *ll = malloc(rows * sizeof(Line));
-    for (int y = 0; y < rows; ++y)
-        ll[y] = malloc(cols * sizeof(Cell));
-
-    struct FrameBuffer *buffer = &frame->buffer;
-    if (buffer->lines) {
-        for (int y = 0; y < buffer->rows; ++y)
-            free(buffer->lines[y]);
-        free(buffer->lines);
-    }
-    buffer->rows = rows, buffer->cols = cols, buffer->lines = ll;
-    buffer->dirty =
-        realloc(buffer->dirty, buffer->rows * buffer->cols * sizeof(bool));
-
     canvas_resize(&frame->canvas, cols * gfx->f_width, rows * gfx->f_height);
-}
-
-void frame_capture(Frame *frame, const Cluterm *term)
-{
-    const ClutermBuffer *cb = ACTIVE_BUFFER(term);
-    struct FrameBuffer *fb  = &frame->buffer;
-
-    frame->term_mode = term->mode;
-    for (int y = 0; y < cb->rows; ++y)
-        memcpy(fb->lines[y], line_at(cb, y), cb->cols * sizeof(*cb->lines[y]));
-    memcpy(&fb->cursor, &cb->cursor, sizeof(Cursor));
-
-    memmove(fb->dirty, cb->dirty, cb->cols * cb->rows * sizeof(*cb->dirty));
-    memset(cb->dirty, 0, cb->rows * cb->cols * sizeof(*cb->dirty));
-
-    memcpy(&frame->theme, &term->theme, sizeof(Theme));
 }
 
 void frame_canvas_update(Frame *frame, bool fresh)
 {
     SDL_SetRenderTarget(gfx->renderer, frame->canvas.texture);
-    struct FrameBuffer *b = &frame->buffer;
+    struct ClutermSnapshot *snap = &frame->term_snapshot;
 
 #if DUMP_DIRTY_FRAME >= 1
     // {{{
@@ -203,10 +176,10 @@ void frame_canvas_update(Frame *frame, bool fresh)
     static uint64_t frameno = 0;
     debug("----------------- Frame begin: (%ld) -----------------\n",
           ++frameno);
-    for (int y = 0; y < b->rows; ++y) {
-        for (int x = 0; x < b->cols; ++x) {
-            Cell cell = b->lines[y][x];
-            if (b->dirty[y * b->cols + x] || selection_contains(y, x)) {
+    for (int y = 0; y < snap->rows; ++y) {
+        for (int x = 0; x < snap->cols; ++x) {
+            Cell cell = snap->lines[y][x];
+            if (snap->dirty[y * snap->cols + x] || selection_contains(y, x)) {
                 UTF8_String utf8_string = {0};
                 utf8_encode(cell.value, utf8_string);
                 debug("%s", utf8_string);
@@ -220,25 +193,25 @@ void frame_canvas_update(Frame *frame, bool fresh)
     // }}}
 #endif
 
-    for (int y = 0; y < b->rows; ++y) {
+    for (int y = 0; y < snap->rows; ++y) {
         batch.y = y;
-        for (int x = 0; x < b->cols; ++x) {
-            if (!fresh && !b->dirty[y * b->cols + x] &&
+        for (int x = 0; x < snap->cols; ++x) {
+            if (!fresh && !snap->dirty[y * snap->cols + x] &&
                 !selection_contains(y, x)) {
-                batch_flush(b->lines[y]);
+                batch_flush(snap->lines[y]);
                 continue;
             }
 
-            Cell cell = b->lines[y][x];
+            Cell cell = snap->lines[y][x];
             if (selection_contains(y, x))
                 cell.attrs.fg = ColorBg(), cell.attrs.bg = ColorFg();
 
-            if (!cell_belongs(&cell, &frame->theme))
-                batch_flush(b->lines[y]);
-            batch_add(&cell, &frame->theme, x);
+            if (!cell_belongs_in_batch(&cell, &snap->theme))
+                batch_flush(snap->lines[y]);
+            batch_add(&cell, &snap->theme, x);
         }
-        batch_flush(b->lines[y]);
-        gcache_flush();
+        batch_flush(snap->lines[y]);
+        gcache_flush(); // draw to canvas.
     }
     draw_cursor(frame);
     SDL_SetRenderTarget(gfx->renderer, NULL);
@@ -246,7 +219,8 @@ void frame_canvas_update(Frame *frame, bool fresh)
 
 bool frame_tick(Frame *f)
 {
-    if (!f->buffer.cursor.visible || f->buffer.cursor.style != CursorBlink)
+    if (!f->term_snapshot.cursor.visible ||
+        f->term_snapshot.cursor.style != CursorBlink)
         return 0;
 
     if (!since(&f->_cursor_blink_state.last, FPS(2)))
@@ -268,14 +242,14 @@ void frame_destroy(Frame *frame)
         SDL_DestroyTexture(frame->canvas.texture);
         frame->canvas.texture = NULL;
     }
-    if (frame->buffer.lines) {
-        for (int y = 0; y < frame->buffer.rows; ++y)
-            free(frame->buffer.lines[y]);
-        free(frame->buffer.lines);
-        frame->buffer.lines = NULL;
+    if (frame->term_snapshot.lines) {
+        for (int y = 0; y < frame->term_snapshot.rows; ++y)
+            free(frame->term_snapshot.lines[y]);
+        free(frame->term_snapshot.lines);
+        frame->term_snapshot.lines = NULL;
     }
 
-    free(frame->buffer.dirty);
-    frame->buffer.dirty = NULL;
+    free(frame->term_snapshot.dirty);
+    frame->term_snapshot.dirty = NULL;
 }
 // vim:fdm=marker

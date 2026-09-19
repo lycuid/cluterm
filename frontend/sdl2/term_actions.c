@@ -14,7 +14,7 @@ void set_window_title(const char *title)
 
 void query_palette_index(int index)
 {
-    const Theme *theme = &gfx->frame.theme;
+    const Theme *theme = &gfx->frame.term_snapshot.theme;
     char osc_color[64] = {0};
     int len = sprintf(osc_color, "\x1b]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       index, RRGGBB(theme->palette[index]));
@@ -23,7 +23,7 @@ void query_palette_index(int index)
 
 void query_palette_fg(void)
 {
-    const Theme *theme = &gfx->frame.theme;
+    const Theme *theme = &gfx->frame.term_snapshot.theme;
     char osc_color[64] = {0};
     int len = sprintf(osc_color, "\x1b]10;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       RRGGBB(theme->fg));
@@ -32,7 +32,7 @@ void query_palette_fg(void)
 
 void query_palette_bg(void)
 {
-    const Theme *theme = &gfx->frame.theme;
+    const Theme *theme = &gfx->frame.term_snapshot.theme;
     char osc_color[64] = {0};
     int len = sprintf(osc_color, "\x1b]11;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       RRGGBB(theme->bg));
@@ -41,7 +41,7 @@ void query_palette_bg(void)
 
 void query_cursor_color(void)
 {
-    const Theme *theme = &gfx->frame.theme;
+    const Theme *theme = &gfx->frame.term_snapshot.theme;
     char osc_color[64] = {0};
     int len = sprintf(osc_color, "\x1b]12;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
                       RRGGBB(theme->cursor));
@@ -52,10 +52,10 @@ void device_state_report(void) { gfx_write("\x1b[0n", 4); }
 
 void report_cursor_position(void)
 {
-    const FrameBuffer *b = &gfx->frame.buffer;
-    char seq[32]         = {0};
+    const ClutermSnapshot *snap = &gfx->frame.term_snapshot;
+    char seq[32]                = {0};
 
-    sprintf(seq, "\x1b[%d;%dR", b->cursor.y + 1, b->cursor.x + 1);
+    sprintf(seq, "\x1b[%d;%dR", snap->cursor.y + 1, snap->cursor.x + 1);
     gfx_write(seq, strlen(seq));
 }
 

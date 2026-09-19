@@ -2,7 +2,7 @@
 #include "SDL_keyboard.h"
 #include "SDL_mutex.h"
 #include "SDL_video.h"
-#include "cli.h"
+#include "args.h"
 #include "glyph_cache.h"
 #include "handlers/keypress.h"
 #include "handlers/mouse.h"
@@ -42,7 +42,7 @@ static atomic_bool         //
 #define fresh_render()                                                         \
     atomic_exchange_explicit(&full_frame_render, 0, memory_order_relaxed)
 
-void sigquit(__attribute__((unused)) int _) { quit(); }
+void signal_quit(__attribute__((unused)) int _) { quit(); }
 
 static inline void *tryp(void *res)
 {
@@ -183,12 +183,13 @@ static inline void sdl_init(void)
 
 static inline void render(void)
 {
-    bool fresh = fresh_render();
+    ClutermSnapshot *snap = &ctx.frame.term_snapshot;
+    bool fresh            = fresh_render();
 
-    GUARD(vt_mutex) { frame_capture(&ctx.frame, &term); }
+    GUARD(vt_mutex) { cluterm_snapshot(&term, snap); }
     frame_canvas_update(&ctx.frame, fresh);
 
-    SDL_SetRenderDrawColor(ctx.renderer, UNPACK(ctx.frame.theme.bg), 0);
+    SDL_SetRenderDrawColor(ctx.renderer, UNPACK(snap->theme.bg), 0);
     SDL_RenderClear(ctx.renderer);
     SDL_RenderCopy(ctx.renderer, ctx.frame.canvas.texture,
                    &(SDL_Rect){.x = 0,
@@ -221,12 +222,15 @@ int pty_reader(__attribute__((unused)) void *arg)
 
 int main(int argc, char *const *argv)
 {
+    signal(SIGCHLD, signal_quit); // shell exits/crashes.
+    signal(SIGTERM, signal_quit);
+
     static Selection sel = {-1, -1};
     ctx.sel              = &sel;
     ctx.frame            = (Frame){0};
 
     Config cfg       = {0};
-    char *const *cmd = argparse(argc, argv, &cfg);
+    char *const *cmd = args_parse(argc, argv, &cfg);
 
     cluterm_init(&term, &cfg);
     term.actions = (ClutermActions){
@@ -249,7 +253,6 @@ int main(int argc, char *const *argv)
     pty_spawn(&pty, cmd);
 
     sdl_init();
-    signal(SIGCHLD, sigquit); // shell exits/crashes.
 
     struct {
         uint64_t last;

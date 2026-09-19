@@ -57,6 +57,38 @@ done:
     return;
 }
 
+static inline void snapshot_resize(ClutermSnapshot *snap, int rows, int cols)
+{
+    Line *ll = malloc(rows * sizeof(Line));
+    for (int y = 0; y < rows; ++y)
+        ll[y] = malloc(cols * sizeof(Cell));
+
+    if (snap->lines) {
+        for (int y = 0; y < snap->rows; ++y)
+            free(snap->lines[y]);
+        free(snap->lines);
+    }
+    snap->rows = rows, snap->cols = cols, snap->lines = ll;
+    snap->dirty = realloc(snap->dirty, snap->rows * snap->cols * sizeof(bool));
+}
+
+void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap)
+{
+    ClutermBuffer *b = ACTIVE_BUFFER(term);
+
+    if (b->rows != snap->rows || b->cols != snap->cols)
+        snapshot_resize(snap, b->rows, b->cols);
+
+    snap->term_mode = term->mode;
+    for (int y = 0; y < b->rows; ++y)
+        memcpy(snap->lines[y], line_at(b, y), b->cols * sizeof(*b->lines[y]));
+
+    memcpy(&snap->cursor, &b->cursor, sizeof(Cursor));
+    memmove(snap->dirty, b->dirty, b->cols * b->rows * sizeof(*b->dirty));
+    memset(b->dirty, 0, b->rows * b->cols * sizeof(*b->dirty));
+    memcpy(&snap->theme, &term->theme, sizeof(Theme));
+}
+
 void cluterm_resize(Cluterm *term, int rows, int cols)
 {
     ClutermBuffer *b = ACTIVE_BUFFER(term);

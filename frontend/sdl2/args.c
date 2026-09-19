@@ -1,4 +1,4 @@
-#include "cli.h"
+#include "args.h"
 #include "../../default_config.h"
 #include "main.h"
 #include <cluterm/colors.h>
@@ -41,7 +41,7 @@ static inline Rgb color256(uint8_t n)
     return color;
 }
 
-char *const *argparse(int argc, char *const *argv, Config *cfg)
+char *const *args_parse(int argc, char *const *argv, Config *cfg)
 {
     cfg->title        = Title;
     cfg->rows         = Rows;
