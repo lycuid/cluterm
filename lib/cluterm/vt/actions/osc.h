@@ -52,19 +52,19 @@ static inline bool osc_set_color(Cluterm *term, OSC_Action action, int index,
     switch (action) {
     case OSC_4: {
         term->theme.palette[index] = color;
-        dirty_buffer(ACTIVE_BUFFER(term));
+        dirty_buffer(active_buffer(term));
     } break;
     case OSC_10: {
         term->theme.fg = color;
-        dirty_buffer(ACTIVE_BUFFER(term));
+        dirty_buffer(active_buffer(term));
     } break;
     case OSC_11: {
         term->theme.bg = color;
-        dirty_buffer(ACTIVE_BUFFER(term));
+        dirty_buffer(active_buffer(term));
     } break;
     case OSC_12: {
         term->theme.cursor = color;
-        dirty_buffer(ACTIVE_BUFFER(term));
+        dirty_buffer(active_buffer(term));
     } break;
     default: debug_2("osc action unsupported: '%d'.\n", action);
     }
@@ -167,17 +167,17 @@ EXPORT inline void osc_execute(Cluterm *term, OSC_Payload *osc)
 
     case OSC_110: {
         term->theme.fg = term->config.theme.fg;
-        dirty_buffer(ACTIVE_BUFFER(term));
+        dirty_buffer(active_buffer(term));
     } break;
 
     case OSC_111: {
         term->theme.bg = term->config.theme.bg;
-        dirty_buffer(ACTIVE_BUFFER(term));
+        dirty_buffer(active_buffer(term));
     } break;
 
     case OSC_112: {
         term->theme.cursor = term->config.theme.cursor;
-        dirty_buffer(ACTIVE_BUFFER(term));
+        dirty_buffer(active_buffer(term));
     } break;
 
     case OSC_UNKNOWN: break;

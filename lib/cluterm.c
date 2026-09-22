@@ -41,7 +41,7 @@ void cluterm_feed(Cluterm *term, const uchar *stream, size_t slen)
         switch (fsm_event = parser_run(vt_parser)) {
         case EVENT_NOOP: goto done;
         case EVENT_PRINT: {
-            ClutermBuffer *b = ACTIVE_BUFFER(term);
+            ClutermBuffer *b = active_buffer(term);
             insert_cell(b, CELL(vt_parser->payload.value, b->cell_attrs));
         } break;
         case EVENT_ESC: esc_execute(term, &vt_parser->payload.esc); break;
@@ -74,7 +74,7 @@ static inline void snapshot_resize(ClutermSnapshot *snap, int rows, int cols)
 
 void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap)
 {
-    ClutermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = active_buffer(term);
 
     if (b->rows != snap->rows || b->cols != snap->cols)
         snapshot_resize(snap, b->rows, b->cols);
@@ -91,7 +91,7 @@ void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap)
 
 void cluterm_resize(Cluterm *term, int rows, int cols)
 {
-    ClutermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = active_buffer(term);
     if (b->rows != rows || b->cols != cols) {
         buffer_resize(&term->buffer[0], &term->config, rows, cols);
         buffer_resize(&term->buffer[1], &term->config, rows, cols);

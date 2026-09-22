@@ -7,7 +7,7 @@
 
 EXPORT inline void esc_execute(Cluterm *term, ESC_Payload *esc)
 {
-    ClutermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = active_buffer(term);
     Cursor *cursor   = &b->cursor;
 
     switch (esc->action) {

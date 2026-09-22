@@ -21,9 +21,12 @@ typedef struct AtlasSlot {
     int y, x, w, h;
 } AtlasSlot;
 
-bool cell_eq(Cell, Cell);
-
 static int atlas_cell_width, atlas_cell_height;
+
+static inline uint64_t hash(Cell cell)
+{
+    return ((uint64_t)cell.attrs.state << 32) | cell.value;
+}
 
 static struct GlyphAtlas {
     SDL_Texture *texture;
@@ -33,8 +36,8 @@ static struct GlyphAtlas {
 
 static AtlasSlot ascii_cache[4 * TOTAL_ASCII] = {0};
 static LRU non_ascii_cache[2]                 = {
-    {.capacity = CACHE_CAP, .key_eq = cell_eq},
-    {.capacity = CACHE_CAP / 2, .key_eq = cell_eq},
+    {.capacity = CACHE_CAP},
+    {.capacity = CACHE_CAP / 2},
 };
 
 static inline int font_index(CellState state)
@@ -43,11 +46,6 @@ static inline int font_index(CellState state)
            : IS_SET(state, CELL_BOLD)             ? FontBold
            : IS_SET(state, CELL_ITALIC)           ? FontItalic
                                                   : FontRegular;
-}
-
-bool cell_eq(Cell c1, Cell c2)
-{
-    return c1.value == c2.value && c1.attrs.state == c2.attrs.state;
 }
 
 static inline SDL_Surface *create_surface(Rune ch, TTF_Font *font)
@@ -146,9 +144,9 @@ static inline AtlasSlot *get_slot(Cell cell)
         return ascii_slot(cell.value, f_index);
 
     AtlasSlot *slot;
-    if ((slot = lru_get(&non_ascii_cache[0], cell)))
+    if ((slot = lru_get(&non_ascii_cache[0], hash(cell))))
         return slot;
-    if ((slot = lru_get(&non_ascii_cache[1], cell)))
+    if ((slot = lru_get(&non_ascii_cache[1], hash(cell))))
         return slot;
 
     UTF8_String utf8_string = {0};
@@ -164,7 +162,7 @@ static inline AtlasSlot *get_slot(Cell cell)
     int c_index = slot->w > gfx->f_width;
     LRU *cache  = &non_ascii_cache[c_index];
 
-    AtlasSlot *stale = lru_put(cache, cell, slot);
+    AtlasSlot *stale = lru_put(cache, hash(cell), slot);
     if (stale) { // eviction happened here, reuse the same coords.
         slot->x = stale->x, slot->y = stale->y;
     } else {

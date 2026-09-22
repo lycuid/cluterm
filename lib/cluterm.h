@@ -4,8 +4,6 @@
 #include <cluterm/vt/buffer.h>
 #include <cluterm/vt/parser.h>
 
-#define cluterm_set_osc_handler(term, handler) (term)->osc_handler = handler;
-
 typedef uint16_t ClutermMode;
 #define MODE_ORIGIN          (1 << 0)
 #define MODE_APP_CURSOR_KEYS (1 << 1)
@@ -13,10 +11,6 @@ typedef uint16_t ClutermMode;
 #define MODE_ALT_SCROLL      (1 << 3)
 #define MODE_BRACKETED_PASTE (1 << 4)
 #define MODE_MOUSE_TRACKING  (1 << 5)
-
-typedef struct Cluterm Cluterm;
-
-typedef void (*OSC_Handler)(Cluterm *term, OSC_Payload *osc);
 
 typedef uint16_t ReportEvent;
 #define EVENT_BUTTON (1 << 0)
@@ -52,19 +46,19 @@ typedef struct ClutermSnapshot {
     ClutermMode term_mode;
 } ClutermSnapshot;
 
-struct Cluterm {
+typedef struct Cluterm {
+    Config config;
+
     VT_Parser vt_parser;
     ClutermBuffer buffer[2];
     ClutermMode mode;
+    ClutermActions actions;
 
     Theme theme;
-    Config config;
-
     MouseReport mouse_report;
-    ClutermActions actions;
-};
+} Cluterm;
 
-#define ACTIVE_BUFFER(term)                                                    \
+#define active_buffer(term)                                                   \
     (&(term)->buffer[IS_SET((term)->mode, MODE_ALT_BUFFER)])
 
 void cluterm_init(Cluterm *, const Config *);

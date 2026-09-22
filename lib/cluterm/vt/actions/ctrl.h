@@ -6,7 +6,7 @@
 
 EXPORT inline void ctrl_execute(Cluterm *term, CTRL_Payload *ctrl)
 {
-    ClutermBuffer *b = ACTIVE_BUFFER(term);
+    ClutermBuffer *b = active_buffer(term);
 
     switch (ctrl->action) {
     case C0_BEL: /* not supported. */ break;

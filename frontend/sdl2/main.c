@@ -163,6 +163,8 @@ static inline void sdl_init(void)
 
     calculate_font_metrics();
 
+    SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
+
     ctx.window = tryp(SDL_CreateWindow(
         term.config.title, 280, 100,
         ctx.f_width * term.config.cols + term.config.padding.left +

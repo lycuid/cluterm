@@ -113,7 +113,7 @@ static inline void collect(VT_Parser *vtp, uchar input)
             vtp->seq[vtp->nseq++] = input;
     } break;
     }
-    debug_2("Collect { input: 0x%02x, current_seq: '%s'}\n", input, vtp->seq);
+    debug_2("Collect { input: 0x%02x, current_seq: '%s' }\n", input, vtp->seq);
 }
 
 static inline void transition(VT_Parser *vtp, FSM_State next_state)
