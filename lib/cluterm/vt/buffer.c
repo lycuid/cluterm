@@ -5,10 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-// making sure b->last_row => [b->rows, 2*b->rows), once it exceeds b->rows.
+#define line_at(b, y) ((b)->lines[(first_row(b) + (y)) % line_cnt(b)])
+
+// making sure b->last_row => [line_cnt, 2*line_cnt), once it exceeds line_cnt.
 #define adjust(b)                                                              \
-    b->last_row =                                                              \
-        (((b)->last_row >= lines(b)) * lines(b)) + ((b)->last_row % lines(b));
+    b->last_row = (((b)->last_row >= line_cnt(b)) * line_cnt(b)) +             \
+                  ((b)->last_row % line_cnt(b));
 
 #define dirty_cell(b, y, x) (b)->dirty[(y) * (b)->cols + (x)] = 1;
 
@@ -18,16 +20,18 @@
 
 #define dirty_line(b, y) dirty_lines(b, y, 1)
 
-void buffer_init(ClutermBuffer *b, const Config *cfg)
+void buffer_init(ClutermBuffer *b, int history, const Config *cfg)
 {
-    b->rows = cfg->rows, b->cols = cfg->cols, b->history = cfg->history,
-    b->last_row = 0, b->scroll_region.start = 0,
-    b->scroll_region.end = b->rows - 1;
-    b->tab               = calloc(b->cols + 1, sizeof(bool));
+    b->rows          = cfg->rows;
+    b->cols          = cfg->cols;
+    b->history       = history;
+    b->scroll_offset = 0;
+    b->scroll_region = (Region){0, b->rows - 1};
+    b->tab           = calloc(b->cols + 1, sizeof(bool));
     for (int i = cfg->tab_width; i <= b->cols; i += cfg->tab_width)
         b->tab[i] = 1;
 
-    /* Cursor. */ {
+    /* Cursor */ {
         b->cursor.y = b->cursor.x = 0, b->cursor.visible = 1,
         b->cursor.style = cfg->cursor_style,
         b->cursor.shape = cfg->cursor_shape;
@@ -40,8 +44,8 @@ void buffer_init(ClutermBuffer *b, const Config *cfg)
     }
 
     b->cell_attrs = DEFAULT_CELL_ATTRS;
-    b->lines      = malloc(lines(b) * sizeof(Line));
-    for (int y = 0; y < lines(b); ++y) {
+    b->lines      = malloc(line_cnt(b) * sizeof(Line));
+    for (int y = 0; y < line_cnt(b); ++y) {
         b->lines[y] = malloc(b->cols * sizeof(Cell));
         for (int x = 0; x < b->cols; ++x)
             b->lines[y][x] = DEFAULT_CELL(' ');
@@ -53,20 +57,24 @@ void buffer_init(ClutermBuffer *b, const Config *cfg)
 void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
 {
     debug_1("buffer resized to %dx%d.\n", cols, rows);
-    Line *ll = malloc(rows * sizeof(Line));
-    for (int y = 0; y < rows; ++y) {
+    int cnt  = rows + b->history;
+    Line *ll = malloc(cnt * sizeof(Line));
+    for (int y = 0; y < cnt; ++y) {
         ll[y] = malloc(cols * sizeof(Cell));
         for (int x = 0; x < cols; ++x)
             ll[y][x] = DEFAULT_CELL(' ');
     }
-    for (int y = 0; y < MIN(rows, b->rows); ++y)
+    for (int y = 0; y < MIN(cnt, line_cnt(b)); ++y)
         memmove(ll[y], line_at(b, y), MIN(cols, b->cols) * sizeof(Cell));
-    for (int y = 0; y < lines(b); ++y)
+    for (int y = 0; y < line_cnt(b); ++y)
         free(b->lines[y]);
     free(b->lines);
 
-    b->rows = rows, b->cols = cols, b->lines = ll;
+    b->rows          = rows;
+    b->cols          = cols;
+    b->lines         = ll;
     b->last_row      = rows;
+    b->scroll_offset = 0;
     b->scroll_region = (Region){0, rows - 1};
     b->cursor.y      = MIN(b->cursor.y, rows - 1);
     b->cursor.x      = MIN(b->cursor.x, cols - 1);
@@ -80,10 +88,19 @@ void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
     adjust(b);
 }
 
+void snapshot(const ClutermBuffer *b, Line *lines)
+{
+    for (int y = 0; y < b->rows; ++y) {
+        int row = (first_row(b) + y) % line_cnt(b);
+        row     = MAX(0, row - b->scroll_offset);
+        memcpy(lines[y], b->lines[row], b->cols * sizeof(*b->lines[row]));
+    }
+}
+
 void buffer_destroy(ClutermBuffer *b)
 {
     if (b->lines) {
-        for (int y = 0; y < lines(b); ++y)
+        for (int y = 0; y < line_cnt(b); ++y)
             free(b->lines[y]);
         free(b->lines);
     }
@@ -119,10 +136,16 @@ void addlines(ClutermBuffer *b, int lines)
     b->last_row += lines;
     clearbox(b, b->rows - lines, 0, b->rows - 1, b->cols - 1);
     adjust(b);
+    dirty_buffer(b);
 }
 
-void scrollup_rel(ClutermBuffer *b, int origin, int lines)
+void scrollup_rel(ClutermBuffer *b, int lines, int origin)
 {
+    if (origin == 0 && b->scroll_region.end == b->rows - 1) {
+        addlines(b, lines);
+        return;
+    }
+
     Region *region = &b->scroll_region;
     if (!lines || origin >= region->end)
         return;
@@ -136,7 +159,7 @@ void scrollup_rel(ClutermBuffer *b, int origin, int lines)
     dirty_lines(b, origin, region->end - origin + 1);
 }
 
-void scrolldown_rel(ClutermBuffer *b, int origin, int lines)
+void scrolldown_rel(ClutermBuffer *b, int lines, int origin)
 {
     Region *region = &b->scroll_region;
     if (!lines || origin >= region->end)
@@ -247,6 +270,7 @@ void insert_cell(ClutermBuffer *b, Cell cell)
 void linefeed(ClutermBuffer *b)
 {
     b->cursor.y == b->scroll_region.end ? scrollup(b, 1) : move_cursor(b, 1, 0);
+
     if (b->cursor.y > 0) {
         int y = b->cursor.y - 1, x = b->cols - 1;
         while (x > 0 && line_at(b, y)[x].value == ' ')

@@ -32,6 +32,7 @@ typedef struct GFX_Context {
 extern const GFX_Context *gfx;
 
 ssize_t gfx_write(const char *, size_t);
+void gfx_scroll(int);
 void gfx_rebuild(const Config *);
 void gfx_request_render(bool);
 

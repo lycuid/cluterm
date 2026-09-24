@@ -15,6 +15,7 @@
 #include <fontconfig/fontconfig.h>
 #include <signal.h>
 #include <stdatomic.h>
+#include <sys/wait.h>
 #include <time.h>
 
 static GFX_Context ctx;
@@ -42,7 +43,16 @@ static atomic_bool         //
 #define fresh_render()                                                         \
     atomic_exchange_explicit(&full_frame_render, 0, memory_order_relaxed)
 
-void signal_quit(__attribute__((unused)) int _) { quit(); }
+void signal_child(__attribute__((unused)) int _)
+{
+    pid_t pid;
+    while ((pid = waitpid(-1, NULL, WNOHANG)) > 0) {
+        if (pid == pty.shell)
+            quit();
+    }
+}
+
+void signal_quit(__attribute__((unused)) int sig) { quit(); }
 
 static inline void *tryp(void *res)
 {
@@ -120,8 +130,19 @@ static inline void resize(int rows, int cols)
 
 ssize_t gfx_write(const char *buffer, size_t len)
 {
+    frame_activity(&ctx.frame);
     selection_clear();
+    GUARD(vt_mutex)
+    {
+        cluterm_scroll(&term, -active_buffer(&term)->scroll_offset);
+    }
     return pty_write(&pty, buffer, len);
+}
+
+void gfx_scroll(int offset)
+{
+    GUARD(vt_mutex) { cluterm_scroll(&term, offset); }
+    gfx_request_render(1);
 }
 
 void gfx_rebuild(const Config *config)
@@ -224,7 +245,7 @@ int pty_reader(__attribute__((unused)) void *arg)
 
 int main(int argc, char *const *argv)
 {
-    signal(SIGCHLD, signal_quit); // shell exits/crashes.
+    signal(SIGCHLD, signal_child);
     signal(SIGTERM, signal_quit);
 
     static Selection sel = {-1, -1};
@@ -307,8 +328,9 @@ int main(int argc, char *const *argv)
             case SDL_MOUSEMOTION: mouse_motion(&e.motion, &mreport); break;
 
             case SDL_TEXTINPUT: {
-                gfx_write(e.text.text, strlen(e.text.text));
-                frame_activity(&ctx.frame);
+                size_t len = strlen(e.text.text);
+                if (len > 0)
+                    gfx_write(e.text.text, len);
             } break;
 
             case SDL_KEYDOWN: keydown(&e.key, &cfg); break;

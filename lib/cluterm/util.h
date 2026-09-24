@@ -51,7 +51,7 @@ typedef struct Box {
 typedef struct Config {
     const char *title;
 
-    int rows, cols, history, tab_width;
+    int rows, cols, tab_width;
     Box padding;
 
     const char *font_family;

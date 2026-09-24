@@ -40,7 +40,7 @@ typedef struct ClutermActions {
 } ClutermActions;
 
 typedef struct ClutermSnapshot {
-    MEMBERS_TERM_SNAPSHOT
+    MEMBERS_FRAME_BUFFER
 
     Theme theme;
     ClutermMode term_mode;
@@ -63,6 +63,7 @@ typedef struct Cluterm {
 
 void cluterm_init(Cluterm *, const Config *);
 void cluterm_feed(Cluterm *, const uchar *, size_t);
+void cluterm_scroll(Cluterm *, int);
 void cluterm_snapshot(Cluterm *, ClutermSnapshot *);
 void cluterm_resize(Cluterm *, int, int);
 void cluterm_destroy(Cluterm *);

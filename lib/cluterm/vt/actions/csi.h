@@ -284,8 +284,8 @@ EXPORT inline void csi_execute(Cluterm *term, CSI_Payload *csi)
     case CSI_ED: csi_ed(term, csi); break;
     case CSI_EL: csi_el(term, csi); break;
 
-    case CSI_IL: scrolldown_rel(b, cursor->y, PARAM(0)); break;
-    case CSI_DL: scrollup_rel(b, cursor->y, PARAM(0)); break;
+    case CSI_IL: scrolldown_rel(b, PARAM(0), cursor->y); break;
+    case CSI_DL: scrollup_rel(b, PARAM(0), cursor->y); break;
     case CSI_ICH: insert_chars(b, PARAM(0)); break;
     case CSI_DCH: delete_chars(b, PARAM(0)); break;
 

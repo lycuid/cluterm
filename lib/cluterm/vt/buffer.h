@@ -45,16 +45,16 @@ typedef struct Region {
 
 typedef enum Charset { CS_USASCII, CS_LINEGFX } Charset;
 
-#define MEMBERS_TERM_SNAPSHOT                                                  \
+#define MEMBERS_FRAME_BUFFER                                                   \
     int rows, cols;                                                            \
     Line *lines;                                                               \
     bool *dirty;                                                               \
     Cursor cursor;
 
 typedef struct ClutermBuffer {
-    MEMBERS_TERM_SNAPSHOT
+    MEMBERS_FRAME_BUFFER
 
-    int history, last_row;
+    int history, last_row, scroll_offset;
     bool *tab;
     Cursor saved_cursor;
     Region scroll_region;
@@ -62,18 +62,19 @@ typedef struct ClutermBuffer {
     int charset[4], active_charset;
 } ClutermBuffer;
 
-#define first_row(b)  (MAX(0, (b)->last_row - (b)->rows) % lines(b))
-#define lines(b)      ((b)->rows + (b)->history)
-#define line_at(b, y) ((b)->lines[(first_row(b) + (y)) % lines(b)])
+#define line_cnt(b)  ((b)->rows + (b)->history)
+#define first_row(b) (MAX(0, (b)->last_row - (b)->rows) % line_cnt(b))
 
 #define clear(b)             addlines(b, ((b)->cursor.x = 0) + (b)->rows)
-#define scrollup(b, count)   scrollup_rel(b, (b)->scroll_region.start, count)
-#define scrolldown(b, count) scrolldown_rel(b, (b)->scroll_region.start, count)
+#define scrollup(b, count)   scrollup_rel(b, count, (b)->scroll_region.start)
+#define scrolldown(b, count) scrolldown_rel(b, count, (b)->scroll_region.start)
 
 #define dirty_buffer(b)                                                        \
     memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
 
-void buffer_init(ClutermBuffer *, const Config *);
+void snapshot(const ClutermBuffer *, Line *);
+
+void buffer_init(ClutermBuffer *, int, const Config *);
 void buffer_destroy(ClutermBuffer *);
 void buffer_resize(ClutermBuffer *, const Config *, int, int);
 

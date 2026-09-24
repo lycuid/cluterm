@@ -14,8 +14,8 @@ void cluterm_init(Cluterm *term, const Config *config)
     term->mode         = MODE_ALT_SCROLL;
     memset(&term->actions, 0, sizeof(term->actions));
 
-    buffer_init(&term->buffer[0], &term->config);
-    buffer_init(&term->buffer[1], &term->config);
+    buffer_init(&term->buffer[0], 1000, &term->config);
+    buffer_init(&term->buffer[1], 0, &term->config);
 
     memcpy(&term->theme, &term->config.theme, sizeof(Theme));
 }
@@ -57,6 +57,14 @@ done:
     return;
 }
 
+void cluterm_scroll(Cluterm *term, int offset)
+{
+    if (IS_SET((term)->mode, MODE_ALT_BUFFER))
+        return;
+    ClutermBuffer *b = &term->buffer[0];
+    b->scroll_offset = CLAMP(b->scroll_offset + offset, 0, first_row(b));
+}
+
 static inline void snapshot_resize(ClutermSnapshot *snap, int rows, int cols)
 {
     Line *ll = malloc(rows * sizeof(Line));
@@ -80,13 +88,15 @@ void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap)
         snapshot_resize(snap, b->rows, b->cols);
 
     snap->term_mode = term->mode;
-    for (int y = 0; y < b->rows; ++y)
-        memcpy(snap->lines[y], line_at(b, y), b->cols * sizeof(*b->lines[y]));
+    snapshot(b, snap->lines);
 
     memcpy(&snap->cursor, &b->cursor, sizeof(Cursor));
+    snap->cursor.y += b->scroll_offset;
+
+    memcpy(&snap->theme, &term->theme, sizeof(Theme));
+
     memmove(snap->dirty, b->dirty, b->cols * b->rows * sizeof(*b->dirty));
     memset(b->dirty, 0, b->rows * b->cols * sizeof(*b->dirty));
-    memcpy(&snap->theme, &term->theme, sizeof(Theme));
 }
 
 void cluterm_resize(Cluterm *term, int rows, int cols)

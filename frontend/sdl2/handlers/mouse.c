@@ -130,9 +130,9 @@ static inline void report_mouse_wheel(const SDL_MouseWheelEvent *wheel,
 
 static inline void selection_mouse_wheel(const SDL_MouseWheelEvent *wheel)
 {
+    int dy = wheel->y, dx = wheel->x;
     if (IS_SET(gfx->frame.term_snapshot.term_mode,
                MODE_ALT_BUFFER | MODE_ALT_SCROLL)) {
-        int dy = wheel->y, dx = wheel->x;
         for (; dy > 0; --dy)
             send_arrow_up(0);
         for (; dy < 0; ++dy)
@@ -141,7 +141,10 @@ static inline void selection_mouse_wheel(const SDL_MouseWheelEvent *wheel)
             send_arrow_right(0);
         for (; dx < 0; ++dx)
             send_arrow_left(0);
+        return;
     }
+    if (dy != 0)
+        gfx_scroll(dy);
 }
 
 static inline void report_mouse_motion(const SDL_MouseMotionEvent *motion,
@@ -164,7 +167,7 @@ static inline void report_mouse_motion(const SDL_MouseMotionEvent *motion,
         SET(button, 3);
     }
 
-    report(mreport, with_mods(button), motion->x, motion->y, 0);
+    report(mreport, with_mods(button), motion->x, motion->y, 1);
 }
 
 static inline void selection_mouse_motion(const SDL_MouseMotionEvent *motion)

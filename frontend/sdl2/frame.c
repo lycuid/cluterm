@@ -120,8 +120,12 @@ static inline void batch_flush(const Line line)
 static inline void draw_cursor(const Frame *frame)
 {
     const ClutermSnapshot *snap = &frame->term_snapshot;
-    const Cursor *c             = &snap->cursor;
-    Rgb color                   = snap->theme.cursor;
+
+    const Cursor *c = &snap->cursor;
+    if (0 > c->y || c->y >= snap->rows) // scroll_offset.
+        return;
+
+    Rgb color = snap->theme.cursor;
 
     if (c->x >= snap->cols || c->y >= snap->rows)
         return;
