@@ -119,7 +119,7 @@ static inline void batch_flush(const Line line)
 
 static inline void draw_cursor(const Frame *frame)
 {
-    const ClutermSnapshot *snap = &frame->term_snapshot;
+    const ClutermSnapshot *snap = &frame->snapshot;
 
     const Cursor *c = &snap->cursor;
     if (0 > c->y || c->y >= snap->rows) // scroll_offset.
@@ -170,7 +170,7 @@ void frame_resize(Frame *frame, int rows, int cols)
 void frame_canvas_update(Frame *frame, bool fresh)
 {
     SDL_SetRenderTarget(gfx->renderer, frame->canvas.texture);
-    struct ClutermSnapshot *snap = &frame->term_snapshot;
+    struct ClutermSnapshot *snap = &frame->snapshot;
 
 #if DUMP_DIRTY_FRAME >= 1
     // {{{
@@ -223,8 +223,7 @@ void frame_canvas_update(Frame *frame, bool fresh)
 
 bool frame_tick(Frame *f)
 {
-    if (!f->term_snapshot.cursor.visible ||
-        f->term_snapshot.cursor.style != CursorBlink)
+    if (!f->snapshot.cursor.visible || f->snapshot.cursor.style != CursorBlink)
         return 0;
 
     if (!since(&f->_cursor_blink_state.last, FPS(2)))
@@ -246,14 +245,14 @@ void frame_destroy(Frame *frame)
         SDL_DestroyTexture(frame->canvas.texture);
         frame->canvas.texture = NULL;
     }
-    if (frame->term_snapshot.lines) {
-        for (int y = 0; y < frame->term_snapshot.rows; ++y)
-            free(frame->term_snapshot.lines[y]);
-        free(frame->term_snapshot.lines);
-        frame->term_snapshot.lines = NULL;
+    if (frame->snapshot.lines) {
+        for (int y = 0; y < frame->snapshot.rows; ++y)
+            free(frame->snapshot.lines[y]);
+        free(frame->snapshot.lines);
+        frame->snapshot.lines = NULL;
     }
 
-    free(frame->term_snapshot.dirty);
-    frame->term_snapshot.dirty = NULL;
+    free(frame->snapshot.dirty);
+    frame->snapshot.dirty = NULL;
 }
 // vim:fdm=marker

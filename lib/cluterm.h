@@ -43,7 +43,7 @@ typedef struct ClutermSnapshot {
     MEMBERS_FRAME_BUFFER
 
     Theme theme;
-    ClutermMode term_mode;
+    ClutermMode mode;
 } ClutermSnapshot;
 
 typedef struct Cluterm {
@@ -58,13 +58,12 @@ typedef struct Cluterm {
     MouseReport mouse_report;
 } Cluterm;
 
-#define active_buffer(term)                                                   \
+#define active_buffer(term)                                                    \
     (&(term)->buffer[IS_SET((term)->mode, MODE_ALT_BUFFER)])
 
 void cluterm_init(Cluterm *, const Config *);
 void cluterm_feed(Cluterm *, const uchar *, size_t);
-void cluterm_scroll(Cluterm *, int);
-void cluterm_snapshot(Cluterm *, ClutermSnapshot *);
+void cluterm_snapshot(Cluterm *, ClutermSnapshot *, int);
 void cluterm_resize(Cluterm *, int, int);
 void cluterm_destroy(Cluterm *);
 

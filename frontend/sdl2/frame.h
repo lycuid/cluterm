@@ -12,7 +12,7 @@ typedef struct FrameCanvas {
 } FrameCanvas;
 
 typedef struct Frame {
-    ClutermSnapshot term_snapshot;
+    ClutermSnapshot snapshot;
     FrameCanvas canvas;
 
     struct {

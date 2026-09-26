@@ -24,6 +24,7 @@ const GFX_Context *gfx = &ctx; // exported as a global const ptr.
 static pty_t pty           = {0};
 static Cluterm term        = {0};
 static SDL_mutex *vt_mutex = NULL;
+static int scroll_offset   = 0;
 
 #define GUARD(mutex)                                                           \
     for (int i = (SDL_LockMutex(mutex), 1); i; i = (SDL_UnlockMutex(mutex), 0))
@@ -132,16 +133,14 @@ ssize_t gfx_write(const char *buffer, size_t len)
 {
     frame_activity(&ctx.frame);
     selection_clear();
-    GUARD(vt_mutex)
-    {
-        cluterm_scroll(&term, -active_buffer(&term)->scroll_offset);
-    }
+    scroll_offset = 0;
     return pty_write(&pty, buffer, len);
 }
 
 void gfx_scroll(int offset)
 {
-    GUARD(vt_mutex) { cluterm_scroll(&term, offset); }
+    scroll_offset =
+        CLAMP(scroll_offset + offset, 0, ctx.frame.snapshot.history);
     gfx_request_render(1);
 }
 
@@ -206,10 +205,10 @@ static inline void sdl_init(void)
 
 static inline void render(void)
 {
-    ClutermSnapshot *snap = &ctx.frame.term_snapshot;
+    ClutermSnapshot *snap = &ctx.frame.snapshot;
     bool fresh            = fresh_render();
 
-    GUARD(vt_mutex) { cluterm_snapshot(&term, snap); }
+    GUARD(vt_mutex) { cluterm_snapshot(&term, snap, scroll_offset); }
     frame_canvas_update(&ctx.frame, fresh);
 
     SDL_SetRenderDrawColor(ctx.renderer, UNPACK(snap->theme.bg), 0);

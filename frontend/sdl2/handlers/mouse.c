@@ -131,8 +131,7 @@ static inline void report_mouse_wheel(const SDL_MouseWheelEvent *wheel,
 static inline void selection_mouse_wheel(const SDL_MouseWheelEvent *wheel)
 {
     int dy = wheel->y, dx = wheel->x;
-    if (IS_SET(gfx->frame.term_snapshot.term_mode,
-               MODE_ALT_BUFFER | MODE_ALT_SCROLL)) {
+    if (IS_SET(gfx->frame.snapshot.mode, MODE_ALT_BUFFER | MODE_ALT_SCROLL)) {
         for (; dy > 0; --dy)
             send_arrow_up(0);
         for (; dy < 0; ++dy)

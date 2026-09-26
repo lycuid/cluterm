@@ -46,7 +46,7 @@ typedef struct Region {
 typedef enum Charset { CS_USASCII, CS_LINEGFX } Charset;
 
 #define MEMBERS_FRAME_BUFFER                                                   \
-    int rows, cols;                                                            \
+    int rows, cols, history;                                                   \
     Line *lines;                                                               \
     bool *dirty;                                                               \
     Cursor cursor;
@@ -54,16 +54,13 @@ typedef enum Charset { CS_USASCII, CS_LINEGFX } Charset;
 typedef struct ClutermBuffer {
     MEMBERS_FRAME_BUFFER
 
-    int history, last_row, scroll_offset;
+    int last_row;
     bool *tab;
     Cursor saved_cursor;
     Region scroll_region;
     CellAttributes cell_attrs;
     int charset[4], active_charset;
 } ClutermBuffer;
-
-#define line_cnt(b)  ((b)->rows + (b)->history)
-#define first_row(b) (MAX(0, (b)->last_row - (b)->rows) % line_cnt(b))
 
 #define clear(b)             addlines(b, ((b)->cursor.x = 0) + (b)->rows)
 #define scrollup(b, count)   scrollup_rel(b, count, (b)->scroll_region.start)
@@ -72,7 +69,8 @@ typedef struct ClutermBuffer {
 #define dirty_buffer(b)                                                        \
     memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
 
-void snapshot(const ClutermBuffer *, Line *);
+int buffer_histsize(const ClutermBuffer *);
+void buffer_snapshot(const ClutermBuffer *, Line *, int);
 
 void buffer_init(ClutermBuffer *, int, const Config *);
 void buffer_destroy(ClutermBuffer *);

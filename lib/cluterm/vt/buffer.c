@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define line_cnt(b)   ((b)->rows + (b)->history)
+#define first_row(b)  (MAX(0, (b)->last_row - (b)->rows) % line_cnt(b))
 #define line_at(b, y) ((b)->lines[(first_row(b) + (y)) % line_cnt(b)])
 
 // making sure b->last_row => [line_cnt, 2*line_cnt), once it exceeds line_cnt.
@@ -25,7 +27,6 @@ void buffer_init(ClutermBuffer *b, int history, const Config *cfg)
     b->rows          = cfg->rows;
     b->cols          = cfg->cols;
     b->history       = history;
-    b->scroll_offset = 0;
     b->scroll_region = (Region){0, b->rows - 1};
     b->tab           = calloc(b->cols + 1, sizeof(bool));
     for (int i = cfg->tab_width; i <= b->cols; i += cfg->tab_width)
@@ -74,7 +75,6 @@ void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
     b->cols          = cols;
     b->lines         = ll;
     b->last_row      = rows;
-    b->scroll_offset = 0;
     b->scroll_region = (Region){0, rows - 1};
     b->cursor.y      = MIN(b->cursor.y, rows - 1);
     b->cursor.x      = MIN(b->cursor.x, cols - 1);
@@ -88,11 +88,16 @@ void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
     adjust(b);
 }
 
-void snapshot(const ClutermBuffer *b, Line *lines)
+int buffer_histsize(const ClutermBuffer *b)
+{
+    return CLAMP(b->last_row - b->rows, 0, b->history);
+}
+
+void buffer_snapshot(const ClutermBuffer *b, Line *lines, int scroll_offset)
 {
     for (int y = 0; y < b->rows; ++y) {
         int row = (first_row(b) + y) % line_cnt(b);
-        row     = MAX(0, row - b->scroll_offset);
+        row     = MAX(0, row - scroll_offset);
         memcpy(lines[y], b->lines[row], b->cols * sizeof(*b->lines[row]));
     }
 }
