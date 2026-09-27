@@ -3,6 +3,7 @@
 
 #include <cluterm.h>
 #include <cluterm/colors.h>
+#include <include/cluterm/debug.h>
 
 static inline bool rgb_component(Scanner *s, uint8_t *comp)
 {
@@ -71,13 +72,47 @@ static inline bool osc_set_color(Cluterm *term, OSC_Action action, int index,
     return 1;
 }
 
+#define RRGGBB(i)                                                              \
+    ((i) >> 16) & 0xff, ((i) >> 16) & 0xff, ((i) >> 8) & 0xff,                 \
+        ((i) >> 8) & 0xff, (i) & 0xff, (i) & 0xff
+
+static inline void osc_query(Cluterm *term, OSC_Action action, int index)
+{
+    const Theme *theme  = &term->theme;
+    char osc_string[64] = {0};
+    int len             = 0;
+
+    switch (action) {
+    case OSC_4: {
+        len =
+            sprintf(osc_string, "\x1b]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
+                    index, RRGGBB(theme->palette[index]));
+    } break;
+    case OSC_10: {
+        len = sprintf(osc_string, "\x1b]10;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
+                      RRGGBB(theme->fg));
+    } break;
+    case OSC_11: {
+        len = sprintf(osc_string, "\x1b]11;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
+                      RRGGBB(theme->bg));
+    } break;
+    case OSC_12: {
+        len = sprintf(osc_string, "\x1b]11;rgb:%02x%02x/%02x%02x/%02x%02x\x07",
+                      RRGGBB(theme->bg));
+    } break;
+    default: break;
+    }
+    if (len)
+        term->actions.send(osc_string, len);
+}
+#undef RRGGBB
+
 static inline bool osc_color(Cluterm *term, OSC_Action action, Scanner *s)
 {
-    void (*query)(void) = NULL;
     switch (action) {
-    case OSC_10: query = term->actions.query_palette_fg; break;
-    case OSC_11: query = term->actions.query_palette_bg; break;
-    case OSC_12: query = term->actions.query_cursor_color; break;
+    case OSC_10: // fallthrough
+    case OSC_11: // fallthrough
+    case OSC_12: break;
     default: return true;
     }
 
@@ -86,7 +121,7 @@ static inline bool osc_color(Cluterm *term, OSC_Action action, Scanner *s)
 
     bool ok = true;
     if (s_consume(s, '?'))
-        query();
+        osc_query(term, action, 0);
     else
         ok = osc_set_color(term, action, 0, s);
 
@@ -124,8 +159,7 @@ EXPORT inline void osc_execute(Cluterm *term, OSC_Payload *osc)
                 break;
 
             if (s_consume(s, '?')) {
-                if (term->actions.query_palette_index)
-                    term->actions.query_palette_index(index);
+                osc_query(term, osc->action, index);
             } else {
                 ok = osc_set_color(term, osc->action, index, s);
             }

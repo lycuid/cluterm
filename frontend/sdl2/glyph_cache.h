@@ -2,7 +2,7 @@
 #define __SDL2__GLYPH_CACHE_H__
 
 #include <SDL2/SDL.h>
-#include <cluterm/vt/buffer.h>
+#include <cluterm.h>
 
 void gcache_init(void);
 void gcache_destroy(void);

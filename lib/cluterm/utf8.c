@@ -1,5 +1,4 @@
 #include "utf8.h"
-#include <cluterm/util.h>
 #include <stdbool.h>
 
 #define MASK(ch, m)        (((uint8_t)(ch)) & ~utf8_mask[m])

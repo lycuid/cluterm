@@ -1,5 +1,6 @@
 #include "selection.h"
 #include "main.h"
+#include <cluterm/utf8.h>
 
 void selection_start(int y, int x)
 {

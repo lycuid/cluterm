@@ -1,6 +1,8 @@
 #ifndef __CLUTERM__VT__ACTIONS_H__
 #define __CLUTERM__VT__ACTIONS_H__
 
+#define EXPORT __attribute__((unused)) static
+
 typedef enum CTRL_Action {
     C0_NOOP = -1, // NOOP.
     C0_BEL  = 7,  // Bell.

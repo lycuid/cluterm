@@ -1,7 +1,7 @@
 #ifndef __DEFAULT_CONFIG_H__
 #define __DEFAULT_CONFIG_H__
 
-#include "lib/cluterm/util.h"
+#include "lib/include/cluterm.h"
 
 static const Box Padding = {.top = 0, .right = 0, .bottom = 0, .left = 0};
 

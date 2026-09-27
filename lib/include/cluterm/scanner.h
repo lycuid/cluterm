@@ -1,10 +1,11 @@
-#ifndef __CLUTERM__SCANNER_H__
-#define __CLUTERM__SCANNER_H__
+#ifndef __INCLUDE__CLUTERM__SCANNER_H__
+#define __INCLUDE__CLUTERM__SCANNER_H__
 
-#include <cluterm/util.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+
+#define BETWEEN(i, l, h) ((l) <= (i) && (i) <= (h))
 
 typedef unsigned char uchar;
 

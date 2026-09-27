@@ -7,11 +7,9 @@
 #include "handlers/keypress.h"
 #include "handlers/mouse.h"
 #include "pty.h"
-#include "term_actions.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
 #include <cluterm/debug.h>
-#include <cluterm/vt/buffer.h>
 #include <fontconfig/fontconfig.h>
 #include <signal.h>
 #include <stdatomic.h>
@@ -22,11 +20,11 @@ static GFX_Context ctx;
 const GFX_Context *gfx = &ctx; // exported as a global const ptr.
 
 static pty_t pty           = {0};
-static Cluterm term        = {0};
+static Cluterm *term       = NULL;
 static SDL_mutex *vt_mutex = NULL;
 static int scroll_offset   = 0;
 
-#define GUARD(mutex)                                                           \
+#define guard(mutex)                                                           \
     for (int i = (SDL_LockMutex(mutex), 1); i; i = (SDL_UnlockMutex(mutex), 0))
 
 #define IS_ASCII(val) (val < 0x7f)
@@ -43,6 +41,125 @@ static atomic_bool         //
     atomic_exchange_explicit(&render_request, 0, memory_order_acquire)
 #define fresh_render()                                                         \
     atomic_exchange_explicit(&full_frame_render, 0, memory_order_relaxed)
+
+static inline int get_keycode(SDL_KeyCode code)
+{
+    switch (code) {
+    case SDLK_BACKSPACE: return CLUTERM_KEYCODE_BACKSPACE;
+    case SDLK_TAB: return CLUTERM_KEYCODE_TAB;
+    case SDLK_RETURN: // fallthrough
+    case SDLK_RETURN2: return CLUTERM_KEYCODE_RETURN;
+    case SDLK_ESCAPE: return CLUTERM_KEYCODE_ESCAPE;
+    case SDLK_a: return CLUTERM_KEYCODE_a;
+    case SDLK_b: return CLUTERM_KEYCODE_b;
+    case SDLK_c: return CLUTERM_KEYCODE_c;
+    case SDLK_d: return CLUTERM_KEYCODE_d;
+    case SDLK_e: return CLUTERM_KEYCODE_e;
+    case SDLK_f: return CLUTERM_KEYCODE_f;
+    case SDLK_g: return CLUTERM_KEYCODE_g;
+    case SDLK_h: return CLUTERM_KEYCODE_h;
+    case SDLK_i: return CLUTERM_KEYCODE_i;
+    case SDLK_j: return CLUTERM_KEYCODE_j;
+    case SDLK_k: return CLUTERM_KEYCODE_k;
+    case SDLK_l: return CLUTERM_KEYCODE_l;
+    case SDLK_m: return CLUTERM_KEYCODE_m;
+    case SDLK_n: return CLUTERM_KEYCODE_n;
+    case SDLK_o: return CLUTERM_KEYCODE_o;
+    case SDLK_p: return CLUTERM_KEYCODE_p;
+    case SDLK_q: return CLUTERM_KEYCODE_q;
+    case SDLK_r: return CLUTERM_KEYCODE_r;
+    case SDLK_s: return CLUTERM_KEYCODE_s;
+    case SDLK_t: return CLUTERM_KEYCODE_t;
+    case SDLK_u: return CLUTERM_KEYCODE_u;
+    case SDLK_v: return CLUTERM_KEYCODE_v;
+    case SDLK_w: return CLUTERM_KEYCODE_w;
+    case SDLK_x: return CLUTERM_KEYCODE_x;
+    case SDLK_y: return CLUTERM_KEYCODE_y;
+    case SDLK_z: return CLUTERM_KEYCODE_z;
+    case SDLK_LEFTBRACKET: return CLUTERM_KEYCODE_LBRACKET;
+    case SDLK_RIGHTBRACKET: return CLUTERM_KEYCODE_RBRACKET;
+    case SDLK_F1: return CLUTERM_KEYCODE_F1;
+    case SDLK_F2: return CLUTERM_KEYCODE_F2;
+    case SDLK_F3: return CLUTERM_KEYCODE_F3;
+    case SDLK_F4: return CLUTERM_KEYCODE_F4;
+    case SDLK_F5: return CLUTERM_KEYCODE_F5;
+    case SDLK_F6: return CLUTERM_KEYCODE_F6;
+    case SDLK_F7: return CLUTERM_KEYCODE_F7;
+    case SDLK_F8: return CLUTERM_KEYCODE_F8;
+    case SDLK_F9: return CLUTERM_KEYCODE_F9;
+    case SDLK_F10: return CLUTERM_KEYCODE_F10;
+    case SDLK_F11: return CLUTERM_KEYCODE_F11;
+    case SDLK_F12: return CLUTERM_KEYCODE_F12;
+    case SDLK_UP: return CLUTERM_KEYCODE_UP;
+    case SDLK_DOWN: return CLUTERM_KEYCODE_DOWN;
+    case SDLK_RIGHT: return CLUTERM_KEYCODE_RIGHT;
+    case SDLK_LEFT: return CLUTERM_KEYCODE_LEFT;
+    case SDLK_HOME: return CLUTERM_KEYCODE_HOME;
+    case SDLK_END: return CLUTERM_KEYCODE_END;
+    case SDLK_INSERT: return CLUTERM_KEYCODE_INSERT;
+    case SDLK_DELETE: return CLUTERM_KEYCODE_DELETE;
+    case SDLK_PAGEUP: return CLUTERM_KEYCODE_PAGEUP;
+    case SDLK_PAGEDOWN: return CLUTERM_KEYCODE_PAGEDOWN;
+    default: return -1;
+    }
+}
+
+static inline ClutermMod get_mod(SDL_Keymod keymod)
+{
+    ClutermMod mod = 0;
+    if (IS_SET_ANY(keymod, KMOD_CTRL))
+        SET(mod, CLUTERM_MOD_CTRL);
+    if (IS_SET_ANY(keymod, KMOD_SHIFT))
+        SET(mod, CLUTERM_MOD_SHIFT);
+    if (IS_SET_ANY(keymod, KMOD_ALT))
+        SET(mod, CLUTERM_MOD_ALT);
+    return mod;
+}
+
+static inline void get_mouse_button(ClutermMouse *mouse,
+                                    const SDL_MouseButtonEvent *button)
+{
+
+    mouse->button = button->button == SDL_BUTTON_LEFT     ? CLUTERM_MOUSE_LEFT
+                    : button->button == SDL_BUTTON_MIDDLE ? CLUTERM_MOUSE_MIDDLE
+                    : button->button == SDL_BUTTON_RIGHT  ? CLUTERM_MOUSE_RIGHT
+                                                          : 0;
+    mouse->y      = button->y;
+    mouse->x      = button->x;
+    mouse->gridy  = button->y / ctx.f_height;
+    mouse->gridx  = button->x / ctx.f_width;
+    mouse->pressed = button->state == SDL_PRESSED;
+}
+
+static inline void get_mouse_wheel(ClutermMouse *mouse,
+                                   const SDL_MouseWheelEvent *wheel)
+{
+    mouse->button  = 0;
+    mouse->y       = wheel->mouseY;
+    mouse->x       = wheel->mouseX;
+    mouse->gridy   = wheel->mouseY / ctx.f_height;
+    mouse->gridx   = wheel->mouseX / ctx.f_width;
+    mouse->wheely  = wheel->y;
+    mouse->wheelx  = wheel->x;
+    mouse->pressed = true;
+}
+
+static inline void get_mouse_motion(ClutermMouse *mouse,
+                                    const SDL_MouseMotionEvent *motion)
+{
+    mouse->button = 0;
+    if (IS_SET(motion->state, SDL_BUTTON_LMASK))
+        SET(mouse->button, CLUTERM_MOUSE_LEFT);
+    if (IS_SET(motion->state, SDL_BUTTON_MMASK))
+        SET(mouse->button, CLUTERM_MOUSE_MIDDLE);
+    if (IS_SET(motion->state, SDL_BUTTON_RMASK))
+        SET(mouse->button, CLUTERM_MOUSE_RIGHT);
+    mouse->y       = motion->y;
+    mouse->x       = motion->x;
+    mouse->gridy   = motion->y / ctx.f_height;
+    mouse->gridx   = motion->x / ctx.f_width;
+    mouse->pressed = mouse->button > 0;
+}
 
 void signal_child(__attribute__((unused)) int _)
 {
@@ -122,19 +239,11 @@ static inline void calculate_font_metrics(void)
 static inline void resize(int rows, int cols)
 {
     selection_clear();
-    GUARD(vt_mutex) { cluterm_resize(&term, rows, cols); }
+    guard(vt_mutex) { cluterm_resize(term, rows, cols); }
     pty_resize(&pty, rows, cols);
     frame_resize(&ctx.frame, rows, cols);
     gcache_resize(rows, cols);
     gfx_request_render(1);
-}
-
-ssize_t gfx_write(const char *buffer, size_t len)
-{
-    frame_activity(&ctx.frame);
-    selection_clear();
-    scroll_offset = 0;
-    return pty_write(&pty, buffer, len);
 }
 
 void gfx_scroll(int offset)
@@ -144,7 +253,7 @@ void gfx_scroll(int offset)
     gfx_request_render(1);
 }
 
-void gfx_rebuild(const Config *config)
+void gfx_rebuild(void)
 {
     calculate_font_metrics();
     gcache_destroy();
@@ -152,10 +261,24 @@ void gfx_rebuild(const Config *config)
 
     int w, h;
     SDL_GetWindowSize(ctx.window, &w, &h);
-    w -= config->padding.left + config->padding.right;
-    h -= config->padding.top + config->padding.bottom;
+    w -= ctx.config->padding.left + ctx.config->padding.right;
+    h -= ctx.config->padding.top + ctx.config->padding.bottom;
     int cols = w / ctx.f_width, rows = h / ctx.f_height;
     resize(rows, cols);
+}
+
+static inline void set_window_title(const char *title)
+{
+    if (strlen(title))
+        SDL_SetWindowTitle(gfx->window, title);
+}
+
+static inline ssize_t send(const char *buffer, size_t len)
+{
+    frame_activity(&ctx.frame);
+    selection_clear();
+    scroll_offset = 0;
+    return pty_write(&pty, buffer, len);
 }
 
 static inline void sdl_init(void)
@@ -166,8 +289,8 @@ static inline void sdl_init(void)
     {
         FcConfig *fconf = FcInitLoadConfigAndFonts();
 
-        int size         = term.config.font_size;
-        const char *face = term.config.font_family;
+        int size         = ctx.config->font_size;
+        const char *face = ctx.config->font_family;
 
         Dpi dpi;
         SDL_GetDisplayDPI(0, &dpi.d, &dpi.h, &dpi.v);
@@ -186,16 +309,16 @@ static inline void sdl_init(void)
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 
     ctx.window = tryp(SDL_CreateWindow(
-        term.config.title, 280, 100,
-        ctx.f_width * term.config.cols + term.config.padding.left +
-            term.config.padding.right,
-        ctx.f_height * term.config.rows + term.config.padding.top +
-            term.config.padding.bottom,
+        ctx.config->title, 280, 100,
+        ctx.f_width * ctx.config->cols + ctx.config->padding.left +
+            ctx.config->padding.right,
+        ctx.f_height * ctx.config->rows + ctx.config->padding.top +
+            ctx.config->padding.bottom,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE));
     ctx.renderer =
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
 
-    int rows = term.config.rows, cols = term.config.cols;
+    int rows = ctx.config->rows, cols = ctx.config->cols;
 
     gcache_init();
     resize(rows, cols);
@@ -208,7 +331,7 @@ static inline void render(void)
     ClutermSnapshot *snap = &ctx.frame.snapshot;
     bool fresh            = fresh_render();
 
-    GUARD(vt_mutex) { cluterm_snapshot(&term, snap, scroll_offset); }
+    guard(vt_mutex) { cluterm_snapshot(term, snap, scroll_offset); }
     frame_canvas_update(&ctx.frame, fresh);
 
     SDL_SetRenderDrawColor(ctx.renderer, UNPACK(snap->theme.bg), 0);
@@ -218,8 +341,8 @@ static inline void render(void)
                                .y = 0,
                                .w = ctx.frame.canvas.dispw,
                                .h = ctx.frame.canvas.disph},
-                   &(SDL_Rect){.x = term.config.padding.left,
-                               .y = term.config.padding.top,
+                   &(SDL_Rect){.x = ctx.config->padding.left,
+                               .y = ctx.config->padding.top,
                                .w = ctx.frame.canvas.dispw,
                                .h = ctx.frame.canvas.disph});
     SDL_RenderPresent(ctx.renderer);
@@ -227,13 +350,13 @@ static inline void render(void)
 
 int pty_reader(__attribute__((unused)) void *arg)
 {
-    uchar stream[4096] = {0};
-    ssize_t n          = 0;
-    struct timespec ts = {.tv_nsec = 1e6};
+    uint8_t stream[4096] = {0};
+    ssize_t n            = 0;
+    struct timespec ts   = {.tv_nsec = 1e6};
 
     while (is_running()) {
         if ((n = pty_read(&pty, stream, sizeof(stream))) > 0) {
-            GUARD(vt_mutex) { cluterm_feed(&term, stream, (size_t)n); }
+            guard(vt_mutex) { cluterm_feed(term, stream, (size_t)n); }
             gfx_request_render(0);
         } else {
             nanosleep(&ts, &ts);
@@ -253,18 +376,14 @@ int main(int argc, char *const *argv)
 
     Config cfg       = {0};
     char *const *cmd = args_parse(argc, argv, &cfg);
+    ctx.config       = &cfg;
 
-    cluterm_init(&term, &cfg);
-    term.actions = (ClutermActions){
-        .set_window_title       = set_window_title,
-        .query_palette_index    = query_palette_index,
-        .query_palette_fg       = query_palette_fg,
-        .query_palette_bg       = query_palette_bg,
-        .query_cursor_color     = query_cursor_color,
-        .device_state_report    = device_state_report,
-        .report_cursor_position = report_cursor_position,
-        .send_device_attributes = send_device_attributes,
+    term                   = cluterm_init(ctx.config);
+    ClutermActions actions = {
+        .set_window_title = set_window_title,
+        .send             = send,
     };
+    cluterm_set_actions(term, actions);
 
     char *shell[2] = {0};
     if (!cmd || !*cmd) {
@@ -284,6 +403,7 @@ int main(int argc, char *const *argv)
     vt_mutex           = SDL_CreateMutex();
     SDL_Thread *thread = SDL_CreateThread(pty_reader, NAME ":ptyread", NULL);
 
+    ClutermMouse mouse;
     for (SDL_Event e; is_running();) {
 
         if (frame_tick(&ctx.frame))
@@ -293,9 +413,6 @@ int main(int argc, char *const *argv)
             resz.pending = 0;
             resize(resz.rows, resz.cols);
         }
-
-        MouseReport mreport;
-        GUARD(vt_mutex) { mreport = term.mouse_report; }
 
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
@@ -308,31 +425,64 @@ int main(int argc, char *const *argv)
                 case SDL_WINDOWEVENT_CLOSE: quit(); break;
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
-                    resz.rows = MAX(
-                        (win->data2 - cfg.padding.top - cfg.padding.bottom) /
-                            ctx.f_height,
-                        10),
-                    resz.cols = MAX(
-                        (win->data1 - cfg.padding.left - cfg.padding.right) /
-                            ctx.f_width,
-                        10);
+                    resz.rows    = MAX((win->data2 - ctx.config->padding.top -
+                                        ctx.config->padding.bottom) /
+                                           ctx.f_height,
+                                       10),
+                    resz.cols    = MAX((win->data1 - ctx.config->padding.left -
+                                        ctx.config->padding.right) /
+                                           ctx.f_width,
+                                       10);
                     resz.pending = 1;
                 } break;
                 }
             } break;
 
             case SDL_MOUSEBUTTONDOWN:
-            case SDL_MOUSEBUTTONUP: mouse_button(&e.button, &mreport); break;
-            case SDL_MOUSEWHEEL: mouse_wheel(&e.wheel, &mreport); break;
-            case SDL_MOUSEMOTION: mouse_motion(&e.motion, &mreport); break;
+            case SDL_MOUSEBUTTONUP: {
+                bool done = false;
+                get_mouse_button(&mouse, &e.button);
+                guard(vt_mutex) { done = cluterm_mouse_button(term, &mouse); }
+                if (!done)
+                    mouse_button_selection(&e.button);
+            } break;
+            case SDL_MOUSEWHEEL: {
+                bool done = false;
+                get_mouse_wheel(&mouse, &e.wheel);
+                guard(vt_mutex) { done = cluterm_mouse_wheel(term, &mouse); }
+                if (!done)
+                    mouse_wheel_selection(&e.wheel);
+            } break;
+            case SDL_MOUSEMOTION: {
+                bool done = false;
+                get_mouse_motion(&mouse, &e.motion);
+                guard(vt_mutex) { done = cluterm_mouse_motion(term, &mouse); }
+                if (!done)
+                    mouse_motion_selection(&e.motion);
+            } break;
 
             case SDL_TEXTINPUT: {
                 size_t len = strlen(e.text.text);
                 if (len > 0)
-                    gfx_write(e.text.text, len);
+                    send(e.text.text, len);
             } break;
 
-            case SDL_KEYDOWN: keydown(&e.key, &cfg); break;
+            case SDL_KEYDOWN: {
+                int code  = get_keycode(e.key.keysym.sym);
+                bool done = false;
+                if (code != -1) {
+                    guard(vt_mutex)
+                    {
+                        ClutermKey key = {
+                            .code = (ClutermKeyCode)code,
+                            .mod  = get_mod(e.key.keysym.mod),
+                        };
+                        done = cluterm_keydown(term, &key);
+                    }
+                }
+                if (!done)
+                    handle_keydown(&e.key, ctx.config);
+            } break;
             default: break;
             }
         }
@@ -346,7 +496,7 @@ int main(int argc, char *const *argv)
     SDL_WaitThread(thread, NULL);
 
     pty_destroy(&pty);
-    cluterm_destroy(&term);
+    cluterm_destroy(term);
     {
         SDL_DestroyMutex(vt_mutex);
         frame_destroy(&ctx.frame);

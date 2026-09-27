@@ -1,6 +1,8 @@
 #ifndef __CLUTERM_H__
 #define __CLUTERM_H__
 
+#include <cluterm/handlers/key.h>
+#include <cluterm/handlers/mouse.h>
 #include <cluterm/vt/buffer.h>
 #include <cluterm/vt/parser.h>
 
@@ -12,41 +14,7 @@ typedef uint16_t ClutermMode;
 #define MODE_BRACKETED_PASTE (1 << 4)
 #define MODE_MOUSE_TRACKING  (1 << 5)
 
-typedef uint16_t ReportEvent;
-#define EVENT_BUTTON (1 << 0)
-#define EVENT_DRAG   (1 << 1)
-#define EVENT_ALL    (1 << 2)
-
-typedef struct MouseReport {
-    ReportEvent event;
-    enum {
-        ENC_LEGACY,
-        ENC_UTF8     = 1005,
-        ENC_SGR      = 1006,
-        ENC_URXVT    = 1015,
-        ENC_SGRPIXEL = 1016,
-    } encoding;
-} MouseReport;
-
-typedef struct ClutermActions {
-    void (*set_window_title)(const char *); // OSC 1,2
-    void (*query_palette_index)(int);       // OSC 4
-    void (*query_palette_fg)(void);         // OSC 10
-    void (*query_palette_bg)(void);         // OSC 11
-    void (*query_cursor_color)(void);       // OSC 12
-    void (*device_state_report)(void);      // DSR 5
-    void (*report_cursor_position)(void);   // DSR 6
-    void (*send_device_attributes)(void);   // Primary DA (DA1)
-} ClutermActions;
-
-typedef struct ClutermSnapshot {
-    MEMBERS_FRAME_BUFFER
-
-    Theme theme;
-    ClutermMode mode;
-} ClutermSnapshot;
-
-typedef struct Cluterm {
+struct Cluterm {
     Config config;
 
     VT_Parser vt_parser;
@@ -56,15 +24,9 @@ typedef struct Cluterm {
 
     Theme theme;
     MouseReport mouse_report;
-} Cluterm;
+};
 
 #define active_buffer(term)                                                    \
     (&(term)->buffer[IS_SET((term)->mode, MODE_ALT_BUFFER)])
-
-void cluterm_init(Cluterm *, const Config *);
-void cluterm_feed(Cluterm *, const uchar *, size_t);
-void cluterm_snapshot(Cluterm *, ClutermSnapshot *, int);
-void cluterm_resize(Cluterm *, int, int);
-void cluterm_destroy(Cluterm *);
 
 #endif

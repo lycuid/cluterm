@@ -5,6 +5,7 @@
 #include <cluterm/vt/actions.h>
 #include <cluterm/vt/buffer.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -156,14 +157,13 @@ static inline void csi_sgr(Cluterm *term, CSI_Payload *csi)
 
 static inline void csi_dsr(Cluterm *term, CSI_Payload *csi)
 {
+    const ClutermBuffer *b = active_buffer(term);
     switch (PARAM(0)) {
-    case 5: {
-        if (term->actions.device_state_report)
-            term->actions.device_state_report();
-    } break;
+    case 5: term->actions.send("\x1b[0n", 4); break;
     case 6: {
-        if (term->actions.report_cursor_position)
-            term->actions.report_cursor_position();
+        char seq[32] = {0};
+        sprintf(seq, "\x1b[%d;%dR", b->cursor.y + 1, b->cursor.x + 1);
+        term->actions.send(seq, strlen(seq));
     } break;
     }
 }
@@ -318,10 +318,7 @@ EXPORT inline void csi_execute(Cluterm *term, CSI_Payload *csi)
     case CSI_DECSCUSR: csi_decscusr(term, csi); break;
     case CSI_DECSET: /* fallthrough. */
     case CSI_DECRST: csi_decmode(term, csi, csi->action == CSI_DECSET); break;
-    case CSI_DA1: {
-        if (term->actions.send_device_attributes)
-            term->actions.send_device_attributes();
-    } break;
+    case CSI_DA1: term->actions.send("\x1b[?62c", 6); break;
     case CSI_UNKNOWN: break;
     }
 }

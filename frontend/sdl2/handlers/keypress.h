@@ -4,12 +4,6 @@
 #include <SDL2/SDL.h>
 #include <cluterm.h>
 
-#define send_arrow_up(mods)    send_arrow('A', mods)
-#define send_arrow_down(mods)  send_arrow('B', mods)
-#define send_arrow_right(mods) send_arrow('C', mods)
-#define send_arrow_left(mods)  send_arrow('D', mods)
-
-ssize_t send_arrow(char, Uint16);
-void keydown(const SDL_KeyboardEvent *, const Config *);
+void handle_keydown(const SDL_KeyboardEvent *, const Config *);
 
 #endif

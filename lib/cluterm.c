@@ -1,13 +1,16 @@
 #include "cluterm.h"
+#include <assert.h>
 #include <cluterm/vt/actions.h>
 #include <cluterm/vt/actions/csi.h>
 #include <cluterm/vt/actions/ctrl.h>
 #include <cluterm/vt/actions/esc.h>
 #include <cluterm/vt/actions/osc.h>
+#include <include/cluterm/debug.h>
 #include <unistd.h>
 
-void cluterm_init(Cluterm *term, const Config *config)
+Cluterm *cluterm_init(const Config *config)
 {
+    Cluterm *term = calloc(1, sizeof(Cluterm));
     memcpy(&term->config, config, sizeof(Config));
     parser_init(&term->vt_parser);
     term->mouse_report = (MouseReport){0};
@@ -18,6 +21,13 @@ void cluterm_init(Cluterm *term, const Config *config)
     buffer_init(&term->buffer[1], 0, &term->config);
 
     memcpy(&term->theme, &term->config.theme, sizeof(Theme));
+    return term;
+}
+
+void cluterm_set_actions(Cluterm *term, ClutermActions actions)
+{
+    assert(actions.send != NULL);
+    term->actions = actions;
 }
 
 void cluterm_feed(Cluterm *term, const uchar *stream, size_t slen)
@@ -57,6 +67,29 @@ done:
     return;
 }
 
+bool cluterm_keydown(Cluterm *term, ClutermKey *key)
+{
+    return keydown(term, key);
+}
+
+bool cluterm_mouse_button(Cluterm *term, ClutermMouse *mouse)
+{
+    return mouse_button_report(term, mouse);
+}
+
+bool cluterm_mouse_wheel(Cluterm *term, ClutermMouse *mouse)
+{
+    bool handled = mouse_wheel_report(term, mouse);
+    if (!handled)
+        handled = mouse_wheel_send_arrows(term, mouse);
+    return handled;
+}
+
+bool cluterm_mouse_motion(Cluterm *term, ClutermMouse *mouse)
+{
+    return mouse_motion_report(term, mouse);
+}
+
 static inline void snapshot_resize(ClutermSnapshot *snap, int rows, int cols)
 {
     Line *ll = malloc(rows * sizeof(Line));
@@ -80,7 +113,6 @@ void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap, int scroll_offset)
         snapshot_resize(snap, b->rows, b->cols);
     snap->history = buffer_histsize(b);
 
-    snap->mode = term->mode;
     buffer_snapshot(b, snap->lines, scroll_offset);
 
     memcpy(&snap->cursor, &b->cursor, sizeof(Cursor));
@@ -91,6 +123,20 @@ void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap, int scroll_offset)
     memmove(snap->dirty, b->dirty,
             snap->cols * snap->rows * sizeof(*snap->dirty));
     memset(b->dirty, 0, b->rows * b->cols * sizeof(*b->dirty));
+}
+
+ssize_t cluterm_paste(Cluterm *term, const char *text)
+{
+    bool bracketed_mode = IS_SET(term->mode, MODE_BRACKETED_PASTE);
+    if (bracketed_mode)
+        term->actions.send("\x1b[200~", 6);
+
+    size_t len = strlen(text);
+    ssize_t n  = term->actions.send(text, len);
+
+    if (bracketed_mode)
+        term->actions.send("\x1b[201~", 6);
+    return n;
 }
 
 void cluterm_resize(Cluterm *term, int rows, int cols)
@@ -106,5 +152,6 @@ void cluterm_destroy(Cluterm *term)
 {
     buffer_destroy(&term->buffer[0]);
     buffer_destroy(&term->buffer[1]);
+    free(term);
 }
 // vim:fdm=marker

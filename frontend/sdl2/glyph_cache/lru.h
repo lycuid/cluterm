@@ -1,8 +1,9 @@
 #ifndef __SDL2__GLYPH_CACHE__LRU_H__
 #define __SDL2__GLYPH_CACHE__LRU_H__
 
-#include <cluterm/vt/buffer.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #define MAP_MAX_SIZE (1 << 6)
 

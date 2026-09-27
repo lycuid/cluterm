@@ -1,5 +1,5 @@
-#ifndef __CLUTERM__DEBUG_H__
-#define __CLUTERM__DEBUG_H__
+#ifndef __INCLUDE__CLUTERM__DEBUG_H__
+#define __INCLUDE__CLUTERM__DEBUG_H__
 
 #include <stdio.h>  // IWYU pragma: keep
 #include <stdlib.h> // IWYU pragma: keep

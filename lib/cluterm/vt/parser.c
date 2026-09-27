@@ -1,8 +1,7 @@
 // vim:fdm=marker
 #include "parser.h"
-#include <cluterm/debug.h>
 #include <cluterm/utf8.h>
-#include <cluterm/util.h>
+#include <include/cluterm/debug.h>
 #include <stdbool.h>
 #include <string.h>
 

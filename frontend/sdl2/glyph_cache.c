@@ -1,7 +1,7 @@
 #include "glyph_cache.h"
 #include "glyph_cache/lru.h"
 #include "main.h"
-#include <cluterm/colors.h>
+#include <cluterm/utf8.h>
 
 #define PRINTABLE_ASCII_START 32
 #define PRINTABLE_ASCII_END   126

@@ -1,6 +1,6 @@
 #include "buffer.h"
-#include <cluterm/debug.h>
 #include <cluterm/utf8.h>
+#include <include/cluterm/debug.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>

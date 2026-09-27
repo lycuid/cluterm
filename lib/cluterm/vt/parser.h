@@ -2,9 +2,9 @@
 #define __CLUTERM__VT__PARSER_H__
 
 #include "fsm.h"
-#include <cluterm/scanner.h>
 #include <cluterm/utf8.h>
 #include <cluterm/vt/actions.h>
+#include <include/cluterm/scanner.h>
 #include <stdlib.h>
 
 typedef enum FSM_Event {

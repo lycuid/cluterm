@@ -6,7 +6,7 @@ LIB:=../../lib
 BIN:=$(BUILD)/bin/$(NAME)
 
 PKGS:=sdl2 SDL2_ttf fontconfig
-override CFLAGS+= $(FLAGS) $(DEFINE) -I$(I_DIR) -I$(LIB) $(shell pkg-config --cflags $(PKGS))
+override CFLAGS+= $(FLAGS) $(DEFINE) -I$(I_DIR) -I$(LIB)/include $(shell pkg-config --cflags $(PKGS))
 override LDFLAGS+= -L$(LIB)/$(BUILD) -l$(NAME) $(shell pkg-config --libs $(PKGS)) -lm
 
 O_FILES:=$(O_DIR)/main.o                   \

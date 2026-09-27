@@ -3,7 +3,8 @@
 #include "main.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
-#include <cluterm/vt/buffer.h>
+#include <cluterm/colors.h>
+#include <cluterm/debug.h>
 
 static struct {
     int y, x, len;
