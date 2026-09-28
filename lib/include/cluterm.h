@@ -1,8 +1,7 @@
 #ifndef __INCLUDE__CLUTERM_H__
 #define __INCLUDE__CLUTERM_H__
 
-#include "cluterm/colors.h"
-#include "cluterm/utf8.h"
+#include "cluterm/vt/buffer_line.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -110,27 +109,6 @@ typedef struct ClutermMouse {
     ClutermMod mod;
 } ClutermMouse;
 
-typedef uint8_t CellState;
-#define CELL_NORMAL    0
-#define CELL_BOLD      (1 << 0)
-#define CELL_ITALIC    (1 << 1)
-#define CELL_UNDERLINE (1 << 2)
-#define CELL_INVERSE   (1 << 3)
-// @TODO: get rid of this and use a flag in line that indicates wrapping.
-#define CELL_LINEBREAK (1 << 4)
-
-typedef struct CellAttributes {
-    CellState state;
-    Color fg, bg;
-} CellAttributes;
-
-typedef struct Cell {
-    Rune value;
-    CellAttributes attrs;
-} Cell;
-
-typedef Cell *Line;
-
 typedef enum CursorStyle { CursorSolid, CursorBlink } CursorStyle;
 typedef enum CursorShape {
     CursorBlock,
@@ -147,17 +125,19 @@ typedef struct Cursor {
 
 #define MEMBERS_FRAME_BUFFER                                                   \
     int rows, cols, history;                                                   \
-    Line *lines;                                                               \
+    BufferLine *lines;                                                         \
     bool *dirty;                                                               \
     Cursor cursor;
+
+typedef struct Box {
+    int top, right, bottom, left;
+} Box;
 
 typedef struct Config {
     const char *title;
 
     int rows, cols, tab_width;
-    struct {
-        int top, right, bottom, left;
-    } padding;
+    Box padding;
 
     const char *font_family;
     int font_size;

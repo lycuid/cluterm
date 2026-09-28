@@ -1,5 +1,6 @@
 #include "buffer.h"
 #include <cluterm/utf8.h>
+#include <cluterm/vt/buffer_line.h>
 #include <include/cluterm/debug.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -45,12 +46,9 @@ void buffer_init(ClutermBuffer *b, int history, const Config *cfg)
     }
 
     b->cell_attrs = DEFAULT_CELL_ATTRS;
-    b->lines      = malloc(line_cnt(b) * sizeof(Line));
-    for (int y = 0; y < line_cnt(b); ++y) {
-        b->lines[y] = malloc(b->cols * sizeof(Cell));
-        for (int x = 0; x < b->cols; ++x)
-            b->lines[y][x] = DEFAULT_CELL(' ');
-    }
+    b->lines      = malloc(line_cnt(b) * sizeof(BufferLine));
+    for (int y = 0; y < line_cnt(b); ++y)
+        b->lines[y] = line_new(b->cols);
     b->dirty = malloc(cfg->rows * cfg->cols * sizeof(bool));
     clear(b);
 }
@@ -58,17 +56,14 @@ void buffer_init(ClutermBuffer *b, int history, const Config *cfg)
 void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
 {
     debug_1("buffer resized to %dx%d.\n", cols, rows);
-    int cnt  = rows + b->history;
-    Line *ll = malloc(cnt * sizeof(Line));
-    for (int y = 0; y < cnt; ++y) {
-        ll[y] = malloc(cols * sizeof(Cell));
-        for (int x = 0; x < cols; ++x)
-            ll[y][x] = DEFAULT_CELL(' ');
-    }
+    int cnt        = rows + b->history;
+    BufferLine *ll = malloc(cnt * sizeof(BufferLine));
+    for (int y = 0; y < cnt; ++y)
+        ll[y] = line_new(cols);
     for (int y = 0; y < MIN(cnt, line_cnt(b)); ++y)
-        memmove(ll[y], line_at(b, y), MIN(cols, b->cols) * sizeof(Cell));
+        line_copy(ll[y], line_at(b, y), MIN(cols, b->cols));
     for (int y = 0; y < line_cnt(b); ++y)
-        free(b->lines[y]);
+        line_free(&b->lines[y]);
     free(b->lines);
 
     b->rows          = rows;
@@ -93,12 +88,13 @@ int buffer_histsize(const ClutermBuffer *b)
     return CLAMP(b->last_row - b->rows, 0, b->history);
 }
 
-void buffer_snapshot(const ClutermBuffer *b, Line *lines, int scroll_offset)
+void buffer_snapshot(const ClutermBuffer *b, BufferLine *lines,
+                     int scroll_offset)
 {
     for (int y = 0; y < b->rows; ++y) {
         int row = (first_row(b) + y) % line_cnt(b);
         row     = MAX(0, row - scroll_offset);
-        memcpy(lines[y], b->lines[row], b->cols * sizeof(*b->lines[row]));
+        line_copy(lines[y], b->lines[row], b->cols);
     }
 }
 
@@ -106,7 +102,7 @@ void buffer_destroy(ClutermBuffer *b)
 {
     if (b->lines) {
         for (int y = 0; y < line_cnt(b); ++y)
-            free(b->lines[y]);
+            line_free(&b->lines[y]);
         free(b->lines);
     }
     if (b->tab)
@@ -116,11 +112,14 @@ void buffer_destroy(ClutermBuffer *b)
     debug_1("buffer cleanup: Done!.\n");
 }
 
-Cell getcell(const ClutermBuffer *b, int y, int x) { return line_at(b, y)[x]; }
+Cell getcell(const ClutermBuffer *b, int y, int x)
+{
+    return line_at(b, y)->cells[x];
+}
 
 void putcell(ClutermBuffer *b, int y, int x, Cell c)
 {
-    line_at(b, y)[x] = c;
+    line_at(b, y)->cells[x] = c;
     dirty_cell(b, y, x);
 }
 
@@ -141,6 +140,8 @@ void addlines(ClutermBuffer *b, int lines)
     b->last_row += lines;
     clearbox(b, b->rows - lines, 0, b->rows - 1, b->cols - 1);
     adjust(b);
+    for (int i = b->last_row; i > b->last_row - lines; --i)
+        UNSET(b->lines[i % line_cnt(b)]->state, LINE_WRAPPED);
     dirty_buffer(b);
 }
 
@@ -203,7 +204,7 @@ void move_cursor(ClutermBuffer *b, int dy, int dx)
 static inline void insert_delete_chars(ClutermBuffer *b, int count, bool insert)
 {
     dirty_line(b, b->cursor.y);
-    Cell *xptr = line_at(b, b->cursor.y) + b->cursor.x;
+    Cell *xptr = line_at(b, b->cursor.y)->cells + b->cursor.x;
     int dx     = MIN(b->cols - 1 - b->cursor.x, count),
         shift  = b->cols - 1 - b->cursor.x - dx;
 
@@ -241,8 +242,8 @@ static inline Cell translate(Cell cell, Charset charset)
     switch (charset) {
     case CS_USASCII: break;
     case CS_LINEGFX: {
-        // This table is proudly stolen from st, which was proudly stolen from
-        // rxvt.
+        // This table is proudly stolen from st, which was proudly stolen
+        // from rxvt.
         static const char *const vt100_0[/* 0x41..0x7e */] = {
             "↑", "↓", "→", "←", "█", "▚", "☃",      // A - G
             0,   0,   0,   0,   0,   0,   0,   0,   // H - O
@@ -263,6 +264,7 @@ static inline Cell translate(Cell cell, Charset charset)
 void insert_cell(ClutermBuffer *b, Cell cell)
 {
     if (b->cursor.x == b->cols) {
+        SET(line_at(b, b->cursor.y)->state, LINE_WRAPPED);
         if (b->cursor.y == b->rows - 1)
             scrollup(b, 1);
         move_cursor_to(b, b->cursor.y + 1, 0);
@@ -275,14 +277,6 @@ void insert_cell(ClutermBuffer *b, Cell cell)
 void linefeed(ClutermBuffer *b)
 {
     b->cursor.y == b->scroll_region.end ? scrollup(b, 1) : move_cursor(b, 1, 0);
-
-    if (b->cursor.y > 0) {
-        int y = b->cursor.y - 1, x = b->cols - 1;
-        while (x > 0 && line_at(b, y)[x].value == ' ')
-            --x;
-        SET(line_at(b, y)[x].attrs.state, CELL_LINEBREAK);
-        dirty_cell(b, y, x);
-    }
 }
 
 void save_cursor(ClutermBuffer *b) { b->saved_cursor = b->cursor; }

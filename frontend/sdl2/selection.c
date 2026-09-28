@@ -34,15 +34,15 @@ void selection_word(int y, int x)
     };
 
     const ClutermSnapshot *snap = &gfx->frame.snapshot;
-    const Line line             = snap->lines[y];
+    const BufferLine line       = snap->lines[y];
     int x0 = x, x1 = x;
     for (; x0 > 0; --x0) {
-        Cell cell = line[x0 - 1];
+        Cell cell = line->cells[x0 - 1];
         if (BETWEEN(cell.value, 32, 126) && selection_boundary[cell.value])
             break;
     }
     for (; x1 < snap->cols - 1; ++x1) {
-        Cell cell = line[x1 + 1];
+        Cell cell = line->cells[x1 + 1];
         if (BETWEEN(cell.value, 32, 126) && selection_boundary[cell.value])
             break;
     }
@@ -56,7 +56,7 @@ void selection_line(int y)
 {
     selection_clear();
     gfx->sel->anchor  = y * gfx->frame.snapshot.cols;
-    gfx->sel->pointer = gfx->sel->anchor + gfx->frame.snapshot.cols;
+    gfx->sel->pointer = gfx->sel->anchor + gfx->frame.snapshot.cols - 1;
     gfx_request_render(1);
 }
 
@@ -94,25 +94,30 @@ char *selection_get_text(void)
     if (!buffer)
         return NULL;
 
-    char *it = buffer;
-    for (; start <= end; ++start) {
-        int y = start / snap->cols, x = start % snap->cols;
+    int starty = start / snap->cols, startx = start % snap->cols;
+    int endy = end / snap->cols, endx = end % snap->cols;
 
-        Cell cell               = snap->lines[y][x];
-        UTF8_String utf8_string = {0};
-        size_t utf8_len         = utf8_encode(cell.value, utf8_string);
-        memcpy(it, utf8_string, utf8_len);
-        it += utf8_len;
+    char *it                = buffer;
+    UTF8_String utf8_string = {0};
+    for (int y = starty; y <= endy; ++y) {
+        const BufferLine line = snap->lines[y];
+        int x0 = startx, x1 = y == endy ? endx : snap->cols - 1;
 
-        if (IS_SET(cell.attrs.state, CELL_LINEBREAK)) {
+        for (int x = x0; x <= x1; ++x) {
+            size_t utf8_len = utf8_encode(line->cells[x].value, utf8_string);
+            for (size_t ch = 0; ch < utf8_len; ++ch)
+                *it++ = utf8_string[ch];
+        }
+
+        if (!IS_SET(line->state, LINE_WRAPPED)) {
             while (it > buffer && (it[-1] == ' ' || it[-1] == '\t'))
                 --it;
-            *it++ = '\n';
-            start += snap->cols - (start % snap->cols) - 1;
+            if (y != endy)
+                *it++ = '\n';
         }
+
+        startx = 0;
     }
-    while (it > buffer && (it[-1] == ' ' || it[-1] == '\t'))
-        --it;
     *it = 0;
 
     return buffer;

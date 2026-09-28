@@ -5,6 +5,7 @@
 #include <cluterm/vt/actions/ctrl.h>
 #include <cluterm/vt/actions/esc.h>
 #include <cluterm/vt/actions/osc.h>
+#include <cluterm/vt/buffer_line.h>
 #include <include/cluterm/debug.h>
 #include <unistd.h>
 
@@ -33,8 +34,6 @@ void cluterm_set_actions(Cluterm *term, ClutermActions actions)
 void cluterm_feed(Cluterm *term, const uchar *stream, size_t slen)
 {
     VT_Parser *vt_parser = &term->vt_parser;
-    parser_feed(vt_parser, stream, slen);
-
 #if DEBUG_LVL >= 2 // {{{
     if (slen) {
         debug_2("stream:");
@@ -47,6 +46,7 @@ void cluterm_feed(Cluterm *term, const uchar *stream, size_t slen)
     }
 #endif // }}}
 
+    parser_feed(vt_parser, stream, slen);
     for (FSM_Event fsm_event;;) {
         switch (fsm_event = parser_run(vt_parser)) {
         case EVENT_NOOP: goto done;
@@ -92,16 +92,16 @@ bool cluterm_mouse_motion(Cluterm *term, ClutermMouse *mouse)
 
 static inline void snapshot_resize(ClutermSnapshot *snap, int rows, int cols)
 {
-    Line *ll = malloc(rows * sizeof(Line));
+    BufferLine *lines = malloc(rows * sizeof(BufferLine));
     for (int y = 0; y < rows; ++y)
-        ll[y] = malloc(cols * sizeof(Cell));
+        lines[y] = line_new(cols);
 
     if (snap->lines) {
         for (int y = 0; y < snap->rows; ++y)
-            free(snap->lines[y]);
+            line_free(&snap->lines[y]);
         free(snap->lines);
     }
-    snap->rows = rows, snap->cols = cols, snap->lines = ll;
+    snap->rows = rows, snap->cols = cols, snap->lines = lines;
     snap->dirty = realloc(snap->dirty, snap->rows * snap->cols * sizeof(bool));
 }
 

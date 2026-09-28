@@ -3,14 +3,9 @@
 
 #include <cluterm/colors.h>
 #include <cluterm/utf8.h>
+#include <cluterm/vt/buffer_line.h>
 #include <cluterm/vt/parser.h>
 #include <stdbool.h>
-
-#define DEFAULT_CELL_ATTRS                                                     \
-    (CellAttributes) { .fg = ColorFg(), .bg = ColorBg(), .state = CELL_NORMAL }
-#define DEFAULT_CELL(val) CELL(val, DEFAULT_CELL_ATTRS)
-#define CELL(val, _attrs)                                                      \
-    (Cell) { .value = val, .attrs = _attrs }
 
 typedef struct Region {
     int start, end;
@@ -37,7 +32,7 @@ typedef struct ClutermBuffer {
     memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
 
 int buffer_histsize(const ClutermBuffer *);
-void buffer_snapshot(const ClutermBuffer *, Line *, int);
+void buffer_snapshot(const ClutermBuffer *, BufferLine *, int);
 
 void buffer_init(ClutermBuffer *, int, const Config *);
 void buffer_destroy(ClutermBuffer *);

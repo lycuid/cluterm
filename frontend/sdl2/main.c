@@ -309,7 +309,7 @@ static inline void sdl_init(void)
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
 
     ctx.window = tryp(SDL_CreateWindow(
-        ctx.config->title, 280, 100,
+        ctx.config->title, 0, 0,
         ctx.f_width * ctx.config->cols + ctx.config->padding.left +
             ctx.config->padding.right,
         ctx.f_height * ctx.config->rows + ctx.config->padding.top +
@@ -378,12 +378,15 @@ int main(int argc, char *const *argv)
     char *const *cmd = args_parse(argc, argv, &cfg);
     ctx.config       = &cfg;
 
+    pty_open(&pty);
     term                   = cluterm_init(ctx.config);
     ClutermActions actions = {
         .set_window_title = set_window_title,
         .send             = send,
     };
     cluterm_set_actions(term, actions);
+
+    sdl_init();
 
     char *shell[2] = {0};
     if (!cmd || !*cmd) {
@@ -392,8 +395,6 @@ int main(int argc, char *const *argv)
         cmd = shell;
     }
     pty_spawn(&pty, cmd);
-
-    sdl_init();
 
     struct {
         uint64_t last;

@@ -16,13 +16,16 @@
 
 #define TRY(expr, msg) ASSERT((expr) == -1, "%s", msg);
 
-void pty_spawn(pty_t *pty, char *const *cmd)
+void pty_open(pty_t *pty)
 {
     TRY((pty->ptmx = posix_openpt(O_RDWR)), "openpt()");
     TRY(grantpt(pty->ptmx), "grantpt()");
     TRY(unlockpt(pty->ptmx), "unlockpt()"); // ioctl: TIOCSPTLCK
     fcntl(pty->ptmx, F_SETFL, fcntl(pty->ptmx, F_GETFL) | O_NONBLOCK);
+}
 
+void pty_spawn(pty_t *pty, char *const *cmd)
+{
     const char *pts_path = ptsname(pty->ptmx);
     ASSERT(!pts_path, "ptsname()"); // ioctl: TIOCGPTN
     debug_1("pts_path: '%s'.\n", pts_path);

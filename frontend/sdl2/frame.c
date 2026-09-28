@@ -91,7 +91,7 @@ static inline void batch_add(const Cell *cell, const Theme *theme, int x)
     batch.len++;
 }
 
-static inline void batch_flush(const Line line)
+static inline void batch_flush(const BufferLine line)
 {
     if (!batch.len)
         return;
@@ -105,8 +105,8 @@ static inline void batch_flush(const Line line)
 
     for (int dx = 0; dx < batch.len; ++dx) {
         int y = batch.y, x = batch.x + dx;
-        if (line[x].value != ' ')
-            gcache_emit(line[x], batch.fg, y, x);
+        if (line->cells[x].value != ' ')
+            gcache_emit(line->cells[x], batch.fg, y, x);
 #if DEBUG_LVL >= 4
         bounding_box(y, x);
 #endif
@@ -131,7 +131,7 @@ static inline void draw_cursor(const Frame *frame)
     if (c->x >= snap->cols || c->y >= snap->rows)
         return;
 
-    Cell cell    = snap->lines[c->y][c->x];
+    Cell cell    = snap->lines[c->y]->cells[c->x];
     SDL_Rect dst = {.x = c->x * gfx->f_width,
                     .y = c->y * gfx->f_height,
                     .w = gfx->f_width,
@@ -183,7 +183,7 @@ void frame_canvas_update(Frame *frame, bool fresh)
           ++frameno);
     for (int y = 0; y < snap->rows; ++y) {
         for (int x = 0; x < snap->cols; ++x) {
-            Cell cell = snap->lines[y][x];
+            Cell cell = snap->lines[y]->cells[x];
             if (snap->dirty[y * snap->cols + x] || selection_contains(y, x)) {
                 UTF8_String utf8_string = {0};
                 utf8_encode(cell.value, utf8_string);
@@ -192,6 +192,7 @@ void frame_canvas_update(Frame *frame, bool fresh)
                 debug(".");
             }
         }
+        debug(IS_SET(snap->lines[y]->state, LINE_WRAPPED) ? "↩" : "!");
         debug("\n");
     }
     debug("----------------- Frame end -----------------\n");
@@ -207,7 +208,7 @@ void frame_canvas_update(Frame *frame, bool fresh)
                 continue;
             }
 
-            Cell cell = snap->lines[y][x];
+            Cell cell = snap->lines[y]->cells[x];
             if (selection_contains(y, x))
                 cell.attrs.fg = ColorBg(), cell.attrs.bg = ColorFg();
 
@@ -248,7 +249,7 @@ void frame_destroy(Frame *frame)
     }
     if (frame->snapshot.lines) {
         for (int y = 0; y < frame->snapshot.rows; ++y)
-            free(frame->snapshot.lines[y]);
+            line_free(&frame->snapshot.lines[y]);
         free(frame->snapshot.lines);
         frame->snapshot.lines = NULL;
     }
