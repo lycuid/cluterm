@@ -85,20 +85,20 @@ if __name__ == "__main__":
     print("} FSM_Action;")
     print()
 
-    print("typedef uint16_t FSM_Effect;")
-    print("#define fsm_state(effect)  (((effect) >> 8) & 0x7f)")
-    print("#define fsm_action(effect) ((effect) & 0x7f)")
+    print("typedef uint8_t FSM_Effect;")
+    print("#define fsm_state(effect)  (((effect) >> 4) & 0xf)")
+    print("#define fsm_action(effect) ((effect) & 0xf)")
     print()
 
-    print(f"{"#define pack(state, action)":<79}\\")
-    print("    ((uint16_t)(((uint16_t)(state) << 8) | (uint16_t)(action)))")
+    print(f"{"#define mkeffect(state, action)":<79}\\")
+    print("    ((uint8_t)(((uint8_t)(state) << 4) | (uint8_t)(action)))")
     print()
 
     print("static const FSM_Effect default_transition[] = {")
     for state in table.keys():
         if (default := table[state][0xff]) is not None:
             next_state, action = default
-            print(f"    {f"[{state}]":<{m+2}} = pack({next_state}, {action}),")
+            print(f"    {f"[{state}]":<{m+2}} = mkeffect({next_state}, {action}),")
     print("};")
     print()
 
@@ -111,9 +111,9 @@ if __name__ == "__main__":
             for ch, transition in enumerate(transitions[:-1]):
                 if transition is not None:
                     next_state, action = transition
-                    print(f"                {f"[{ch:#02x}]":<6} = pack({next_state}, {action}),")
+                    print(f"                {f"[{ch:#02x}]":<6} = mkeffect({next_state}, {action}),")
             print("            },")
     print("};")
     print()
 
-    print("#undef pack")
+    print("#undef mkeffect")

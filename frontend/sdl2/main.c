@@ -124,10 +124,12 @@ static inline void get_mouse_button(ClutermMouse *mouse,
                     : button->button == SDL_BUTTON_MIDDLE ? CLUTERM_MOUSE_MIDDLE
                     : button->button == SDL_BUTTON_RIGHT  ? CLUTERM_MOUSE_RIGHT
                                                           : 0;
-    mouse->y      = button->y;
-    mouse->x      = button->x;
-    mouse->gridy  = button->y / ctx.f_height;
-    mouse->gridx  = button->x / ctx.f_width;
+    int y         = button->y - gfx->config->padding.top,
+        x         = button->x - gfx->config->padding.left;
+    mouse->y      = y;
+    mouse->x      = x;
+    mouse->gridy  = y / ctx.f_height;
+    mouse->gridx  = x / ctx.f_width;
     mouse->pressed = button->state == SDL_PRESSED;
 }
 
@@ -135,10 +137,12 @@ static inline void get_mouse_wheel(ClutermMouse *mouse,
                                    const SDL_MouseWheelEvent *wheel)
 {
     mouse->button  = 0;
-    mouse->y       = wheel->mouseY;
-    mouse->x       = wheel->mouseX;
-    mouse->gridy   = wheel->mouseY / ctx.f_height;
-    mouse->gridx   = wheel->mouseX / ctx.f_width;
+    int y          = wheel->mouseY - gfx->config->padding.top,
+        x          = wheel->mouseX - gfx->config->padding.left;
+    mouse->y       = y;
+    mouse->x       = x;
+    mouse->gridy   = y / ctx.f_height;
+    mouse->gridx   = x / ctx.f_width;
     mouse->wheely  = wheel->y;
     mouse->wheelx  = wheel->x;
     mouse->pressed = true;
@@ -154,10 +158,13 @@ static inline void get_mouse_motion(ClutermMouse *mouse,
         SET(mouse->button, CLUTERM_MOUSE_MIDDLE);
     if (IS_SET(motion->state, SDL_BUTTON_RMASK))
         SET(mouse->button, CLUTERM_MOUSE_RIGHT);
-    mouse->y       = motion->y;
-    mouse->x       = motion->x;
-    mouse->gridy   = motion->y / ctx.f_height;
-    mouse->gridx   = motion->x / ctx.f_width;
+
+    int y          = motion->y - gfx->config->padding.top,
+        x          = motion->x - gfx->config->padding.left;
+    mouse->y       = y;
+    mouse->x       = x;
+    mouse->gridy   = y / ctx.f_height;
+    mouse->gridx   = x / ctx.f_width;
     mouse->pressed = mouse->button > 0;
 }
 
@@ -250,6 +257,7 @@ void gfx_scroll(int offset)
 {
     scroll_offset =
         CLAMP(scroll_offset + offset, 0, ctx.frame.snapshot.history);
+    selection_clear();
     gfx_request_render(1);
 }
 

@@ -4,7 +4,8 @@
 void mouse_button_selection(const SDL_MouseButtonEvent *mouse)
 {
     if (mouse->state == SDL_PRESSED) {
-        int y = mouse->y / gfx->f_height, x = mouse->x / gfx->f_width;
+        int y = (mouse->y - gfx->config->padding.top) / gfx->f_height,
+            x = (mouse->x - gfx->config->padding.left) / gfx->f_width;
 
         switch (mouse->clicks) {
         case 1: selection_start(y, x); break;
@@ -26,9 +27,9 @@ void mouse_motion_selection(const SDL_MouseMotionEvent *motion)
         int w, h, y = -1, x = -1;
         SDL_GetWindowSize(gfx->window, &w, &h);
         if (BETWEEN(motion->y, 0, h))
-            y = motion->y / gfx->f_height;
+            y = (motion->y - gfx->config->padding.top) / gfx->f_height;
         if (BETWEEN(motion->x, 0, w))
-            x = motion->x / gfx->f_width;
+            x = (motion->x - gfx->config->padding.left) / gfx->f_width;
         selection_extend(y, x);
     }
 }
