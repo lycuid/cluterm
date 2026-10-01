@@ -5,13 +5,13 @@ static int f_delta = 0;
 
 static inline void clipboard_copy(void)
 {
-    char *buffer = selection_get_text();
-    if (!buffer)
-        return;
-
-    SDL_SetClipboardText(buffer);
-    free(buffer);
-    selection_clear();
+    /* char *buffer = selection_get_text(); */
+    /* if (!buffer) */
+    /*     return; */
+    /*  */
+    /* SDL_SetClipboardText(buffer); */
+    /* free(buffer); */
+    /* selection_clear(); */
 }
 
 static inline ssize_t clipboard_paste(void)

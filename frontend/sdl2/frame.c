@@ -184,7 +184,7 @@ void frame_canvas_update(Frame *frame, bool fresh)
     for (int y = 0; y < snap->rows; ++y) {
         for (int x = 0; x < snap->cols; ++x) {
             Cell cell = snap->lines[y]->cells[x];
-            if (snap->dirty[y * snap->cols + x] || selection_contains(y, x)) {
+            if (snap->dirty[y * snap->cols + x]) {
                 UTF8_String utf8_string = {0};
                 utf8_encode(cell.value, utf8_string);
                 debug("%s", utf8_string);
@@ -202,14 +202,13 @@ void frame_canvas_update(Frame *frame, bool fresh)
     for (int y = 0; y < snap->rows; ++y) {
         batch.y = y;
         for (int x = 0; x < snap->cols; ++x) {
-            if (!fresh && !snap->dirty[y * snap->cols + x] &&
-                !selection_contains(y, x)) {
+            if (!fresh && !snap->dirty[y * snap->cols + x]) {
                 batch_flush(snap->lines[y]);
                 continue;
             }
 
             Cell cell = snap->lines[y]->cells[x];
-            if (selection_contains(y, x))
+            if (IS_SET(cell.attrs.state, CELL_SELECTION))
                 cell.attrs.fg = ColorBg(), cell.attrs.bg = ColorFg();
 
             if (!cell_belongs_in_batch(&cell, &snap->theme))

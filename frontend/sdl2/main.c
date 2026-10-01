@@ -5,7 +5,6 @@
 #include "args.h"
 #include "glyph_cache.h"
 #include "handlers/keypress.h"
-#include "handlers/mouse.h"
 #include "pty.h"
 #include <SDL2/SDL.h>
 #include <cluterm.h>
@@ -244,7 +243,6 @@ static inline void calculate_font_metrics(void)
 
 static inline void resize(int rows, int cols)
 {
-    selection_clear();
     guard(vt_mutex) { cluterm_resize(term, rows, cols); }
     pty_resize(&pty, rows, cols);
     frame_resize(&ctx.frame, rows, cols);
@@ -275,7 +273,6 @@ static inline void set_window_title(const char *title)
 static inline ssize_t send(const char *buffer, size_t len)
 {
     frame_activity(&ctx.frame);
-    selection_clear();
     return pty_write(&pty, buffer, len);
 }
 
@@ -368,13 +365,11 @@ int main(int argc, char *const *argv)
     signal(SIGCHLD, signal_child);
     signal(SIGTERM, signal_quit);
 
-    static Selection sel = {-1, -1};
-    ctx.sel              = &sel;
-    ctx.frame            = (Frame){0};
-
     Config cfg       = {0};
     char *const *cmd = args_parse(argc, argv, &cfg);
-    ctx.config       = &cfg;
+
+    ctx.config = &cfg;
+    ctx.frame  = (Frame){0};
 
     pty_open(&pty);
     term                   = cluterm_init(ctx.config);
@@ -439,28 +434,26 @@ int main(int argc, char *const *argv)
 
             case SDL_MOUSEBUTTONDOWN:
             case SDL_MOUSEBUTTONUP: {
-                bool done = false;
                 get_mouse_button(&mouse, &e.button);
-                guard(vt_mutex) { done = cluterm_mouse_button(term, &mouse); }
-                if (!done)
-                    mouse_button_selection(&e.button);
+                guard(vt_mutex) { cluterm_mouse_button(term, &mouse); }
             } break;
             case SDL_MOUSEWHEEL: {
                 get_mouse_wheel(&mouse, &e.wheel);
                 guard(vt_mutex) { cluterm_mouse_wheel(term, &mouse); }
             } break;
             case SDL_MOUSEMOTION: {
-                bool done = false;
                 get_mouse_motion(&mouse, &e.motion);
-                guard(vt_mutex) { done = cluterm_mouse_motion(term, &mouse); }
-                if (!done)
-                    mouse_motion_selection(&e.motion);
+                guard(vt_mutex) { cluterm_mouse_motion(term, &mouse); }
             } break;
 
             case SDL_TEXTINPUT: {
                 size_t len = strlen(e.text.text);
-                if (len > 0)
-                    send(e.text.text, len);
+                if (len > 0) {
+                    guard(vt_mutex)
+                    {
+                        cluterm_text_input(term, e.text.text, len);
+                    }
+                }
             } break;
 
             case SDL_KEYDOWN: {
