@@ -2,7 +2,6 @@
 #define __SDL2__MAIN_H__
 
 #include "frame.h"
-#include "selection.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <cluterm.h>
@@ -26,7 +25,6 @@ typedef struct GFX_Context {
     int f_width, f_height;
 
     Frame frame;
-    Selection *sel;
     const Config *config;
 } GFX_Context;
 

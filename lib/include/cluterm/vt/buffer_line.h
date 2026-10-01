@@ -12,6 +12,7 @@ typedef uint8_t CellState;
 #define CELL_ITALIC    (1 << 1)
 #define CELL_UNDERLINE (1 << 2)
 #define CELL_INVERSE   (1 << 3)
+#define CELL_SELECTION (1 << 4)
 
 typedef struct CellAttributes {
     CellState state;

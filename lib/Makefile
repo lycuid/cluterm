@@ -11,7 +11,8 @@ O_FILES:=$(O_DIR)/$(NAME).o                 \
          $(O_DIR)/$(NAME)/utf8.o            \
          $(O_DIR)/$(NAME)/vt/buffer.o       \
          $(O_DIR)/$(NAME)/vt/buffer_line.o  \
-         $(O_DIR)/$(NAME)/vt/parser.o
+         $(O_DIR)/$(NAME)/vt/parser.o       \
+         $(O_DIR)/$(NAME)/vt/selection.o
 
 override CFLAGS+= $(FLAGS) $(DEFINE) -I$(I_DIR)
 

@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define line_cnt(b)   ((b)->rows + (b)->history)
 #define first_row(b)  (MAX(0, (b)->last_row - (b)->rows) % line_cnt(b))
 #define line_at(b, y) ((b)->lines[(first_row(b) + (y)) % line_cnt(b)])
 
@@ -16,12 +15,6 @@
                   ((b)->last_row % line_cnt(b));
 
 #define dirty_cell(b, y, x) (b)->dirty[(y) * (b)->cols + (x)] = 1;
-
-#define dirty_lines(b, y, count)                                               \
-    memset(&(b)->dirty[(y) * (b)->cols], 1,                                    \
-           (count) * (b)->cols * sizeof(*(b)->dirty));
-
-#define dirty_line(b, y) dirty_lines(b, y, 1)
 
 void buffer_init(ClutermBuffer *b, int history, const Config *cfg)
 {
@@ -88,8 +81,7 @@ void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
 void buffer_snapshot(const ClutermBuffer *b, BufferLine *lines)
 {
     for (int y = 0; y < b->rows; ++y) {
-        int row =
-            MAX(0, b->last_row - b->rows - b->scroll_offset + y) % line_cnt(b);
+        int row = viewport_row(b, y);
         line_copy(lines[y], b->lines[row], b->cols);
     }
 }

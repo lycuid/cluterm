@@ -28,8 +28,18 @@ typedef struct ClutermBuffer {
 #define scrollup(b, count)   scrollup_rel(b, count, (b)->scroll_region.start)
 #define scrolldown(b, count) scrolldown_rel(b, count, (b)->scroll_region.start)
 
+#define line_cnt(b) ((b)->rows + (b)->history)
+#define viewport_row(b, y)                                                     \
+    MAX(0, b->last_row - b->rows - b->scroll_offset + y) % line_cnt(b)
+
 #define dirty_buffer(b)                                                        \
     memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
+
+#define dirty_lines(b, y, count)                                               \
+    memset(&(b)->dirty[(y) * (b)->cols], 1,                                    \
+           (count) * (b)->cols * sizeof(*(b)->dirty));
+
+#define dirty_line(b, y) dirty_lines(b, y, 1)
 
 void buffer_snapshot(const ClutermBuffer *, BufferLine *);
 

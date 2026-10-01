@@ -5,23 +5,24 @@ static int f_delta = 0;
 
 static inline void clipboard_copy(void)
 {
-    char *buffer = selection_get_text();
-    if (!buffer)
-        return;
-
-    SDL_SetClipboardText(buffer);
-    free(buffer);
-    selection_clear();
+    /* char *buffer = selection_get_text(); */
+    /* if (!buffer) */
+    /*     return; */
+    /*  */
+    /* SDL_SetClipboardText(buffer); */
+    /* free(buffer); */
+    /* selection_clear(); */
 }
 
 static inline ssize_t clipboard_paste(void)
 {
-    char *text = SDL_GetClipboardText();
-    if (!text)
-        return -1;
-    ssize_t n = cluterm_paste(NULL, text);
-    SDL_free(text);
-    return n;
+    /* char *text = SDL_GetClipboardText(); */
+    /* if (!text) */
+    /*     return -1; */
+    /* ssize_t n = cluterm_paste(term, text); */
+    /* SDL_free(text); */
+    /* return n; */
+    return 0;
 }
 
 void handle_keydown(const SDL_KeyboardEvent *key, const Config *config)

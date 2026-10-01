@@ -86,7 +86,7 @@ static inline void report(Cluterm *term, int cb, const ClutermMouse *m)
     }
 }
 
-bool mouse_button_report(Cluterm *term, const ClutermMouse *mouse)
+static inline bool mouse_button_report(Cluterm *term, const ClutermMouse *mouse)
 {
     if (!IS_SET_ANY(term->mouse_report.event,
                     EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
@@ -101,6 +101,27 @@ bool mouse_button_report(Cluterm *term, const ClutermMouse *mouse)
     report(term, with_mods(button, mouse->mod), mouse);
 
     return true;
+}
+
+static inline bool mouse_button_select(Cluterm *term, const ClutermMouse *mouse)
+{
+    if (!mouse->pressed)
+        return false;
+
+    switch (1) {
+    case 1: selection_start(term, mouse->gridy, mouse->gridx); break;
+    case 2: selection_word(term, mouse->gridy, mouse->gridx); break;
+    case 3: selection_line(term, mouse->gridy); break;
+    }
+    return true;
+}
+
+bool handle_mouse_button(Cluterm *term, const ClutermMouse *mouse)
+{
+    bool handled = mouse_button_report(term, mouse);
+    if (!handled)
+        handled = mouse_button_select(term, mouse);
+    return handled;
 }
 
 static inline bool mouse_wheel_report(Cluterm *term, const ClutermMouse *mouse)
@@ -160,7 +181,7 @@ bool handle_mouse_wheel(Cluterm *term, const ClutermMouse *mouse)
     return handled;
 }
 
-bool mouse_motion_report(Cluterm *term, const ClutermMouse *mouse)
+static inline bool mouse_motion_report(Cluterm *term, const ClutermMouse *mouse)
 {
     if (!IS_SET_ANY(term->mouse_report.event, EVENT_DRAG | EVENT_ALL))
         return false;
@@ -185,4 +206,21 @@ bool mouse_motion_report(Cluterm *term, const ClutermMouse *mouse)
     report(term, with_mods(button, mouse->mod), mouse);
 
     return true;
+}
+
+static inline bool mouse_motion_select(Cluterm *term, const ClutermMouse *mouse)
+{
+    if (mouse->pressed) {
+        selection_extend(term, mouse->gridy, mouse->gridx);
+        return true;
+    }
+    return false;
+}
+
+bool handle_mouse_motion(Cluterm *term, const ClutermMouse *mouse)
+{
+    bool handled = mouse_motion_report(term, mouse);
+    if (!handled)
+        handled = mouse_motion_select(term, mouse);
+    return handled;
 }

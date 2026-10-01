@@ -34,6 +34,7 @@ void cluterm_set_actions(Cluterm *term, ClutermActions actions)
 
 ssize_t cluterm_send(Cluterm *term, const char *buffer, size_t len)
 {
+    selection_clear(term);
     term->buffer[0].scroll_offset = 0;
     term->buffer[1].scroll_offset = 0;
     term->render_flag             = 1;
@@ -90,7 +91,7 @@ bool cluterm_keydown(Cluterm *term, ClutermKey *key)
 
 bool cluterm_mouse_button(Cluterm *term, ClutermMouse *mouse)
 {
-    return mouse_button_report(term, mouse);
+    return handle_mouse_button(term, mouse);
 }
 
 bool cluterm_mouse_wheel(Cluterm *term, ClutermMouse *mouse)
@@ -100,7 +101,7 @@ bool cluterm_mouse_wheel(Cluterm *term, ClutermMouse *mouse)
 
 bool cluterm_mouse_motion(Cluterm *term, ClutermMouse *mouse)
 {
-    return mouse_motion_report(term, mouse);
+    return handle_mouse_motion(term, mouse);
 }
 
 static inline void snapshot_resize(ClutermSnapshot *snap, int rows, int cols)
@@ -151,8 +152,14 @@ ssize_t cluterm_paste(Cluterm *term, const char *text)
     return n;
 }
 
+ssize_t cluterm_text(Cluterm *term, const char *buffer, size_t len)
+{
+    return cluterm_send(term, buffer, len);
+}
+
 void cluterm_resize(Cluterm *term, int rows, int cols)
 {
+    selection_clear(term);
     ClutermBuffer *b = active_buffer(term);
     if (b->rows != rows || b->cols != cols) {
         buffer_resize(&term->buffer[0], &term->config, rows, cols);

@@ -5,6 +5,7 @@
 #include <cluterm/handlers/mouse.h>
 #include <cluterm/vt/buffer.h>
 #include <cluterm/vt/parser.h>
+#include <cluterm/vt/selection.h>
 
 typedef uint8_t ClutermMode;
 #define MODE_ORIGIN          (1 << 0)
@@ -24,6 +25,7 @@ struct Cluterm {
 
     Theme theme;
     MouseReport mouse_report;
+    Selection selection;
     bool render_flag : 1;
 };
 

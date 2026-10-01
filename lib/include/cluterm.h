@@ -173,5 +173,6 @@ bool cluterm_mouse_button(Cluterm *, ClutermMouse *);
 bool cluterm_mouse_wheel(Cluterm *, ClutermMouse *);
 bool cluterm_mouse_motion(Cluterm *, ClutermMouse *);
 bool cluterm_frame_ready(Cluterm *);
+ssize_t cluterm_text(Cluterm *, const char *, size_t);
 
 #endif
