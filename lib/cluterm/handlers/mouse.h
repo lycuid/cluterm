@@ -21,9 +21,8 @@ typedef struct MouseReport {
     } encoding;
 } MouseReport;
 
-bool mouse_button_report(const Cluterm *term, const ClutermMouse *mouse);
-bool mouse_wheel_report(const Cluterm *term, const ClutermMouse *mouse);
-bool mouse_wheel_send_arrows(const Cluterm *term, const ClutermMouse *mouse);
-bool mouse_motion_report(const Cluterm *term, const ClutermMouse *mouse);
+bool mouse_button_report(Cluterm *term, const ClutermMouse *mouse);
+bool handle_mouse_wheel(Cluterm *term, const ClutermMouse *mouse);
+bool mouse_motion_report(Cluterm *term, const ClutermMouse *mouse);
 
 #endif

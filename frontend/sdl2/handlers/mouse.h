@@ -4,7 +4,6 @@
 #include <SDL2/SDL.h>
 
 void mouse_button_selection(const SDL_MouseButtonEvent *);
-void mouse_wheel_selection(const SDL_MouseWheelEvent *);
 void mouse_motion_selection(const SDL_MouseMotionEvent *);
 
 #endif

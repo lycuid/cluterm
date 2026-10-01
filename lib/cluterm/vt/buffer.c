@@ -28,6 +28,7 @@ void buffer_init(ClutermBuffer *b, int history, const Config *cfg)
     b->rows          = cfg->rows;
     b->cols          = cfg->cols;
     b->history       = history;
+    b->scroll_offset = 0;
     b->scroll_region = (Region){0, b->rows - 1};
     b->tab           = calloc(b->cols + 1, sizeof(bool));
     for (int i = cfg->tab_width; i <= b->cols; i += cfg->tab_width)
@@ -70,6 +71,7 @@ void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
     b->cols          = cols;
     b->lines         = ll;
     b->last_row      = rows;
+    b->scroll_offset = 0;
     b->scroll_region = (Region){0, rows - 1};
     b->cursor.y      = MIN(b->cursor.y, rows - 1);
     b->cursor.x      = MIN(b->cursor.x, cols - 1);
@@ -83,17 +85,11 @@ void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
     adjust(b);
 }
 
-int buffer_histsize(const ClutermBuffer *b)
-{
-    return CLAMP(b->last_row - b->rows, 0, b->history);
-}
-
-void buffer_snapshot(const ClutermBuffer *b, BufferLine *lines,
-                     int scroll_offset)
+void buffer_snapshot(const ClutermBuffer *b, BufferLine *lines)
 {
     for (int y = 0; y < b->rows; ++y) {
-        int row = (first_row(b) + y) % line_cnt(b);
-        row     = MAX(0, row - scroll_offset);
+        int row =
+            MAX(0, b->last_row - b->rows - b->scroll_offset + y) % line_cnt(b);
         line_copy(lines[y], b->lines[row], b->cols);
     }
 }

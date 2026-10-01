@@ -11,7 +11,7 @@
 #define send_arrow_right(term, mods) send_arrow(term, 'C', mods)
 #define send_arrow_left(term, mods)  send_arrow(term, 'D', mods)
 
-ssize_t send_arrow(const Cluterm *, char final, ClutermMod mod);
-bool keydown(const Cluterm *, const ClutermKey *key);
+ssize_t send_arrow(Cluterm *, char final, ClutermMod mod);
+bool keydown(Cluterm *, const ClutermKey *key);
 
 #endif

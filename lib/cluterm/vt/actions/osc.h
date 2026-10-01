@@ -103,7 +103,7 @@ static inline void osc_query(Cluterm *term, OSC_Action action, int index)
     default: break;
     }
     if (len)
-        term->actions.send(osc_string, len);
+        cluterm_send(term, osc_string, len);
 }
 #undef RRGGBB
 

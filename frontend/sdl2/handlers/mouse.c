@@ -15,12 +15,6 @@ void mouse_button_selection(const SDL_MouseButtonEvent *mouse)
     }
 }
 
-void mouse_wheel_selection(const SDL_MouseWheelEvent *wheel)
-{
-    if (wheel->y != 0)
-        gfx_scroll(wheel->y);
-}
-
 void mouse_motion_selection(const SDL_MouseMotionEvent *motion)
 {
     if (motion->state == SDL_PRESSED) {

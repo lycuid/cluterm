@@ -6,7 +6,7 @@
 #include <cluterm/vt/buffer.h>
 #include <cluterm/vt/parser.h>
 
-typedef uint16_t ClutermMode;
+typedef uint8_t ClutermMode;
 #define MODE_ORIGIN          (1 << 0)
 #define MODE_APP_CURSOR_KEYS (1 << 1)
 #define MODE_ALT_BUFFER      (1 << 2)
@@ -24,9 +24,12 @@ struct Cluterm {
 
     Theme theme;
     MouseReport mouse_report;
+    bool render_flag : 1;
 };
 
 #define active_buffer(term)                                                    \
     (&(term)->buffer[IS_SET((term)->mode, MODE_ALT_BUFFER)])
+
+ssize_t cluterm_send(Cluterm *, const char *, size_t);
 
 #endif

@@ -16,9 +16,10 @@ Cluterm *cluterm_init(const Config *config)
     parser_init(&term->vt_parser);
     term->mouse_report = (MouseReport){0};
     term->mode         = MODE_ALT_SCROLL;
+    term->render_flag  = 0;
     memset(&term->actions, 0, sizeof(term->actions));
 
-    buffer_init(&term->buffer[0], 1000, &term->config);
+    buffer_init(&term->buffer[0], 500, &term->config);
     buffer_init(&term->buffer[1], 0, &term->config);
 
     memcpy(&term->theme, &term->config.theme, sizeof(Theme));
@@ -29,6 +30,21 @@ void cluterm_set_actions(Cluterm *term, ClutermActions actions)
 {
     assert(actions.send != NULL);
     term->actions = actions;
+}
+
+ssize_t cluterm_send(Cluterm *term, const char *buffer, size_t len)
+{
+    term->buffer[0].scroll_offset = 0;
+    term->buffer[1].scroll_offset = 0;
+    term->render_flag             = 1;
+    return term->actions.send(buffer, len);
+}
+
+bool cluterm_frame_ready(Cluterm *term)
+{
+    int ready_state   = term->render_flag;
+    term->render_flag = 0;
+    return ready_state;
 }
 
 void cluterm_feed(Cluterm *term, const uchar *stream, size_t slen)
@@ -79,10 +95,7 @@ bool cluterm_mouse_button(Cluterm *term, ClutermMouse *mouse)
 
 bool cluterm_mouse_wheel(Cluterm *term, ClutermMouse *mouse)
 {
-    bool handled = mouse_wheel_report(term, mouse);
-    if (!handled)
-        handled = mouse_wheel_send_arrows(term, mouse);
-    return handled;
+    return handle_mouse_wheel(term, mouse);
 }
 
 bool cluterm_mouse_motion(Cluterm *term, ClutermMouse *mouse)
@@ -105,18 +118,17 @@ static inline void snapshot_resize(ClutermSnapshot *snap, int rows, int cols)
     snap->dirty = realloc(snap->dirty, snap->rows * snap->cols * sizeof(bool));
 }
 
-void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap, int scroll_offset)
+void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap)
 {
     ClutermBuffer *b = active_buffer(term);
 
     if (b->rows != snap->rows || b->cols != snap->cols)
         snapshot_resize(snap, b->rows, b->cols);
-    snap->history = buffer_histsize(b);
 
-    buffer_snapshot(b, snap->lines, scroll_offset);
+    buffer_snapshot(b, snap->lines);
 
     memcpy(&snap->cursor, &b->cursor, sizeof(Cursor));
-    snap->cursor.y += scroll_offset;
+    snap->cursor.y += b->scroll_offset;
 
     memcpy(&snap->theme, &term->theme, sizeof(Theme));
 
@@ -129,13 +141,13 @@ ssize_t cluterm_paste(Cluterm *term, const char *text)
 {
     bool bracketed_mode = IS_SET(term->mode, MODE_BRACKETED_PASTE);
     if (bracketed_mode)
-        term->actions.send("\x1b[200~", 6);
+        cluterm_send(term, "\x1b[200~", 6);
 
     size_t len = strlen(text);
-    ssize_t n  = term->actions.send(text, len);
+    ssize_t n  = cluterm_send(term, text, len);
 
     if (bracketed_mode)
-        term->actions.send("\x1b[201~", 6);
+        cluterm_send(term, "\x1b[201~", 6);
     return n;
 }
 

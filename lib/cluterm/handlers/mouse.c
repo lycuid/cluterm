@@ -14,22 +14,22 @@ static inline int with_mods(int button, ClutermMod mod)
     return button;
 }
 
-static inline void report_sgrpixel(const Cluterm *term, int cb, int x, int y,
+static inline void report_sgrpixel(Cluterm *term, int cb, int x, int y,
                                    bool pressed)
 {
     char seq[32] = {0}, final = pressed ? 'M' : 'm';
 
     sprintf(seq, "\x1b[<%d;%d;%d%c", cb, x, y, final);
-    term->actions.send(seq, strlen(seq));
+    cluterm_send(term, seq, strlen(seq));
 }
 
-static inline void report_x10(const Cluterm *term, int cb, int cx, int cy)
+static inline void report_x10(Cluterm *term, int cb, int cx, int cy)
 {
     char seq[] = {'\x1b', '[', 'M', 32 + cb, 32 + cx, 32 + cy};
-    term->actions.send(seq, 6);
+    cluterm_send(term, seq, 6);
 }
 
-static inline void report_utf8(const Cluterm *term, int cb, int cx, int cy)
+static inline void report_utf8(Cluterm *term, int cb, int cx, int cy)
 {
     if (cy > 2015 || cx > 2015)
         return;
@@ -44,23 +44,23 @@ static inline void report_utf8(const Cluterm *term, int cb, int cx, int cy)
     strcat(seq, ux);
     strcat(seq, uy);
 
-    term->actions.send(seq, strlen(seq));
+    cluterm_send(term, seq, strlen(seq));
 }
 
-static inline void report_sgr(const Cluterm *term, int cb, int cx, int cy,
+static inline void report_sgr(Cluterm *term, int cb, int cx, int cy,
                               bool pressed)
 {
     report_sgrpixel(term, cb, cx, cy, pressed);
 }
 
-static inline void report_urxvt(const Cluterm *term, int cb, int cx, int cy)
+static inline void report_urxvt(Cluterm *term, int cb, int cx, int cy)
 {
     char seq[32] = {0};
     sprintf(seq, "\x1b[%d;%d;%dM", cb, cx, cy);
-    term->actions.send(seq, strlen(seq));
+    cluterm_send(term, seq, strlen(seq));
 }
 
-static inline void report(const Cluterm *term, int cb, const ClutermMouse *m)
+static inline void report(Cluterm *term, int cb, const ClutermMouse *m)
 {
     int cy = m->gridy + 1, cx = m->gridx + 1; // 1 based for cell grid.
     int y = m->y, x = m->x;
@@ -86,7 +86,7 @@ static inline void report(const Cluterm *term, int cb, const ClutermMouse *m)
     }
 }
 
-bool mouse_button_report(const Cluterm *term, const ClutermMouse *mouse)
+bool mouse_button_report(Cluterm *term, const ClutermMouse *mouse)
 {
     if (!IS_SET_ANY(term->mouse_report.event,
                     EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
@@ -103,12 +103,11 @@ bool mouse_button_report(const Cluterm *term, const ClutermMouse *mouse)
     return true;
 }
 
-bool mouse_wheel_report(const Cluterm *term, const ClutermMouse *mouse)
+static inline bool mouse_wheel_report(Cluterm *term, const ClutermMouse *mouse)
 {
     if (!IS_SET_ANY(term->mouse_report.event,
                     EVENT_BUTTON | EVENT_DRAG | EVENT_ALL))
         return false;
-
     int dy = mouse->wheely, dx = mouse->wheelx, mods = with_mods(0, mouse->mod);
     for (; dy > 0; --dy)
         report(term, 64 | mods, mouse);
@@ -121,11 +120,11 @@ bool mouse_wheel_report(const Cluterm *term, const ClutermMouse *mouse)
     return true;
 }
 
-bool mouse_wheel_send_arrows(const Cluterm *term, const ClutermMouse *mouse)
+static inline bool mouse_wheel_scroll_mode(Cluterm *term,
+                                           const ClutermMouse *mouse)
 {
     if (!IS_SET(term->mode, MODE_ALT_BUFFER | MODE_ALT_SCROLL))
         return false;
-
     int dy = mouse->wheely, dx = mouse->wheelx;
     for (; dy > 0; --dy)
         send_arrow_up(term, 0);
@@ -138,7 +137,30 @@ bool mouse_wheel_send_arrows(const Cluterm *term, const ClutermMouse *mouse)
     return true;
 }
 
-bool mouse_motion_report(const Cluterm *term, const ClutermMouse *mouse)
+static inline bool mouse_wheel_scroll(Cluterm *term, const ClutermMouse *mouse)
+{
+    if (IS_SET_ANY(mouse->mod,
+                   CLUTERM_MOD_ALT | CLUTERM_MOD_CTRL | CLUTERM_MOD_SHIFT))
+        return false;
+    ClutermBuffer *b  = active_buffer(term);
+    int histsize      = CLAMP(b->last_row - b->rows, 0, b->history);
+    b->scroll_offset  = CLAMP(b->scroll_offset + mouse->wheely, 0, histsize);
+    term->render_flag = 1;
+    dirty_buffer(b);
+    return true;
+}
+
+bool handle_mouse_wheel(Cluterm *term, const ClutermMouse *mouse)
+{
+    bool handled = mouse_wheel_report(term, mouse);
+    if (!handled)
+        handled = mouse_wheel_scroll_mode(term, mouse);
+    if (!handled)
+        handled = mouse_wheel_scroll(term, mouse);
+    return handled;
+}
+
+bool mouse_motion_report(Cluterm *term, const ClutermMouse *mouse)
 {
     if (!IS_SET_ANY(term->mouse_report.event, EVENT_DRAG | EVENT_ALL))
         return false;

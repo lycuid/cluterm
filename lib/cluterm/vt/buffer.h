@@ -16,7 +16,7 @@ typedef enum Charset { CS_USASCII, CS_LINEGFX } Charset;
 typedef struct ClutermBuffer {
     MEMBERS_FRAME_BUFFER
 
-    int last_row;
+    int history, last_row, scroll_offset;
     bool *tab;
     Cursor saved_cursor;
     Region scroll_region;
@@ -31,8 +31,7 @@ typedef struct ClutermBuffer {
 #define dirty_buffer(b)                                                        \
     memset((b)->dirty, 1, (b)->rows *(b)->cols * sizeof(*(b)->dirty))
 
-int buffer_histsize(const ClutermBuffer *);
-void buffer_snapshot(const ClutermBuffer *, BufferLine *, int);
+void buffer_snapshot(const ClutermBuffer *, BufferLine *);
 
 void buffer_init(ClutermBuffer *, int, const Config *);
 void buffer_destroy(ClutermBuffer *);

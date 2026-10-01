@@ -22,7 +22,6 @@ const GFX_Context *gfx = &ctx; // exported as a global const ptr.
 static pty_t pty           = {0};
 static Cluterm *term       = NULL;
 static SDL_mutex *vt_mutex = NULL;
-static int scroll_offset   = 0;
 
 #define guard(mutex)                                                           \
     for (int i = (SDL_LockMutex(mutex), 1); i; i = (SDL_UnlockMutex(mutex), 0))
@@ -253,14 +252,6 @@ static inline void resize(int rows, int cols)
     gfx_request_render(1);
 }
 
-void gfx_scroll(int offset)
-{
-    scroll_offset =
-        CLAMP(scroll_offset + offset, 0, ctx.frame.snapshot.history);
-    selection_clear();
-    gfx_request_render(1);
-}
-
 void gfx_rebuild(void)
 {
     calculate_font_metrics();
@@ -285,7 +276,6 @@ static inline ssize_t send(const char *buffer, size_t len)
 {
     frame_activity(&ctx.frame);
     selection_clear();
-    scroll_offset = 0;
     return pty_write(&pty, buffer, len);
 }
 
@@ -339,7 +329,7 @@ static inline void render(void)
     ClutermSnapshot *snap = &ctx.frame.snapshot;
     bool fresh            = fresh_render();
 
-    guard(vt_mutex) { cluterm_snapshot(term, snap, scroll_offset); }
+    guard(vt_mutex) { cluterm_snapshot(term, snap); }
     frame_canvas_update(&ctx.frame, fresh);
 
     SDL_SetRenderDrawColor(ctx.renderer, UNPACK(snap->theme.bg), 0);
@@ -456,11 +446,8 @@ int main(int argc, char *const *argv)
                     mouse_button_selection(&e.button);
             } break;
             case SDL_MOUSEWHEEL: {
-                bool done = false;
                 get_mouse_wheel(&mouse, &e.wheel);
-                guard(vt_mutex) { done = cluterm_mouse_wheel(term, &mouse); }
-                if (!done)
-                    mouse_wheel_selection(&e.wheel);
+                guard(vt_mutex) { cluterm_mouse_wheel(term, &mouse); }
             } break;
             case SDL_MOUSEMOTION: {
                 bool done = false;
@@ -496,7 +483,10 @@ int main(int argc, char *const *argv)
             }
         }
 
-        if (should_render())
+        bool frame_ready = false;
+        guard(vt_mutex) { frame_ready = cluterm_frame_ready(term); }
+
+        if (should_render() || frame_ready)
             render();
 
         SDL_Delay(FPS(1000));

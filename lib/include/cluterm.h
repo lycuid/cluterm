@@ -124,7 +124,7 @@ typedef struct Cursor {
 } Cursor;
 
 #define MEMBERS_FRAME_BUFFER                                                   \
-    int rows, cols, history;                                                   \
+    int rows, cols;                                                            \
     BufferLine *lines;                                                         \
     bool *dirty;                                                               \
     Cursor cursor;
@@ -164,7 +164,7 @@ typedef struct Cluterm Cluterm;
 Cluterm *cluterm_init(const Config *);
 void cluterm_set_actions(Cluterm *, ClutermActions);
 void cluterm_feed(Cluterm *, const uchar *, size_t);
-void cluterm_snapshot(Cluterm *, ClutermSnapshot *, int);
+void cluterm_snapshot(Cluterm *, ClutermSnapshot *);
 ssize_t cluterm_paste(Cluterm *, const char *);
 void cluterm_resize(Cluterm *, int, int);
 void cluterm_destroy(Cluterm *);
@@ -172,5 +172,6 @@ bool cluterm_keydown(Cluterm *, ClutermKey *);
 bool cluterm_mouse_button(Cluterm *, ClutermMouse *);
 bool cluterm_mouse_wheel(Cluterm *, ClutermMouse *);
 bool cluterm_mouse_motion(Cluterm *, ClutermMouse *);
+bool cluterm_frame_ready(Cluterm *);
 
 #endif
