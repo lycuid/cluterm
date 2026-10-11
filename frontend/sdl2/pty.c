@@ -40,12 +40,16 @@ void pty_spawn(pty_t *pty, char *const *cmd)
 
     debug_1("child executed!.\n");
     TRY(setsid(), "setsid()");
-    TRY(ioctl(pts, TIOCSCTTY, 0), "ioctl(TIOCSCTTY)");
-    TRY(dup2(pts, STDIN_FILENO), "dup2(stdin)");
-    TRY(dup2(pts, STDOUT_FILENO), "dup2(stdout)");
-    TRY(dup2(pts, STDERR_FILENO), "dup2(stderr)");
+
+    int slave;
+    TRY((slave = fcntl(pts, F_DUPFD_CLOEXEC, 3)), "fcntl(F_DUPFD_CLOEXEC)");
     close(pts);
     close(pty->ptmx);
+
+    TRY(ioctl(slave, TIOCSCTTY, 0), "ioctl(TIOCSCTTY)");
+    TRY(dup2(slave, STDIN_FILENO), "dup2(stdin)");
+    TRY(dup2(slave, STDOUT_FILENO), "dup2(stdout)");
+    TRY(dup2(slave, STDERR_FILENO), "dup2(stderr)");
     setenv("TERM", "xterm-256color", 1);
     TRY(execvp(cmd[0], cmd), "execvp()");
 }

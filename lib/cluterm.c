@@ -11,6 +11,19 @@
 
 Cluterm *cluterm_init(const Config *config)
 {
+#if DEBUG_LVL >= 2 // {{{
+    // clang-format off
+    debug("Config:\n");
+    debug("    title:       '%s',\n", config->title);
+    debug("    rows:        %d,\n", config->rows);
+    debug("    cols:        %d,\n", config->cols);
+    debug("    tab_width:   %d,\n", config->tab_width);
+    debug("    padding:     {%d,%d,%d,%d},\n", config->padding.top, config->padding.right, config->padding.bottom, config->padding.left);
+    debug("    font_family: '%s',\n", config->font_family);
+    debug("    font_size:   %d,\n", config->font_size);
+    // clang-format on
+#endif // }}}
+
     Cluterm *term = calloc(1, sizeof(Cluterm));
     memcpy(&term->config, config, sizeof(Config));
     parser_init(&term->vt_parser);
@@ -28,13 +41,18 @@ Cluterm *cluterm_init(const Config *config)
 
 void cluterm_set_actions(Cluterm *term, ClutermActions actions)
 {
+    assert(term != NULL);
     assert(actions.send != NULL);
     term->actions = actions;
 }
 
 ssize_t cluterm_send(Cluterm *term, const char *buffer, size_t len)
 {
+    assert(term != NULL);
     selection_clear(term);
+    ClutermBuffer *b = active_buffer(term);
+    if (b->scroll_offset > 0)
+        dirty_buffer(b);
     term->buffer[0].scroll_offset = 0;
     term->buffer[1].scroll_offset = 0;
     term->render_flag             = 1;
@@ -43,6 +61,7 @@ ssize_t cluterm_send(Cluterm *term, const char *buffer, size_t len)
 
 bool cluterm_frame_ready(Cluterm *term)
 {
+    assert(term != NULL);
     int ready_state   = term->render_flag;
     term->render_flag = 0;
     return ready_state;
@@ -50,6 +69,7 @@ bool cluterm_frame_ready(Cluterm *term)
 
 void cluterm_feed(Cluterm *term, const uchar *stream, size_t slen)
 {
+    assert(term != NULL);
     VT_Parser *vt_parser = &term->vt_parser;
 #if DEBUG_LVL >= 2 // {{{
     if (slen) {
@@ -86,21 +106,25 @@ done:
 
 bool cluterm_keydown(Cluterm *term, ClutermKey *key)
 {
+    assert(term != NULL);
     return keydown(term, key);
 }
 
 bool cluterm_mouse_button(Cluterm *term, ClutermMouse *mouse)
 {
+    assert(term != NULL);
     return handle_mouse_button(term, mouse);
 }
 
 bool cluterm_mouse_wheel(Cluterm *term, ClutermMouse *mouse)
 {
+    assert(term != NULL);
     return handle_mouse_wheel(term, mouse);
 }
 
 bool cluterm_mouse_motion(Cluterm *term, ClutermMouse *mouse)
 {
+    assert(term != NULL);
     return handle_mouse_motion(term, mouse);
 }
 
@@ -121,6 +145,7 @@ static inline void snapshot_resize(ClutermSnapshot *snap, int rows, int cols)
 
 void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap)
 {
+    assert(term != NULL);
     ClutermBuffer *b = active_buffer(term);
 
     if (b->rows != snap->rows || b->cols != snap->cols)
@@ -140,6 +165,7 @@ void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap)
 
 ssize_t cluterm_paste(Cluterm *term, const char *text)
 {
+    assert(term != NULL);
     bool bracketed_mode = IS_SET(term->mode, MODE_BRACKETED_PASTE);
     if (bracketed_mode)
         cluterm_send(term, "\x1b[200~", 6);
@@ -154,11 +180,13 @@ ssize_t cluterm_paste(Cluterm *term, const char *text)
 
 ssize_t cluterm_text(Cluterm *term, const char *buffer, size_t len)
 {
+    assert(term != NULL);
     return cluterm_send(term, buffer, len);
 }
 
 void cluterm_resize(Cluterm *term, int rows, int cols)
 {
+    assert(term != NULL);
     selection_clear(term);
     ClutermBuffer *b = active_buffer(term);
     if (b->rows != rows || b->cols != cols) {
@@ -169,6 +197,7 @@ void cluterm_resize(Cluterm *term, int rows, int cols)
 
 void cluterm_destroy(Cluterm *term)
 {
+    assert(term != NULL);
     buffer_destroy(&term->buffer[0]);
     buffer_destroy(&term->buffer[1]);
     free(term);
