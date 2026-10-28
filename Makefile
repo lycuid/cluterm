@@ -26,13 +26,19 @@ $(FRONTEND)/sdl2: lib ; mkdir -p $(shell dirname $(BIN))
 lib:
 	$(MAKE) -j -C $@
 
+.PHONY: tests
+tests: lib;
+	$(MAKE) -j -C tests
+
 .PHONY: run clean compile_flags fmt
 run: ; ./$(BIN) 2>&1 | tee cluterm-out.txt
 
 clean: ; rm -rf $(BUILD)
 	$(MAKE) -C lib $@
 	$(MAKE) -C $(FRONTEND)/sdl2 $@
+	$(MAKE) -C tests $@
 compile_flags:
 	$(MAKE) -C lib $@
 	$(MAKE) -C $(FRONTEND)/sdl2 $@
+	$(MAKE) -C tests $@
 fmt: ; git ls-files | grep -E '\.[ch]$$' | xargs -i clang-format -i {}

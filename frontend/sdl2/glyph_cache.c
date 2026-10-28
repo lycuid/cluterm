@@ -1,6 +1,7 @@
 #include "glyph_cache.h"
 #include "glyph_cache/lru.h"
 #include "main.h"
+#include <cluterm/debug.h>
 #include <cluterm/utf8.h>
 
 #define PRINTABLE_ASCII_START 32
@@ -148,9 +149,6 @@ static inline AtlasSlot *get_slot(Cell cell)
         return slot;
     if ((slot = lru_get(&non_ascii_cache[1], hash(cell))))
         return slot;
-
-    UTF8_String utf8_string = {0};
-    utf8_encode(cell.value, utf8_string);
 
     SDL_Surface *surface = create_surface(cell.value, gfx->fonts[f_index]);
     if (!surface)

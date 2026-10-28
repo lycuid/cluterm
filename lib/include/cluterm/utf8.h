@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#define UTF8_MAX_LEN 4
+#define UTF8_MAX_LEN          4
+#define UTF8_REPLACEMENT_CHAR (0xfffd)
 
 // Unicode code point.
 typedef uint32_t Rune;

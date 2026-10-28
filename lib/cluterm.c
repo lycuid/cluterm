@@ -71,17 +71,6 @@ void cluterm_feed(Cluterm *term, const uchar *stream, size_t slen)
 {
     assert(term != NULL);
     VT_Parser *vt_parser = &term->vt_parser;
-#if DEBUG_LVL >= 2 // {{{
-    if (slen) {
-        debug_2("stream:");
-        for (size_t i = 0; i < slen; ++i)
-            if (BETWEEN(stream[i], 32, 126))
-                debug(" %c", stream[i]);
-            else
-                debug(" %d", stream[i]);
-        debug("\n");
-    }
-#endif // }}}
 
     parser_feed(vt_parser, stream, slen);
     for (FSM_Event fsm_event;;) {

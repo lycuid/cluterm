@@ -21,6 +21,17 @@ void parser_init(VT_Parser *vtp) { transition(vtp, STATE_GROUND); }
 
 void parser_feed(VT_Parser *vtp, const uchar *stream, size_t slen)
 {
+#if DEBUG_LVL >= 2 // {{{
+    if (slen) {
+        debug_2("stream:");
+        for (size_t i = 0; i < slen; ++i)
+            if (BETWEEN(stream[i], 32, 126))
+                debug(" %c", stream[i]);
+            else
+                debug(" %d", stream[i]);
+        debug("\n");
+    }
+#endif // }}}
     vtp->scanner = SCANNER(stream, slen);
 }
 
@@ -50,16 +61,24 @@ static inline FSM_State execute(VT_Parser *vtp, uchar input, FSM_Effect effect)
 {
     switch (fsm_action(effect)) {
     case FSM_UTF8_DECODE: {
-        if (vtp->utf8_decoder.rune == 0) {
-            if (!utf8decoder_check(&vtp->utf8_decoder, input))
-                transition(vtp, STATE_GROUND);
-        } else {
-            if (vtp->utf8_decoder.need_input)
-                utf8decoder_feed(&vtp->utf8_decoder, input);
+        UTF8_Decoder *decoder = &vtp->utf8_decoder;
+
+        UTF8DecodeResult res = utf8decoder_feed(decoder, input);
+        switch (res) {
+        case UTF8_DECODE_RESULT_ACCEPT: break;
+        case UTF8_DECODE_RESULT_INVALID: {
+            goto dispatch_print;
         }
-        if (!vtp->utf8_decoder.need_input) {
+        case UTF8_DECODE_RESULT_REJECT: {
+            s_rollback(&vtp->scanner);
+            goto dispatch_print;
+        }
+        case UTF8_DECODE_RESULT_SUCCESS: {
+        dispatch_print:
             dispatch(vtp, EVENT_PRINT);
+            utf8decoder_reset(decoder);
             return STATE_GROUND;
+        }
         }
     } break;
 
