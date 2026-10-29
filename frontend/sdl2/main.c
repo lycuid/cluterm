@@ -44,6 +44,7 @@ static inline void get_mouse_button(ClutermMouse *mouse,
                                     const SDL_MouseButtonEvent *button)
 {
 
+    memset(mouse, 0, sizeof(ClutermMouse));
     mouse->button = button->button == SDL_BUTTON_LEFT     ? CLUTERM_MOUSE_LEFT
                     : button->button == SDL_BUTTON_MIDDLE ? CLUTERM_MOUSE_MIDDLE
                     : button->button == SDL_BUTTON_RIGHT  ? CLUTERM_MOUSE_RIGHT
@@ -60,7 +61,7 @@ static inline void get_mouse_button(ClutermMouse *mouse,
 static inline void get_mouse_wheel(ClutermMouse *mouse,
                                    const SDL_MouseWheelEvent *wheel)
 {
-    mouse->button  = 0;
+    memset(mouse, 0, sizeof(ClutermMouse));
     int y          = wheel->mouseY - gfx->config->padding.top,
         x          = wheel->mouseX - gfx->config->padding.left;
     mouse->y       = y;
@@ -75,7 +76,7 @@ static inline void get_mouse_wheel(ClutermMouse *mouse,
 static inline void get_mouse_motion(ClutermMouse *mouse,
                                     const SDL_MouseMotionEvent *motion)
 {
-    mouse->button = 0;
+    memset(mouse, 0, sizeof(ClutermMouse));
     if (IS_SET(motion->state, SDL_BUTTON_LMASK))
         SET(mouse->button, CLUTERM_MOUSE_LEFT);
     if (IS_SET(motion->state, SDL_BUTTON_MMASK))
@@ -317,7 +318,7 @@ int main(int argc, char *const *argv)
 
     struct {
         uint64_t last;
-        uint rows, cols, pending : 1;
+        unsigned int rows, cols, pending : 1;
     } resz = {0};
 
     vt_mutex           = SDL_CreateMutex();

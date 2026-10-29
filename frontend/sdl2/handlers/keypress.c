@@ -70,7 +70,7 @@ void handle_keydown(const SDL_KeyboardEvent *key, const Config *config)
     resize_font: {
         Dpi dpi;
         SDL_GetDisplayDPI(0, &dpi.d, &dpi.h, &dpi.v);
-        uint hdpi = lroundf(dpi.h), vdpi = lroundf(dpi.v);
+        unsigned int hdpi = lroundf(dpi.h), vdpi = lroundf(dpi.v);
 
         int size = config->font_size + f_delta;
         TTF_SetFontSizeDPI(gfx->fonts[FontRegular], size, hdpi, vdpi);

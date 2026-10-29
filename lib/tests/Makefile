@@ -1,8 +1,8 @@
-include ../config.mk
+include ../../config.mk
 
 I_DIR:=.
 O_DIR:=$(BUILD)/cache
-LIB:=../lib
+LIB:=..
 BIN:=$(BUILD)/bin/tests
 
 PKGS:=criterion
@@ -12,7 +12,7 @@ override LDFLAGS+= -L$(LIB)/$(BUILD) -l$(NAME) $(shell pkg-config --libs $(PKGS)
 O_FILES:=$(O_DIR)/vt_parser.o $(O_DIR)/utf8.o
 
 run: $(BIN)
-	./$(BIN) -j0
+	./$(BIN) -j1 --verbose
 
 $(BIN): $(O_FILES) ; @mkdir -p $(@D)
 	$(CC) -o $@ $(O_FILES) $(LDFLAGS)
