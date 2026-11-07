@@ -156,13 +156,13 @@ Test(utf8, encodes_rfc3629_valid_boundaries)
 
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
         UTF8_String encoded = {0};
-        size_t length = utf8_encode(cases[i].rune, encoded);
+        size_t length       = utf8_encode(cases[i].rune, encoded);
 
         cr_expect_eq(length, cases[i].length, "%s: encoded length",
                      cases[i].name);
         for (size_t j = 0; j < cases[i].length; ++j)
-            cr_expect_eq((uchar)encoded[j], cases[i].bytes[j],
-                         "%s: byte %zu", cases[i].name, j);
+            cr_expect_eq((uchar)encoded[j], cases[i].bytes[j], "%s: byte %zu",
+                         cases[i].name, j);
     }
 }
 
@@ -182,7 +182,7 @@ Test(utf8, encodes_real_world_mixed_text)
 
     for (size_t i = 0; i < sizeof(runes) / sizeof(runes[0]); ++i) {
         UTF8_String encoded = {0};
-        size_t length = utf8_encode(runes[i], encoded);
+        size_t length       = utf8_encode(runes[i], encoded);
 
         cr_expect(length <= UTF8_MAX_LEN,
                   "mixed text rune %zu fits in a UTF-8 scalar", i);

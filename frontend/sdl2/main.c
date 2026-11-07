@@ -238,7 +238,11 @@ static inline void sdl_init(void)
             ctx.config->padding.bottom,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE));
     ctx.renderer =
+#ifdef SOFTWARE_RENDERED
+        tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_SOFTWARE));
+#else
         tryp(SDL_CreateRenderer(ctx.window, -1, SDL_RENDERER_ACCELERATED));
+#endif
 
     int rows = ctx.config->rows, cols = ctx.config->cols;
 

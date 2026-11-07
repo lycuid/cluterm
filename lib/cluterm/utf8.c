@@ -15,7 +15,6 @@ static const uint8_t
            0x80,       0x0,        0xc0,       0xe0,       0xf0,
 };
 // clang-format on
-static const uint32_t utf8_max[] = {0, 0x7f, 0x7ff, 0xffff, 0x10ffff};
 
 // https://www.rfc-editor.org/rfc/rfc3629.html#section-4
 static inline bool utf8_leading_validate(uchar byte, size_t i)
@@ -94,15 +93,22 @@ Rune utf8_decode(const char *utf8_string)
     return decoder.rune;
 }
 
-size_t utf8_encode(Rune rune, UTF8_String str)
+ssize_t utf8_encode(Rune rune, UTF8_String str)
 {
-    size_t len = 0;
-    while (rune > utf8_max[len])
+    static const Rune utf8_max[UTF8_MAX_LEN + 1] = {
+        0, 0x7f, 0x7ff, 0xffff, 0x10ffff,
+    };
+
+    size_t len = 1;
+    while (len <= UTF8_MAX_LEN && rune > utf8_max[len])
         len++;
-    if (len) {
-        *str++ = BYTE(rune, len, len);
-        for (int l = len; --l;)
-            *str++ = BYTE(rune, l, 0);
-    }
-    return len;
+
+    if (len > UTF8_MAX_LEN)
+        return -1;
+
+    *str++ = BYTE(rune, len, len);
+    for (int l = len; --l;)
+        *str++ = BYTE(rune, l, 0);
+
+    return (ssize_t)len;
 }

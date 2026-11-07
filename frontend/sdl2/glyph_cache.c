@@ -52,8 +52,7 @@ static inline int font_index(CellState state)
 static inline SDL_Surface *create_surface(Rune ch, TTF_Font *font)
 {
     UTF8_String utf8_string = {0};
-    size_t utf8_len         = utf8_encode(ch, utf8_string);
-    if (utf8_len == 0)
+    if (!utf8_encode(ch, utf8_string))
         return NULL;
 
     SDL_Surface *text =
