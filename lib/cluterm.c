@@ -142,7 +142,7 @@ void cluterm_snapshot(Cluterm *term, ClutermSnapshot *snap)
 
     buffer_snapshot(b, snap->lines);
 
-    memcpy(&snap->cursor, &b->cursor, sizeof(Cursor));
+    memcpy(&snap->cursor, &b->cursor, sizeof(ClutermCursor));
     snap->cursor.y += b->scroll_offset;
 
     memcpy(&snap->theme, &term->theme, sizeof(Theme));

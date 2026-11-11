@@ -121,8 +121,8 @@ static inline void batch_flush(const BufferLine line)
 static inline void draw_cursor(const Frame *frame)
 {
     const ClutermSnapshot *snap = &frame->snapshot;
+    const ClutermCursor *c      = &snap->cursor;
 
-    const Cursor *c = &snap->cursor;
     if (0 > c->y || c->y >= snap->rows) // scroll_offset.
         return;
 

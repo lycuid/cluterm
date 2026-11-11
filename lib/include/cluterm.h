@@ -116,18 +116,18 @@ typedef enum CursorShape {
     CursorBar
 } CursorShape;
 
-typedef struct Cursor {
+typedef struct ClutermCursor {
     int y, x;
     bool visible : 1;
     CursorStyle style;
     CursorShape shape;
-} Cursor;
+} ClutermCursor;
 
 #define MEMBERS_FRAME_BUFFER                                                   \
     int rows, cols;                                                            \
     BufferLine *lines;                                                         \
     bool *dirty;                                                               \
-    Cursor cursor;
+    ClutermCursor cursor;
 
 typedef struct Box {
     int top, right, bottom, left;

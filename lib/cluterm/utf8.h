@@ -13,9 +13,13 @@ typedef struct UTF8_Decoder {
 } UTF8_Decoder;
 
 typedef enum UTF8DecodeResult {
+    // invalid leading byte.
     UTF8_DECODE_RESULT_INVALID = -1,
+    // invalid continuation byte.
     UTF8_DECODE_RESULT_REJECT,
+    // leading/continuation byte accepted.
     UTF8_DECODE_RESULT_ACCEPT,
+    // utf8 sequence decoding successful.
     UTF8_DECODE_RESULT_SUCCESS,
 } UTF8DecodeResult;
 

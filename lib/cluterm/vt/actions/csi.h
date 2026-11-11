@@ -16,8 +16,8 @@
 
 static inline void csi_tbc(Cluterm *term, CSI_Payload *csi)
 {
-    ClutermBuffer *b = active_buffer(term);
-    Cursor *cursor   = &b->cursor;
+    ClutermBuffer *b      = active_buffer(term);
+    ClutermCursor *cursor = &b->cursor;
 
     switch (csi->param[0]) {
     case 0: {
@@ -32,8 +32,8 @@ static inline void csi_tbc(Cluterm *term, CSI_Payload *csi)
 // cursor position shouldn't change.
 static inline void csi_ed(Cluterm *term, CSI_Payload *csi)
 {
-    ClutermBuffer *b = active_buffer(term);
-    Cursor *cursor   = &b->cursor;
+    ClutermBuffer *b      = active_buffer(term);
+    ClutermCursor *cursor = &b->cursor;
 
     switch (csi->param[0]) {
     case 0: { // clear from cursor to the end of the screen.
@@ -56,8 +56,8 @@ static inline void csi_ed(Cluterm *term, CSI_Payload *csi)
 // cursor position shouldn't change.
 static inline void csi_el(Cluterm *term, CSI_Payload *csi)
 {
-    ClutermBuffer *b = active_buffer(term);
-    Cursor *cursor   = &b->cursor;
+    ClutermBuffer *b      = active_buffer(term);
+    ClutermCursor *cursor = &b->cursor;
 
     switch (csi->param[0]) {
     case 0: { // clear from cursor to the end of the line.
@@ -171,7 +171,7 @@ static inline void csi_dsr(Cluterm *term, CSI_Payload *csi)
 static inline void csi_decscusr(Cluterm *term, CSI_Payload *csi)
 {
     ClutermBuffer *b = active_buffer(term);
-    Cursor *c        = &b->cursor;
+    ClutermCursor *c = &b->cursor;
 
     switch (PARAM(0)) {
     case 0:
@@ -255,8 +255,8 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
 
 EXPORT inline void csi_execute(Cluterm *term, CSI_Payload *csi)
 {
-    ClutermBuffer *b = active_buffer(term);
-    Cursor *cursor   = &b->cursor;
+    ClutermBuffer *b      = active_buffer(term);
+    ClutermCursor *cursor = &b->cursor;
 
     switch (csi->action) {
     case CSI_CUU: move_cursor(b, -PARAM(0), 0); break;

@@ -77,11 +77,11 @@ state DCS_PASSTHROUGH
     default    -> DCS_PASSTHROUGH COLLECT
 
 state DCS_IGNORE
-    range 0x00 0x1f -> GROUND     REPLAY
-    input 0x7f      -> GROUND     REPLAY
-    range 0x80 0x9f -> GROUND     REPLAY
-    range 0x40 0x7e -> GROUND     NONE
-    default         -> DCS_IGNORE NONE
+    input 0x18 -> GROUND      NONE
+    input 0x1a -> GROUND      NONE
+    input 0x9c -> GROUND      NONE
+    input 0x1b -> ST          NONE
+    default    -> DCS_IGNORE  NONE
 
 state ST
     input '\' -> GROUND DISPATCH_ST

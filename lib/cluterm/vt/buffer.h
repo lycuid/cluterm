@@ -18,7 +18,7 @@ typedef struct ClutermBuffer {
 
     int history, last_row, scroll_offset;
     bool *tab;
-    Cursor saved_cursor;
+    ClutermCursor saved_cursor;
     Region scroll_region;
     CellAttributes cell_attrs;
     int charset[4], active_charset;

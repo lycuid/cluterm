@@ -17,6 +17,13 @@ static inline void prepare_csi_payload(VT_Parser *, CSI_Payload *);
 static inline void prepare_osc_payload(VT_Parser *, OSC_Payload *);
 static inline void prepare_dcs_payload(VT_Parser *, DCS_Payload *);
 
+static inline void reset(VT_Parser *vtp)
+{
+    memset(vtp->seq, vtp->nseq, sizeof(vtp->seq));
+    memset(&vtp->payload, 0, sizeof(vtp->payload));
+    vtp->nseq = 0;
+}
+
 void parser_init(VT_Parser *vtp) { transition(vtp, STATE_GROUND); }
 
 void parser_feed(VT_Parser *vtp, const uchar *stream, size_t slen)
@@ -38,7 +45,7 @@ void parser_feed(VT_Parser *vtp, const uchar *stream, size_t slen)
 FSM_Event parser_run(VT_Parser *vtp)
 {
     if (vtp->fsm.dispatching) {
-        memset(&vtp->payload, 0, sizeof(vtp->payload));
+        reset(vtp);
         vtp->fsm.event = EVENT_NOOP;
     }
     vtp->fsm.dispatching = false;
@@ -65,10 +72,10 @@ static inline FSM_State execute(VT_Parser *vtp, uchar input, FSM_Effect effect)
 
         UTF8DecodeResult res = utf8decoder_feed(decoder, input);
         switch (res) {
-        case UTF8_DECODE_RESULT_ACCEPT: break;
         case UTF8_DECODE_RESULT_INVALID: {
             goto dispatch_print;
         }
+        case UTF8_DECODE_RESULT_ACCEPT: break;
         case UTF8_DECODE_RESULT_REJECT: {
             s_rollback(&vtp->scanner);
             goto dispatch_print;
@@ -76,7 +83,6 @@ static inline FSM_State execute(VT_Parser *vtp, uchar input, FSM_Effect effect)
         case UTF8_DECODE_RESULT_SUCCESS: {
         dispatch_print:
             dispatch(vtp, EVENT_PRINT);
-            utf8decoder_reset(decoder);
             return STATE_GROUND;
         }
         }
@@ -89,15 +95,11 @@ static inline FSM_State execute(VT_Parser *vtp, uchar input, FSM_Effect effect)
 
     case FSM_DISPATCH_ESC: {
         vtp->payload.esc.final_byte = input;
-        vtp->payload.esc.interm     = vtp->seq;
-        vtp->payload.esc.ninterm    = vtp->nseq;
         dispatch(vtp, EVENT_ESC);
     } break;
 
     case FSM_DISPATCH_CSI: {
         vtp->payload.csi.final_byte = input;
-        if (vtp->fsm.state == STATE_CSI_INTERM)
-            vtp->payload.csi.ninterm = vtp->nseq - vtp->payload.csi.ninterm;
         dispatch(vtp, EVENT_CSI);
     } break;
 
@@ -126,7 +128,18 @@ static inline void collect(VT_Parser *vtp, uchar input)
     case STATE_DCS_FINAL: {
         vtp->payload.dcs.final_byte = input;
     } break;
+    case STATE_ESC_INTERM: {
+        if (vtp->nseq < sizeof(vtp->seq))
+            vtp->payload.esc.ninterm++;
+        goto collect;
+    } break;
+    case STATE_CSI_INTERM: {
+        if (vtp->nseq < sizeof(vtp->seq))
+            vtp->payload.csi.ninterm++;
+        goto collect;
+    } break;
     default: {
+    collect:
         if (vtp->nseq < sizeof(vtp->seq))
             vtp->seq[vtp->nseq++] = input;
     } break;
@@ -188,16 +201,14 @@ static inline void transition(VT_Parser *vtp, FSM_State next_state)
 
     switch (vtp->fsm.state = next_state) { // on Enter.
     case STATE_UTF8_DECODE: {
-        vtp->utf8_decoder.rune = 0;
+        utf8decoder_reset(&vtp->utf8_decoder);
     } break;
     case STATE_ESC: {
-        memset(vtp->seq, vtp->nseq = 0, sizeof(vtp->seq));
+        reset(vtp);
+        vtp->payload.esc.interm = vtp->seq;
     } break;
     case STATE_CSI_INTERM: {
-        // @NOTE: marking the beginning of the interm sequence, would be used
-        // later while dispatching csi in 'FSM_DISPATCH_CSI' action.
-        vtp->payload.csi.interm  = vtp->seq + vtp->nseq;
-        vtp->payload.csi.ninterm = vtp->nseq;
+        vtp->payload.csi.interm = vtp->seq + vtp->nseq;
     } break;
     default: break;
     }
