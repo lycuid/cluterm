@@ -6,8 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define first_row(b)  (MAX(0, (b)->last_row - (b)->rows) % line_cnt(b))
-#define line_at(b, y) ((b)->lines[(first_row(b) + (y)) % line_cnt(b)])
+#define line_at(b, y) ((b)->lines[(viewport_row(b, 0) + (y)) % line_cnt(b)])
 
 // making sure b->last_row => [line_cnt, 2*line_cnt), once it exceeds line_cnt.
 #define adjust(b)                                                              \
@@ -21,6 +20,7 @@ void buffer_init(ClutermBuffer *b, int history, const Config *cfg)
     b->rows          = cfg->rows;
     b->cols          = cfg->cols;
     b->history       = history;
+    b->last_row      = b->rows;
     b->scroll_offset = 0;
     b->scroll_region = (Region){0, b->rows - 1};
     b->tab           = calloc(b->cols + 1, sizeof(bool));
@@ -44,7 +44,7 @@ void buffer_init(ClutermBuffer *b, int history, const Config *cfg)
     for (int y = 0; y < line_cnt(b); ++y)
         b->lines[y] = line_new(b->cols);
     b->dirty = malloc(cfg->rows * cfg->cols * sizeof(bool));
-    clear(b);
+    clearscreen(b);
 }
 
 void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
@@ -67,7 +67,7 @@ void buffer_resize(ClutermBuffer *b, const Config *cfg, int rows, int cols)
     b->scroll_offset = 0;
     b->scroll_region = (Region){0, rows - 1};
     b->cursor.y      = MIN(b->cursor.y, rows - 1);
-    b->cursor.x      = MIN(b->cursor.x, cols - 1);
+    b->cursor.x      = MIN(b->cursor.x, cols);
 
     b->tab = realloc(b->tab, (b->cols + 1) * sizeof(*b->tab));
     memset(b->tab, 0, (b->cols + 1) * sizeof(*b->tab));
@@ -121,6 +121,13 @@ void clearbox(ClutermBuffer *b, int y0, int x0, int y1, int x1)
 {
     for (; y0 <= y1; ++y0)
         clearline(b, y0, x0, x1);
+}
+
+void clearscreen(ClutermBuffer *b)
+{
+    addlines(b, b->cursor.y);
+    clearbox(b, 0, 0, b->rows - 1, b->cols - 1);
+    move_cursor_to(b, 0, 0);
 }
 
 void addlines(ClutermBuffer *b, int lines)
@@ -193,8 +200,8 @@ static inline void insert_delete_chars(ClutermBuffer *b, int count, bool insert)
 {
     dirty_line(b, b->cursor.y);
     Cell *xptr = line_at(b, b->cursor.y)->cells + b->cursor.x;
-    int dx     = MIN(b->cols - 1 - b->cursor.x, count),
-        shift  = b->cols - 1 - b->cursor.x - dx;
+    int dx     = MIN(b->cols - b->cursor.x, count),
+        shift  = b->cols - b->cursor.x - dx;
 
     insert ? memmove(xptr + dx, xptr, shift * sizeof(Cell))
            : memmove(xptr, xptr + dx, shift * sizeof(Cell));

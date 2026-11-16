@@ -24,7 +24,6 @@ typedef struct ClutermBuffer {
     int charset[4], active_charset;
 } ClutermBuffer;
 
-#define clear(b)             addlines(b, ((b)->cursor.x = 0) + (b)->rows)
 #define scrollup(b, count)   scrollup_rel(b, count, (b)->scroll_region.start)
 #define scrolldown(b, count) scrolldown_rel(b, count, (b)->scroll_region.start)
 
@@ -53,6 +52,8 @@ void putcell(ClutermBuffer *, int, int, Cell);
 void clearline(ClutermBuffer *, int, int, int);
 // clear box from '(y0, x0)' to '(y1, x1)'.
 void clearbox(ClutermBuffer *, int, int, int, int);
+// clear entire screen.
+void clearscreen(ClutermBuffer *);
 // adds 'n' lines.
 void addlines(ClutermBuffer *, int);
 void scrollup_rel(ClutermBuffer *, int, int);

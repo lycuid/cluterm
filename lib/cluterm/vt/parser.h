@@ -1,7 +1,7 @@
 #ifndef __CLUTERM__VT__PARSER_H__
 #define __CLUTERM__VT__PARSER_H__
 
-#include "fsm.h"
+#include "fsm/generated.h"
 #include <cluterm/utf8.h>
 #include <cluterm/vt/actions.h>
 #include <include/cluterm/scanner.h>

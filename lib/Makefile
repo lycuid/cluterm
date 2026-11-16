@@ -22,11 +22,6 @@ $(LIB): $(O_FILES); @mkdir -p $(@D)
 $(O_DIR)/%.o: $(I_DIR)/%.c $(I_DIR)/%.h ; @mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(O_FILES): $(I_DIR)/$(NAME)/vt/fsm.h
-
-$(I_DIR)/$(NAME)/vt/fsm.h: $(I_DIR)/$(NAME)/vt/fsm.def
-	python $(I_DIR)/$(NAME)/vt/fsm_gen.py < $< > $@
-
 .PHONY: clean compile_flags
 clean: ; rm -rf $(BUILD)
 compile_flags: ; @echo $(CFLAGS) | tr ' ' '\n' > compile_flags.txt

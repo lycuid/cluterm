@@ -44,11 +44,10 @@ static inline void csi_ed(Cluterm *term, CSI_Payload *csi)
         clearline(b, cursor->y, 0, cursor->x);
         clearbox(b, 0, 0, cursor->y - 1, b->cols - 1);
     } break;
-    case 2:
-        clear(b);
-        break; // clear the entire screen.
+    // clear the entire screen.
+    case 2: clearscreen(b); break;
     // clear the entire screen and reset scrollback buffer.
-    case 3: clear(b); break;
+    case 3: clearscreen(b); break;
     default: break;
     }
 }
@@ -239,7 +238,7 @@ static inline void csi_decmode(Cluterm *term, CSI_Payload *csi, bool is_decset)
             if (is_decset) {
                 save_cursor(b);
                 SET(term->mode, MODE_ALT_BUFFER);
-                clear(&term->buffer[1]);
+                clearscreen(&term->buffer[1]);
             } else {
                 UNSET(term->mode, MODE_ALT_BUFFER);
                 restore_cursor(b);
