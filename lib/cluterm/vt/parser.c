@@ -1,4 +1,3 @@
-// vim:fdm=marker
 #include "parser.h"
 #include <cluterm/utf8.h>
 #include <include/cluterm/debug.h>
@@ -468,3 +467,5 @@ static inline void prepare_dcs_payload(VT_Parser *vtp, DCS_Payload *dcs)
     dcs->nseq = vtp->nseq;
     // @TODO: unimplemented.
 }
+
+// vim:fdm=marker

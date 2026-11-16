@@ -1,0 +1,10 @@
+-Wall
+-Wextra
+-Wvla
+-pedantic
+-std=c11
+-DNAME="cluterm"
+-DVERSION="0.1.0"
+-D_GNU_SOURCE
+-I.
+-I../../lib/include

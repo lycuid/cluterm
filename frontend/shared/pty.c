@@ -57,10 +57,10 @@ void pty_spawn(pty_t *pty, char *const *cmd)
 void pty_resize(pty_t *pty, int rows, int cols)
 {
     const struct winsize size = {.ws_row = rows, .ws_col = cols};
-    debug_var int r_master    = ioctl(pty->ptmx, TIOCSWINSZ, &size);
-    debug_var int r_slave     = kill(pty->shell, SIGWINCH);
+    debug_var int res_master  = ioctl(pty->ptmx, TIOCSWINSZ, &size);
+    debug_var int res_slave   = kill(pty->shell, SIGWINCH);
 
-    debug_1("resize: master(%d) slave(%d).\n", r_master, r_slave);
+    debug_1("resize: master(%d) slave(%d).\n", res_master, res_slave);
     debug_1("pty resized to %dx%d.\n", cols, rows);
 }
 

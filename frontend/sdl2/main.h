@@ -7,12 +7,6 @@
 #include <cluterm.h>
 #include <stdbool.h>
 
-#define die(code, ...)                                                         \
-    do {                                                                       \
-        debug(__VA_ARGS__);                                                    \
-        exit(code);                                                            \
-    } while (0)
-
 typedef struct Dpi {
     float d, h, v;
 } Dpi;

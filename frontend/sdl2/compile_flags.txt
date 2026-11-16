@@ -7,6 +7,7 @@
 -DVERSION="0.1.0"
 -D_XOPEN_SOURCE=700
 -I.
+-I../shared
 -I../../lib/include
 -I/usr/include/SDL2
 -D_GNU_SOURCE=1

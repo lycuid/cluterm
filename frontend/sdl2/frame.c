@@ -5,6 +5,7 @@
 #include <cluterm.h>
 #include <cluterm/colors.h>
 #include <cluterm/debug.h>
+#include <shared.h>
 
 static struct {
     int y, x, len;

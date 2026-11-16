@@ -1,8 +1,7 @@
 #include "args.h"
 #include "../../default_config.h"
-#include "main.h"
+#include "shared.h"
 #include <cluterm/colors.h>
-#include <cluterm/debug.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -75,7 +74,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
                 break;
             int cols;
             if (sscanf(*++argv, "%dx%d", &cols, &cfg->rows) != 2)
-                debug("Invalid geometry: '%s'.\n", *argv);
+                printf("Invalid geometry: '%s'.\n", *argv);
             else
                 cfg->cols = cols;
             continue;
@@ -92,7 +91,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
             else if (strcmp(shape, "bar") == 0)
                 cfg->cursor_shape = CursorBar;
             else
-                debug("Invalid cursor shape: '%s'.\n", *argv);
+                printf("Invalid cursor shape: '%s'.\n", *argv);
             continue;
         }
 
@@ -107,7 +106,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
             ++argv;
             Scanner s = SCANNER((const uchar *)*argv, strlen(*argv));
             if (!parse_rgb(&s, &cfg->theme.fg))
-                debug("Invalid color format: '%s'.\n", *argv);
+                printf("Invalid color format: '%s'.\n", *argv);
             continue;
         }
 
@@ -117,7 +116,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
             ++argv;
             Scanner s = SCANNER((const uchar *)*argv, strlen(*argv));
             if (!parse_rgb(&s, &cfg->theme.bg))
-                debug("Invalid color format: '%s'.\n", *argv);
+                printf("Invalid color format: '%s'.\n", *argv);
             continue;
         }
 
@@ -125,7 +124,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
             if (--argc <= 0)
                 break;
             if (sscanf(*++argv, "%d", &cfg->tab_width) != 1)
-                debug("Invalid tab width: '%s'.\n", *argv);
+                printf("Invalid tab width: '%s'.\n", *argv);
             continue;
         }
 
@@ -133,7 +132,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
             if (--argc <= 0)
                 break;
             if (sscanf(*++argv, "%d", &cfg->padding.top) != 1)
-                debug("Invalid top padding value: '%s'.\n", *argv);
+                printf("Invalid top padding value: '%s'.\n", *argv);
             continue;
         }
 
@@ -141,7 +140,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
             if (--argc <= 0)
                 break;
             if (sscanf(*++argv, "%d", &cfg->padding.right) != 1)
-                debug("Invalid right padding value: '%s'.\n", *argv);
+                printf("Invalid right padding value: '%s'.\n", *argv);
             continue;
         }
 
@@ -149,7 +148,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
             if (--argc <= 0)
                 break;
             if (sscanf(*++argv, "%d", &cfg->padding.bottom) != 1)
-                debug("Invalid bottom padding value: '%s'.\n", *argv);
+                printf("Invalid bottom padding value: '%s'.\n", *argv);
             continue;
         }
 
@@ -157,7 +156,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
             if (--argc <= 0)
                 break;
             if (sscanf(*++argv, "%d", &cfg->padding.left) != 1)
-                debug("Invalid left padding value: '%s'.\n", *argv);
+                printf("Invalid left padding value: '%s'.\n", *argv);
             continue;
         }
 
@@ -172,7 +171,7 @@ char *const *args_parse(int argc, char *const *argv, Config *cfg)
             if (--argc <= 0)
                 break;
             if (sscanf(*++argv, "%d", &cfg->font_size) != 1)
-                debug("Invalid font size: '%s'.\n", *argv);
+                printf("Invalid font size: '%s'.\n", *argv);
             continue;
         }
 

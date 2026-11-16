@@ -1,15 +1,13 @@
 #include "main.h"
-#include "SDL_keyboard.h"
-#include "SDL_mutex.h"
-#include "SDL_video.h"
-#include "args.h"
 #include "glyph_cache.h"
 #include "handlers/keypress.h"
-#include "pty.h"
 #include <SDL2/SDL.h>
+#include <args.h>
 #include <cluterm.h>
 #include <cluterm/debug.h>
 #include <fontconfig/fontconfig.h>
+#include <pty.h>
+#include <shared.h>
 #include <signal.h>
 #include <stdatomic.h>
 #include <sys/wait.h>
@@ -45,16 +43,16 @@ static inline void get_mouse_button(ClutermMouse *mouse,
 {
 
     memset(mouse, 0, sizeof(ClutermMouse));
-    mouse->button = button->button == SDL_BUTTON_LEFT     ? CLUTERM_MOUSE_LEFT
-                    : button->button == SDL_BUTTON_MIDDLE ? CLUTERM_MOUSE_MIDDLE
-                    : button->button == SDL_BUTTON_RIGHT  ? CLUTERM_MOUSE_RIGHT
+    mouse->button  = button->button == SDL_BUTTON_LEFT ? CLUTERM_MOUSE_LEFT
+                     : button->button == SDL_BUTTON_MIDDLE ? CLUTERM_MOUSE_MIDDLE
+                     : button->button == SDL_BUTTON_RIGHT ? CLUTERM_MOUSE_RIGHT
                                                           : 0;
-    int y         = button->y - gfx->config->padding.top,
-        x         = button->x - gfx->config->padding.left;
-    mouse->y      = y;
-    mouse->x      = x;
-    mouse->gridy  = y / ctx.f_height;
-    mouse->gridx  = x / ctx.f_width;
+    int y          = button->y - gfx->config->padding.top,
+        x          = button->x - gfx->config->padding.left;
+    mouse->y       = y;
+    mouse->x       = x;
+    mouse->gridy   = y / ctx.f_height;
+    mouse->gridx   = x / ctx.f_width;
     mouse->pressed = button->state == SDL_PRESSED;
 }
 
@@ -351,11 +349,11 @@ int main(int argc, char *const *argv)
 
                 case SDL_WINDOWEVENT_SIZE_CHANGED: {
                     resz.rows    = MAX((win->data2 - ctx.config->padding.top -
-                                        ctx.config->padding.bottom) /
+                                     ctx.config->padding.bottom) /
                                            ctx.f_height,
                                        10),
                     resz.cols    = MAX((win->data1 - ctx.config->padding.left -
-                                        ctx.config->padding.right) /
+                                     ctx.config->padding.right) /
                                            ctx.f_width,
                                        10);
                     resz.pending = 1;
